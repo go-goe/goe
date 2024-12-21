@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/olauro/goe"
+	"github.com/olauro/goe/jn"
 	"github.com/olauro/goe/wh"
 )
 
@@ -278,7 +279,7 @@ func TestPostgresSelect(t *testing.T) {
 
 				e = nil
 				err = db.Select(db.Exam).From(db.Exam).
-					Where(wh.Greater(&db.Exam.Score, 5.5)).
+					Where(wh.Greater(&db.Exam.Score, float32(5.5))).
 					Scan(&e)
 				if err != nil {
 					t.Fatalf("Expected a select, got error: %v", err)
@@ -304,7 +305,7 @@ func TestPostgresSelect(t *testing.T) {
 
 				e = nil
 				err = db.Select(db.Exam).From(db.Exam).
-					Where(wh.GreaterEquals(&db.Exam.Score, 5.5)).
+					Where(wh.GreaterEquals(&db.Exam.Score, float32(5.5))).
 					Scan(&e)
 				if err != nil {
 					t.Fatalf("Expected a select, got error: %v", err)
@@ -330,7 +331,7 @@ func TestPostgresSelect(t *testing.T) {
 
 				e = nil
 				err = db.Select(db.Exam).From(db.Exam).
-					Where(wh.Less(&db.Exam.Score, 5.5)).
+					Where(wh.Less(&db.Exam.Score, float32(5.5))).
 					Scan(&e)
 				if err != nil {
 					t.Fatalf("Expected a select, got error: %v", err)
@@ -356,7 +357,7 @@ func TestPostgresSelect(t *testing.T) {
 
 				e = nil
 				err = db.Select(db.Exam).From(db.Exam).
-					Where(wh.LessEquals(&db.Exam.Score, 5.5)).
+					Where(wh.LessEquals(&db.Exam.Score, float32(5.5))).
 					Scan(&e)
 				if err != nil {
 					t.Fatalf("Expected a select, got error: %v", err)
@@ -398,7 +399,7 @@ func TestPostgresSelect(t *testing.T) {
 			desc: "Select_Where_Equals_Nil",
 			testCase: func(t *testing.T) {
 				var a []Animal
-				err = db.Select(db.Animal).From(db.Animal).Where(wh.Equals(&db.Animal.IdHabitat, nil)).Scan(&a)
+				err = db.Select(db.Animal).From(db.Animal).Where(wh.Equals[*uuid.UUID](&db.Animal.IdHabitat, nil)).Scan(&a)
 				if err != nil {
 					t.Fatalf("Expected a select, got error: %v", err)
 				}
@@ -411,7 +412,8 @@ func TestPostgresSelect(t *testing.T) {
 			desc: "Select_Where_NotEquals_Nil",
 			testCase: func(t *testing.T) {
 				var a []Animal
-				err = db.Select(db.Animal).From(db.Animal).Where(wh.NotEquals(&db.Animal.IdInfo, nil)).Scan(&a)
+				var bb *[]byte
+				err = db.Select(db.Animal).From(db.Animal).Where(wh.NotEquals(&db.Animal.IdInfo, bb)).Scan(&a)
 				if err != nil {
 					t.Fatalf("Expected a select, got error: %v", err)
 				}
@@ -532,8 +534,10 @@ func TestPostgresSelect(t *testing.T) {
 				var a []Animal
 				err = db.Select(db.Animal).
 					From(db.Animal).
-					Join(&db.Animal.Id, &db.AnimalFood.IdAnimal).
-					Join(&db.Food.Id, &db.AnimalFood.IdFood).
+					Joins(
+						jn.Join[int](&db.Animal.Id, &db.AnimalFood.IdAnimal),
+						jn.Join[uuid.UUID](&db.Food.Id, &db.AnimalFood.IdFood),
+					).
 					Scan(&a)
 				if err != nil {
 					t.Errorf("Expected a select, got error: %v", err)
@@ -574,8 +578,10 @@ func TestPostgresSelect(t *testing.T) {
 				var f []Food
 				err = db.Select(db.Food).
 					From(db.Food).
-					Join(&db.Food.Id, &db.AnimalFood.IdFood).
-					Join(&db.Animal.Id, &db.AnimalFood.IdAnimal).
+					Joins(
+						jn.Join[uuid.UUID](&db.Food.Id, &db.AnimalFood.IdFood),
+						jn.Join[int](&db.Animal.Id, &db.AnimalFood.IdAnimal),
+					).
 					Where(
 						wh.Equals(&db.Animal.Name, animals[0].Name)).Scan(&f)
 				if err != nil {
@@ -595,8 +601,10 @@ func TestPostgresSelect(t *testing.T) {
 				var f []Food
 				err = db.Select(db.Food).
 					From(db.Food).
-					Join(&db.Food.Id, &db.AnimalFood.IdFood).
-					Join(&db.Animal.Id, &db.AnimalFood.IdAnimal).
+					Joins(
+						jn.Join[uuid.UUID](&db.Food.Id, &db.AnimalFood.IdFood),
+						jn.Join[int](&db.Animal.Id, &db.AnimalFood.IdAnimal),
+					).
 					Where(
 						wh.Equals(&db.Animal.Name, animals[0].Name),
 						wh.And(),
@@ -616,8 +624,10 @@ func TestPostgresSelect(t *testing.T) {
 				var f []Food
 				err = db.Select(db.Food).
 					From(db.Food).
-					Join(&db.Food.Id, &db.AnimalFood.IdFood).
-					Join(&db.Animal.Id, &db.AnimalFood.IdAnimal).
+					Joins(
+						jn.Join[uuid.UUID](&db.AnimalFood.IdFood, &db.Food.Id),
+						jn.Join[int](&db.AnimalFood.IdAnimal, &db.Animal.Id),
+					).
 					Where(
 						wh.Equals(&db.Animal.Name, animals[0].Name),
 						wh.And(),
@@ -637,8 +647,10 @@ func TestPostgresSelect(t *testing.T) {
 				var f []Food
 				err = db.Select(db.Food).
 					From(db.Food).
-					Join(&db.Food.Id, &db.AnimalFood.IdFood).
-					Join(&db.Animal.Id, &db.AnimalFood.IdAnimal).
+					Joins(
+						jn.Join[uuid.UUID](&db.Food.Id, &db.AnimalFood.IdFood),
+						jn.Join[int](&db.Animal.Id, &db.AnimalFood.IdAnimal),
+					).
 					Where(
 						wh.Equals(&db.Animal.Name, animals[0].Name),
 						wh.And(),
@@ -658,8 +670,10 @@ func TestPostgresSelect(t *testing.T) {
 				var a []Animal
 				err = db.Select(db.Animal).
 					From(db.Animal).
-					Join(&db.Animal.Id, &db.AnimalFood.IdAnimal).
-					Join(&db.Food.Id, &db.AnimalFood.IdFood).
+					Joins(
+						jn.Join[int](&db.Animal.Id, &db.AnimalFood.IdAnimal),
+						jn.Join[uuid.UUID](&db.Food.Id, &db.AnimalFood.IdFood),
+					).
 					OrderByAsc(&db.Animal.Id).Scan(&a)
 				if err != nil {
 					t.Errorf("Expected a select, got error: %v", err)
@@ -675,8 +689,10 @@ func TestPostgresSelect(t *testing.T) {
 				var a []Animal
 				err = db.Select(db.Animal).
 					From(db.Animal).
-					Join(&db.Animal.Id, &db.AnimalFood.IdAnimal).
-					Join(&db.Food.Id, &db.AnimalFood.IdFood).
+					Joins(
+						jn.Join[int](&db.Animal.Id, &db.AnimalFood.IdAnimal),
+						jn.Join[uuid.UUID](&db.Food.Id, &db.AnimalFood.IdFood),
+					).
 					OrderByDesc(&db.Animal.Id).Scan(&a)
 				if err != nil {
 					t.Errorf("Expected a select, got error: %v", err)
@@ -692,8 +708,10 @@ func TestPostgresSelect(t *testing.T) {
 				var a []Animal
 				err = db.Select(db.Animal).
 					From(db.Animal).
-					Join(&db.Animal.Id, &db.AnimalFood.IdAnimal).
-					Join(&db.Food.Id, &db.AnimalFood.IdFood).
+					Joins(
+						jn.Join[int](&db.Animal.Id, &db.AnimalFood.IdAnimal),
+						jn.Join[uuid.UUID](&db.Food.Id, &db.AnimalFood.IdFood),
+					).
 					Where(
 						wh.Equals(&db.Food.Id, foods[0].Id),
 					).OrderByAsc(&db.Animal.Id).Scan(&a)
@@ -714,8 +732,10 @@ func TestPostgresSelect(t *testing.T) {
 				var a []Animal
 				err = db.Select(db.Animal).
 					From(db.Animal).
-					Join(&db.Animal.Id, &db.AnimalFood.IdAnimal).
-					Join(&db.Food.Id, &db.AnimalFood.IdFood).
+					Joins(
+						jn.Join[int](&db.Animal.Id, &db.AnimalFood.IdAnimal),
+						jn.Join[uuid.UUID](&db.Food.Id, &db.AnimalFood.IdFood),
+					).
 					Where(
 						wh.Equals(&db.Food.Id, foods[0].Id),
 					).OrderByDesc(&db.Animal.Id).Scan(&a)
@@ -734,7 +754,11 @@ func TestPostgresSelect(t *testing.T) {
 			desc: "Select_Join_Many_To_One",
 			testCase: func(t *testing.T) {
 				var a []Animal
-				err = db.Select(db.Animal).From(db.Animal).Join(&db.Animal.IdHabitat, &db.Habitat.Id).OrderByAsc(&db.Animal.Id).Scan(&a)
+				err = db.Select(db.Animal).From(db.Animal).
+					Joins(
+						jn.Join[uuid.UUID](&db.Animal.IdHabitat, &db.Habitat.Id),
+					).
+					OrderByAsc(&db.Animal.Id).Scan(&a)
 				if err != nil {
 					t.Errorf("Expected a select, got error: %v", err)
 				}
@@ -749,7 +773,11 @@ func TestPostgresSelect(t *testing.T) {
 			desc: "Select_Inverted_Join_Many_To_One",
 			testCase: func(t *testing.T) {
 				var a []Animal
-				err = db.Select(db.Animal).From(db.Animal).Join(&db.Habitat.Id, &db.Animal.IdHabitat).OrderByAsc(&db.Animal.Id).Scan(&a)
+				err = db.Select(db.Animal).From(db.Animal).
+					Joins(
+						jn.Join[uuid.UUID](&db.Habitat.Id, &db.Animal.IdHabitat),
+					).
+					OrderByAsc(&db.Animal.Id).Scan(&a)
 				if err != nil {
 					t.Errorf("Expected a select, got error: %v", err)
 				}
@@ -764,7 +792,11 @@ func TestPostgresSelect(t *testing.T) {
 			desc: "Select_Left_Join_Many_To_One",
 			testCase: func(t *testing.T) {
 				var a []Animal
-				err = db.Select(db.Animal).From(db.Animal).LeftJoin(&db.Habitat.Id, &db.Animal.IdHabitat).OrderByAsc(&db.Animal.Id).Scan(&a)
+				err = db.Select(db.Animal).From(db.Animal).
+					Joins(
+						jn.LeftJoin[uuid.UUID](&db.Habitat.Id, &db.Animal.IdHabitat),
+					).
+					OrderByAsc(&db.Animal.Id).Scan(&a)
 				if err != nil {
 					t.Errorf("Expected a select, got error: %v", err)
 				}
@@ -782,9 +814,12 @@ func TestPostgresSelect(t *testing.T) {
 				var f []Food
 				err = db.Select(db.Food).
 					From(db.Food).
-					Join(&db.Food.Id, &db.AnimalFood.IdFood).
-					Join(&db.Animal.Id, &db.AnimalFood.IdAnimal).
-					Join(&db.Animal.IdHabitat, &db.Habitat.Id).Where(wh.Equals(&db.Habitat.Id, habitats[0].Id)).
+					Joins(
+						jn.Join[uuid.UUID](&db.Food.Id, &db.AnimalFood.IdFood),
+						jn.Join[int](&db.Animal.Id, &db.AnimalFood.IdAnimal),
+						jn.Join[uuid.UUID](&db.Animal.IdHabitat, &db.Habitat.Id),
+					).
+					Where(wh.Equals(&db.Habitat.Id, habitats[0].Id)).
 					Scan(&f)
 				if err != nil {
 					t.Errorf("Expected a select, got error: %v", err)
@@ -798,7 +833,11 @@ func TestPostgresSelect(t *testing.T) {
 			desc: "Select_Join_One_To_One",
 			testCase: func(t *testing.T) {
 				var a []Animal
-				err = db.Select(db.Animal).From(db.Animal).Join(&db.Animal.IdInfo, &db.Info.Id).Scan(&a)
+				err = db.Select(db.Animal).From(db.Animal).
+					Joins(
+						jn.Join[[]byte](&db.Animal.IdInfo, &db.Info.Id),
+					).
+					Scan(&a)
 				if err != nil {
 					t.Errorf("Expected a select, got error: %v", err)
 				}
@@ -811,7 +850,11 @@ func TestPostgresSelect(t *testing.T) {
 			desc: "Select_Inverted_Join_One_To_One",
 			testCase: func(t *testing.T) {
 				var a []Animal
-				err = db.Select(db.Animal).From(db.Animal).Join(&db.Info.Id, &db.Animal.IdInfo).Scan(&a)
+				err = db.Select(db.Animal).From(db.Animal).
+					Joins(
+						jn.Join[[]byte](&db.Info.Id, &db.Animal.IdInfo),
+					).
+					Scan(&a)
 				if err != nil {
 					t.Errorf("Expected a select, got error: %v", err)
 				}
@@ -826,9 +869,11 @@ func TestPostgresSelect(t *testing.T) {
 				var a []Animal
 				err = db.Select(db.Animal).
 					From(db.Animal).
-					Join(&db.Animal.IdInfo, &db.Info.Id).
-					Join(&db.Animal.Id, &db.AnimalFood.IdAnimal).
-					Join(&db.Food.Id, &db.AnimalFood.IdFood).
+					Joins(
+						jn.Join[[]byte](&db.Animal.IdInfo, &db.Info.Id),
+						jn.Join[int](&db.Animal.Id, &db.AnimalFood.IdAnimal),
+						jn.Join[uuid.UUID](&db.Food.Id, &db.AnimalFood.IdFood),
+					).
 					Where(wh.Equals(&db.Food.Id, foods[0].Id)).Scan(&a)
 				if err != nil {
 					t.Errorf("Expected a select, got error: %v", err)
@@ -844,9 +889,11 @@ func TestPostgresSelect(t *testing.T) {
 				var i []Info
 				err = db.Select(db.Info).
 					From(db.Info).
-					Join(&db.Animal.IdInfo, &db.Info.Id).
-					Join(&db.Animal.Id, &db.AnimalFood.IdAnimal).
-					Join(&db.Food.Id, &db.AnimalFood.IdFood).
+					Joins(
+						jn.Join[[]byte](&db.Animal.IdInfo, &db.Info.Id),
+						jn.Join[int](&db.Animal.Id, &db.AnimalFood.IdAnimal),
+						jn.Join[uuid.UUID](&db.Food.Id, &db.AnimalFood.IdFood),
+					).
 					Where(wh.Equals(&db.Food.Id, foods[0].Id)).Scan(&i)
 				if err != nil {
 					t.Errorf("Expected a select, got error: %v", err)
@@ -862,9 +909,11 @@ func TestPostgresSelect(t *testing.T) {
 				var i []Info
 				err = db.Select(db.Info).
 					From(db.Info).
-					Join(&db.Animal.IdInfo, &db.Info.Id).
-					Join(&db.Animal.Id, &db.AnimalFood.IdAnimal).
-					Join(&db.Food.Id, &db.AnimalFood.IdFood).
+					Joins(
+						jn.Join[[]byte](&db.Info.Id, &db.Animal.IdInfo),
+						jn.Join[int](&db.AnimalFood.IdAnimal, &db.Animal.Id),
+						jn.Join[uuid.UUID](&db.AnimalFood.IdFood, &db.Food.Id),
+					).
 					Where(wh.Equals(&db.Food.Id, foods[0].Id)).Scan(&i)
 				if err != nil {
 					t.Errorf("Expected a select, got error: %v", err)
@@ -880,9 +929,13 @@ func TestPostgresSelect(t *testing.T) {
 				var s []Info
 				err = db.Select(db.Info).
 					From(db.Info).
-					Join(&db.Status.Id, &db.Info.IdStatus).Join(&db.Animal.IdInfo, &db.Info.Id).
-					Join(&db.Animal.Id, &db.AnimalFood.IdAnimal).
-					Join(&db.Food.Id, &db.AnimalFood.IdFood).Where(wh.Equals(&db.Food.Id, foods[0].Id)).Scan(&s)
+					Joins(
+						jn.Join[int](&db.Status.Id, &db.Info.IdStatus),
+						jn.Join[[]byte](&db.Animal.IdInfo, &db.Info.Id),
+						jn.Join[int](&db.Animal.Id, &db.AnimalFood.IdAnimal),
+						jn.Join[uuid.UUID](&db.Food.Id, &db.AnimalFood.IdFood),
+					).
+					Where(wh.Equals(&db.Food.Id, foods[0].Id)).Scan(&s)
 				if err != nil {
 					t.Errorf("Expected a select, got error: %v", err)
 				}
@@ -897,9 +950,13 @@ func TestPostgresSelect(t *testing.T) {
 				var s []Status
 				err = db.Select(db.Status).
 					From(db.Status).
-					Join(&db.Info.IdStatus, &db.Status.Id).Join(&db.Info.Id, &db.Animal.IdInfo).
-					Join(&db.Animal.Id, &db.AnimalFood.IdAnimal).
-					Join(&db.Food.Id, &db.AnimalFood.IdFood).Where(wh.Equals(&db.Food.Id, foods[0].Id)).Scan(&s)
+					Joins(
+						jn.Join[int](&db.Info.IdStatus, &db.Status.Id),
+						jn.Join[[]byte](&db.Info.Id, &db.Animal.IdInfo),
+						jn.Join[int](&db.Animal.Id, &db.AnimalFood.IdAnimal),
+						jn.Join[uuid.UUID](&db.Food.Id, &db.AnimalFood.IdFood),
+					).
+					Where(wh.Equals(&db.Food.Id, foods[0].Id)).Scan(&s)
 				if err != nil {
 					t.Errorf("Expected a select, got error: %v", err)
 				}
@@ -914,9 +971,13 @@ func TestPostgresSelect(t *testing.T) {
 				var s []Status
 				err = db.Select(db.Status).
 					From(db.Status).
-					Join(&db.Status.Id, &db.Info.IdStatus).Join(&db.Animal.IdInfo, &db.Info.Id).
-					Join(&db.Animal.Id, &db.AnimalFood.IdAnimal).
-					Join(&db.Food.Id, &db.AnimalFood.IdFood).Where(wh.Equals(&db.Food.Id, foods[0].Id)).Scan(&s)
+					Joins(
+						jn.Join[int](&db.Status.Id, &db.Info.IdStatus),
+						jn.Join[[]byte](&db.Animal.IdInfo, &db.Info.Id),
+						jn.Join[int](&db.AnimalFood.IdAnimal, &db.Animal.Id),
+						jn.Join[uuid.UUID](&db.AnimalFood.IdFood, &db.Food.Id),
+					).
+					Where(wh.Equals(&db.Food.Id, foods[0].Id)).Scan(&s)
 				if err != nil {
 					t.Errorf("Expected a select, got error: %v", err)
 				}
@@ -931,8 +992,10 @@ func TestPostgresSelect(t *testing.T) {
 				var a []Animal
 				err = db.Select(db.Animal).
 					From(db.Animal).
-					Join(&db.Animal.IdHabitat, &db.Habitat.Id).
-					Join(&db.Habitat.IdWeather, &db.Weather.Id).
+					Joins(
+						jn.Join[uuid.UUID](&db.Animal.IdHabitat, &db.Habitat.Id),
+						jn.Join[int](&db.Habitat.IdWeather, &db.Weather.Id),
+					).
 					Where(wh.Equals(&db.Weather.Id, weathers[3].Id)).Scan(&a)
 				if err != nil {
 					t.Errorf("Expected a select, got error: %v", err)
@@ -948,8 +1011,10 @@ func TestPostgresSelect(t *testing.T) {
 				var w []Weather
 				err = db.Select(db.Weather).
 					From(db.Weather).
-					Join(&db.Weather.Id, &db.Habitat.IdWeather).
-					Join(&db.Habitat.Id, &db.Animal.IdHabitat).
+					Joins(
+						jn.Join[int](&db.Weather.Id, &db.Habitat.IdWeather),
+						jn.Join[uuid.UUID](&db.Habitat.Id, &db.Animal.IdHabitat),
+					).
 					Where(wh.Equals(&db.Animal.Id, animals[0].Id)).Scan(&w)
 				if err != nil {
 					t.Errorf("Expected a select, got error: %v", err)
@@ -964,8 +1029,12 @@ func TestPostgresSelect(t *testing.T) {
 			testCase: func(t *testing.T) {
 				var a []Animal
 				var pageSize uint = 2
-				err = db.Select(db.Animal).From(db.Animal).Join(&db.Animal.Id, &db.AnimalFood.IdAnimal).
-					Join(&db.Food.Id, &db.AnimalFood.IdFood).Page(1, pageSize).Scan(&a)
+				err = db.Select(db.Animal).From(db.Animal).
+					Joins(
+						jn.Join[int](&db.Animal.Id, &db.AnimalFood.IdAnimal),
+						jn.Join[uuid.UUID](&db.Food.Id, &db.AnimalFood.IdFood),
+					).
+					Page(1, pageSize).Scan(&a)
 				if err != nil {
 					t.Errorf("Expected a page select, got error: %v", err)
 				}
@@ -980,7 +1049,10 @@ func TestPostgresSelect(t *testing.T) {
 				var h Habitat
 				err = db.Select(db.Habitat).
 					From(db.Habitat).
-					Join(&db.Habitat.Name, &db.Weather.Name).Scan(&h)
+					Joins(
+						jn.Join[string](&db.Habitat.Name, &db.Weather.Name),
+					).
+					Scan(&h)
 				if err != nil {
 					t.Fatalf("Expected a select, got error: %v", err)
 				}
@@ -999,8 +1071,11 @@ func TestPostgresSelect(t *testing.T) {
 				}
 				err = db.Select(&db.User.Name, &db.Role.Name, &db.UserRole.EndDate).
 					From(db.User).
-					LeftJoin(&db.User.Id, &db.UserRole.IdUser).
-					LeftJoin(&db.UserRole.IdRole, &db.Role.Id).OrderByAsc(&db.User.Id).Scan(&q)
+					Joins(
+						jn.LeftJoin[int](&db.User.Id, &db.UserRole.IdUser),
+						jn.LeftJoin[int](&db.UserRole.IdRole, &db.Role.Id),
+					).
+					OrderByAsc(&db.User.Id).Scan(&q)
 				if err != nil {
 					t.Fatalf("Expected a select, got error: %v", err)
 				}
@@ -1021,8 +1096,11 @@ func TestPostgresSelect(t *testing.T) {
 				}{}
 				err = db.Select(&db.Person.Name, &db.Job.Name).
 					From(db.Person).
-					Join(&db.Person.Id, &db.PersonJob.IdPerson).
-					Join(&db.PersonJob.IdJob, &db.Job.Id).Scan(&pj)
+					Joins(
+						jn.Join[int](&db.Person.Id, &db.PersonJob.IdPerson),
+						jn.Join[int](&db.PersonJob.IdJob, &db.Job.Id),
+					).
+					Scan(&pj)
 				if err != nil {
 					t.Errorf("Expected a select, got error: %v", err)
 				}
@@ -1041,8 +1119,11 @@ func TestPostgresSelect(t *testing.T) {
 				}
 				err = db.Select(&db.User.Name, &db.Role.Name, &db.UserRole.EndDate).
 					From(db.User).
-					LeftJoin(&db.UserRole.IdUser, &db.User.Id).
-					LeftJoin(&db.UserRole.IdRole, &db.Role.Id).OrderByAsc(&db.User.Id).Scan(&q)
+					Joins(
+						jn.LeftJoin[int](&db.UserRole.IdUser, &db.User.Id),
+						jn.LeftJoin[int](&db.UserRole.IdRole, &db.Role.Id),
+					).
+					OrderByAsc(&db.User.Id).Scan(&q)
 				if err != nil {
 					t.Fatalf("Expected a select, got error: %v", err)
 				}
@@ -1073,8 +1154,10 @@ func TestPostgresSelect(t *testing.T) {
 				var c int
 				err = db.Select(db.Count(&db.User.Name)).
 					From(db.User).
-					LeftJoin(&db.UserRole.IdUser, &db.User.Id).
-					LeftJoin(&db.UserRole.IdRole, &db.Role.Id).
+					Joins(
+						jn.LeftJoin[int](&db.UserRole.IdUser, &db.User.Id),
+						jn.LeftJoin[int](&db.UserRole.IdRole, &db.Role.Id),
+					).
 					Scan(&c)
 				if err != nil {
 					t.Fatalf("Expected a select, got error: %v", err)
@@ -1137,7 +1220,10 @@ func TestPostgresSelect(t *testing.T) {
 				}
 				err = db.Select(db.Animal, db.Habitat).
 					From(db.Animal).
-					Join(&db.Animal.IdHabitat, &db.Habitat.Id).OrderByAsc(&db.Animal.Id).Scan(&a)
+					Joins(
+						jn.Join[uuid.UUID](&db.Animal.IdHabitat, &db.Habitat.Id),
+					).
+					OrderByAsc(&db.Animal.Id).Scan(&a)
 				if err != nil {
 					t.Fatalf("Expected a select, got error: %v", err)
 				}
@@ -1175,7 +1261,7 @@ func TestPostgresSelect(t *testing.T) {
 			desc: "Select_Invalid_Where",
 			testCase: func(t *testing.T) {
 				var a []Animal
-				err = db.Select(db.Animal).From(db.Animal).Where(wh.Equals(nil, 1)).Scan(&a)
+				err = db.Select(db.Animal).From(db.Animal).Where(wh.Equals(db.Animal.IdHabitat, uuid.New())).Scan(&a)
 				if !errors.Is(err, goe.ErrInvalidWhere) {
 					t.Errorf("Expected goe.ErrInvalidWhere, got error: %v", err)
 				}
@@ -1185,12 +1271,12 @@ func TestPostgresSelect(t *testing.T) {
 			desc: "Select_Invalid_Arg",
 			testCase: func(t *testing.T) {
 				var a []Animal
-				err = db.Select(db.DB).Join(&db.Animal.IdHabitat, &db.Habitat).Scan(&a)
+				err = db.Select(db.DB).Scan(&a)
 				if !errors.Is(err, goe.ErrInvalidArg) {
 					t.Errorf("Expected goe.ErrInvalidArg, got error: %v", err)
 				}
 
-				err = db.Select(nil).Join(db.Animal, db.Weather).Scan(&a)
+				err = db.Select(nil).Scan(&a)
 				if !errors.Is(err, goe.ErrInvalidArg) {
 					t.Errorf("Expected goe.ErrInvalidArg, got error: %v", err)
 				}

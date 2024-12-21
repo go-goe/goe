@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/olauro/goe"
+	"github.com/olauro/goe/jn"
 	"github.com/olauro/goe/wh"
 )
 
@@ -314,8 +315,10 @@ func TestPostgresUpdate(t *testing.T) {
 				}{}
 				err = db.Select(&db.Person.Name, &db.Job.Name).
 					From(db.Person).
-					Join(&db.Person.Id, &db.PersonJob.IdPerson).
-					Join(&db.Job.Id, &db.PersonJob.IdJob).
+					Joins(
+						jn.Join[int](&db.Person.Id, &db.PersonJob.IdPerson),
+						jn.Join[int](&db.Job.Id, &db.PersonJob.IdJob),
+					).
 					Where(wh.Equals(&db.Job.Id, jobs[0].Id)).Scan(&pj)
 				if err != nil {
 					t.Fatalf("Expected a select, got error: %v", err)
@@ -335,8 +338,10 @@ func TestPostgresUpdate(t *testing.T) {
 
 				err = db.Select(&db.Person.Name, &db.Job.Name).
 					From(db.Person).
-					Join(&db.Person.Id, &db.PersonJob.IdPerson).
-					Join(&db.Job.Id, &db.PersonJob.IdJob).
+					Joins(
+						jn.Join[int](&db.Person.Id, &db.PersonJob.IdPerson),
+						jn.Join[int](&db.Job.Id, &db.PersonJob.IdJob),
+					).
 					Where(wh.Equals(&db.Job.Id, jobs[0].Id)).Scan(&pj)
 				if err != nil {
 					t.Errorf("Expected a select, got error: %v", err)
