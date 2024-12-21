@@ -16,10 +16,6 @@ type Operation struct {
 	ValueFlag string
 }
 
-func Nullable[T any](v T) *T {
-	return &v
-}
-
 func (o Operation) Operation() string {
 	return fmt.Sprintf("%v %v %v", o.Arg, o.Operator, o.ValueFlag)
 }
@@ -51,7 +47,7 @@ func (o OperationIs) Operation() string {
 //
 //	// generate: WHERE "animals"."idhabitat" IS NULL
 //	Where(wh.Equals(&db.Animal.IdHabitat, nil)).Scan(&a)
-func Equals[T comparable](a *T, v T) operator {
+func Equals[T any, A *T | **T](a A, v T) operator {
 	if reflect.ValueOf(v).Kind() == reflect.Pointer && reflect.ValueOf(v).IsNil() {
 		return OperationIs{Arg: a, Operator: "IS"}
 	}
@@ -68,7 +64,7 @@ func Equals[T comparable](a *T, v T) operator {
 //
 //	// generate: WHERE "animals"."idhabitat" IS NOT NULL
 //	Where(wh.NotEquals(&db.Animal.IdHabitat, nil)).Scan(&a)
-func NotEquals[T any](a *T, v T) operator {
+func NotEquals[T any, A *T | **T](a A, v T) operator {
 	if reflect.ValueOf(v).Kind() == reflect.Pointer && reflect.ValueOf(v).IsNil() {
 		return OperationIs{Arg: a, Operator: "IS NOT"}
 	}
@@ -82,7 +78,7 @@ func NotEquals[T any](a *T, v T) operator {
 //	// get all animals that was created after 09 of october 2024 at 11:50AM
 //	db.Select(db.Animal).From(db.Animal).
 //	Where(wh.Greater(&db.Animal.CreateAt, time.Date(2024, time.October, 9, 11, 50, 00, 00, time.Local))).Scan(&a)
-func Greater[T any](a *T, v T) Operation {
+func Greater[T any, A *T | **T](a A, v T) Operation {
 	return Operation{Arg: a, Value: v, Operator: ">"}
 }
 
@@ -93,7 +89,7 @@ func Greater[T any](a *T, v T) Operation {
 //	// get all animals that was created in or after 09 of october 2024 at 11:50AM
 //	db.Select(db.Animal).From(db.Animal).
 //	Where(wh.GreaterEquals(&db.Animal.CreateAt, time.Date(2024, time.October, 9, 11, 50, 00, 00, time.Local))).Scan(&a)
-func GreaterEquals[T any](a *T, v T) Operation {
+func GreaterEquals[T any, A *T | **T](a A, v T) Operation {
 	return Operation{Arg: a, Value: v, Operator: ">="}
 }
 
@@ -104,7 +100,7 @@ func GreaterEquals[T any](a *T, v T) Operation {
 //	// get all animals that was updated before 09 of october 2024 at 11:50AM
 //	db.Select(db.Animal).From(db.Animal).
 //	Where(wh.Less(&db.Animal.UpdateAt, time.Date(2024, time.October, 9, 11, 50, 00, 00, time.Local))).Scan(&a)
-func Less[T any](a *T, v T) Operation {
+func Less[T any, A *T | **T](a A, v T) Operation {
 	return Operation{Arg: a, Value: v, Operator: "<"}
 }
 
@@ -115,7 +111,7 @@ func Less[T any](a *T, v T) Operation {
 //	// get all animals that was updated in or before 09 of october 2024 at 11:50AM
 //	db.Select(db.Animal).From(db.Animal).
 //	Where(wh.LessEquals(&db.Animal.UpdateAt, time.Date(2024, time.October, 9, 11, 50, 00, 00, time.Local))).Scan(&a)
-func LessEquals[T any](a *T, v T) Operation {
+func LessEquals[T any, A *T | **T](a A, v T) Operation {
 	return Operation{Arg: a, Value: v, Operator: "<="}
 }
 
