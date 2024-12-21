@@ -84,98 +84,6 @@ func (s *stateSelect) Page(p uint, i uint) *stateSelect {
 	return s
 }
 
-// Join makes a join betwent the tables
-//
-// If the tables don't have a many to many or many to one
-// relationship Scan returns [ErrNoMatchesTables]
-//
-// # Example
-//
-//	// get all foods columns by id animal makeing a join betwent animal and food
-//	db.Select(db.Food).Join(db.Animal, db.Food).
-//		Where(db.Equals(&db.Animal.Id, "fc1865b4-6f2d-4cc6-b766-49c2634bf5c4")).Scan(&a)
-func (s *stateSelect) Join(t1 any, t2 any) *stateSelect {
-	if s.err != nil {
-		return s
-	}
-	args, err := getArgsIn(s.addrMap, t1, t2)
-	if err != nil {
-		s.err = err
-		return s
-	}
-	s.builder.buildSelectJoins(s.addrMap, "JOIN", args)
-	return s
-}
-
-// InnerJoin makes a inner join betwent the tables
-//
-// If the tables don't have a many to many or many to one
-// relationship Scan returns [ErrNoMatchesTables]
-//
-// # Example
-//
-//	// get all foods columns by id animal makeing a inner join betwent animal and food
-//	db.Select(db.Food).InnerJoin(db.Animal, db.Food).
-//		Where(db.Equals(&db.Animal.Id, "fc1865b4-6f2d-4cc6-b766-49c2634bf5c4")).Scan(&a)
-func (s *stateSelect) InnerJoin(t1 any, t2 any) *stateSelect {
-	if s.err != nil {
-		return s
-	}
-	args, err := getArgsIn(s.addrMap, t1, t2)
-	if err != nil {
-		s.err = err
-		return s
-	}
-	s.builder.buildSelectJoins(s.addrMap, "INNER JOIN", args)
-	return s
-}
-
-// RightJoin makes a right join betwent the tables
-//
-// If the tables don't have a many to many or many to one
-// relationship Scan returns [ErrNoMatchesTables]
-//
-// # Example
-//
-//	// get all foods columns by id animal makeing a right join betwent animal and food
-//	db.Select(db.Food).RightJoin(db.Animal, db.Food).
-//		Where(db.Equals(&db.Animal.Id, "fc1865b4-6f2d-4cc6-b766-49c2634bf5c4")).Scan(&a)
-func (s *stateSelect) RightJoin(t1 any, t2 any) *stateSelect {
-	if s.err != nil {
-		return s
-	}
-	args, err := getArgsIn(s.addrMap, t1, t2)
-	if err != nil {
-		s.err = err
-		return s
-	}
-	s.builder.buildSelectJoins(s.addrMap, "RIGHT JOIN", args)
-	return s
-}
-
-// LeftJoin makes a left join betwent the tables
-//
-// If the tables don't have a many to many or many to one
-// relationship Scan returns [ErrNoMatchesTables]
-//
-// # Example
-//
-//	// get all foods columns by id animal makeing a left join betwent animal and food
-//	db.Select(db.Food).LeftJoin(db.Animal, db.Food).
-//		Where(db.Equals(&db.Animal.Id, "fc1865b4-6f2d-4cc6-b766-49c2634bf5c4")).Scan(&a)
-func (s *stateSelect) LeftJoin(t1 any, t2 any) *stateSelect {
-	if s.err != nil {
-		return s
-	}
-	args, err := getArgsIn(s.addrMap, t1, t2)
-	if err != nil {
-		s.err = err
-		return s
-	}
-	s.builder.buildSelectJoins(s.addrMap, "LEFT JOIN", args)
-	return s
-}
-
 // OrderByAsc makes a ordained by arg ascending query
 //
 // # Example
@@ -231,6 +139,23 @@ func (s *stateSelect) From(tables ...any) *stateSelect {
 		return s
 	}
 	s.builder.froms = args
+	return s
+}
+
+// TODO: Add Doc
+func (s *stateSelect) Joins(joins ...joins) *stateSelect {
+	if s.err != nil {
+		return s
+	}
+
+	for _, j := range joins {
+		args, err := getArgsIn(s.addrMap, j.FirstArg(), j.SecondArg())
+		if err != nil {
+			s.err = err
+			return s
+		}
+		s.builder.buildSelectJoins(s.addrMap, j.Join(), args)
+	}
 	return s
 }
 
@@ -478,15 +403,13 @@ func (s *stateDelete) queryDelete(args []uintptr, addrMap map[uintptr]field) *st
 
 // Where from state delete executes the delete command in the database.
 //
-// Returns the SQL generated and error as nil if delete with success.
-//
 // # Example
 //
 //	// delete all animals
 //	db.Delete(db.Animal).Where()
 //
 //	// delete matched animals
-//	db.Delete(db.Animal).Where(db.Equals(&db.Animal.Id, "906f4f1f-49e7-47ee-8954-2d6e0a3354cf"))
+//	db.Delete(db.Animal).Where(wh.Equals(&db.Animal.Id, 23))
 func (s *stateDelete) Where(brs ...operator) error {
 	if s.err != nil {
 		return s.err

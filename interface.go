@@ -6,6 +6,12 @@ import (
 	"time"
 )
 
+type joins interface {
+	FirstArg() any
+	Join() string
+	SecondArg() any
+}
+
 type operator interface {
 	Operation() string
 }
