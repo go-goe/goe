@@ -46,7 +46,6 @@ func createOneToOne(typeOf reflect.Type, targetTypeOf reflect.Type, driver Drive
 type manyToOne struct {
 	pk *pk
 	attributeStrings
-	hasMany bool
 }
 
 func (m *manyToOne) getPrimaryKey() *pk {
@@ -57,7 +56,7 @@ func (m *manyToOne) table() []byte {
 	return m.tableBytes
 }
 
-func createManyToOne(typeOf reflect.Type, targetTypeOf reflect.Type, hasMany bool, driver Driver, prefix string) *manyToOne {
+func createManyToOne(typeOf reflect.Type, targetTypeOf reflect.Type, driver Driver, prefix string) *manyToOne {
 	mto := new(manyToOne)
 	targetPks := primaryKeys(typeOf)
 	count := 0
@@ -74,7 +73,6 @@ func createManyToOne(typeOf reflect.Type, targetTypeOf reflect.Type, hasMany boo
 	mto.selectName = fmt.Sprintf("%v.%v",
 		driver.KeywordHandler(utils.TableNamePattern(targetTypeOf.Name())),
 		driver.KeywordHandler(utils.ManyToOneNamePattern(prefix, typeOf.Name())))
-	mto.hasMany = hasMany
 	mto.tableBytes = []byte(driver.KeywordHandler(utils.TableNamePattern(targetTypeOf.Name())))
 	mto.attributeName = driver.KeywordHandler(utils.ColumnNamePattern(utils.ManyToOneNamePattern(prefix, typeOf.Name())))
 	mto.structAttributeName = prefix + typeOf.Name()
