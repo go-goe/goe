@@ -133,7 +133,8 @@ func (s *stateSelect) querySelect(args []uintptr, aggregates []aggregate) *state
 
 // TODO: Add Doc
 func (s *stateSelect) From(tables ...any) *stateSelect {
-	args, err := getArgsTables(s.addrMap, tables...)
+	s.builder.tables = make([]string, len(tables))
+	args, err := getArgsTables(s.addrMap, s.builder.tables, tables...)
 	if err != nil {
 		s.err = err
 		return s

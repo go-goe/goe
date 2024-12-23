@@ -329,9 +329,10 @@ func getArgsIn(addrMap map[uintptr]field, args ...any) ([]uintptr, error) {
 	return stringArgs, nil
 }
 
-func getArgsTables(addrMap map[uintptr]field, args ...any) ([]byte, error) {
-	tables := make([]byte, 0)
+func getArgsTables(addrMap map[uintptr]field, tables []string, args ...any) ([]byte, error) {
+	from := make([]byte, 0)
 	var ptr uintptr
+	var i int
 	if reflect.ValueOf(args[0]).Kind() == reflect.Ptr {
 		valueOf := reflect.ValueOf(args[0]).Elem()
 		ptr = uintptr(valueOf.Addr().UnsafePointer())
@@ -339,24 +340,28 @@ func getArgsTables(addrMap map[uintptr]field, args ...any) ([]byte, error) {
 			//TODO: add ErrInvalidTable
 			return nil, ErrInvalidArg
 		}
-		tables = append(tables, addrMap[ptr].table()...)
+		tables[i] = string(addrMap[ptr].table())
+		i++
+		from = append(from, addrMap[ptr].table()...)
 	} else {
 		return nil, ErrInvalidArg
 	}
 	for _, a := range args[1:] {
 		if reflect.ValueOf(a).Kind() == reflect.Ptr {
-			tables = append(tables, ',')
 			valueOf := reflect.ValueOf(a).Elem()
 			ptr = uintptr(valueOf.Addr().UnsafePointer())
 			if addrMap[ptr] == nil {
 				//TODO: add ErrInvalidTable
 				return nil, ErrInvalidArg
 			}
-			tables = append(tables, addrMap[ptr].table()...)
+			tables[i] = string(addrMap[ptr].table())
+			i++
+			from = append(from, ',')
+			from = append(from, addrMap[ptr].table()...)
 		} else {
 			return nil, ErrInvalidArg
 		}
 	}
 
-	return tables, nil
+	return from, nil
 }

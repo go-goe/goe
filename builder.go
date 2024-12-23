@@ -42,7 +42,6 @@ func createBuilder(d Driver) *builder {
 }
 
 func (b *builder) buildSelect(addrMap map[uintptr]field) {
-	//TODO: Set a drive type to share stm
 	b.sql.Write(b.driver.Select())
 
 	if len(b.aggregates) > 0 {
@@ -62,7 +61,6 @@ func (b *builder) buildSelect(addrMap map[uintptr]field) {
 	}
 
 	addrMap[b.args[lenArgs-1]].buildAttributeSelect(b, lenArgs-1)
-	b.tables = append(b.tables, string(addrMap[b.args[0]].table()))
 }
 
 func (b *builder) buildAggregates() {
@@ -71,10 +69,6 @@ func (b *builder) buildAggregates() {
 		b.sql.WriteByte(',')
 	}
 	b.sql.WriteString(b.aggregates[len(b.aggregates)-1].String())
-	if len(b.args) == 0 {
-		//TODO: check this
-		b.tables = append(b.tables, string(b.aggregates[0].field.table()))
-	}
 }
 
 func (b *builder) buildSelectJoins(addrMap map[uintptr]field, join string, argsJoins []uintptr) {
