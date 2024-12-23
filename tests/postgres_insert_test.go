@@ -126,15 +126,15 @@ func TestPostgresInsert(t *testing.T) {
 				if err != nil {
 					t.Errorf("Expected a insert person, got error: %v", err)
 				}
-				j := Job{Name: "Developer"}
-				err = db.Insert(db.Job).Value(&j)
+				j := JobTitle{Name: "Developer"}
+				err = db.Insert(db.JobTitle).Value(&j)
 				if err != nil {
 					t.Errorf("Expected a insert job, got error: %v", err)
 				}
 
-				err = db.Insert(db.PersonJob).Value(&PersonJob{IdJob: j.Id, IdPerson: p.Id, CreatedAt: time.Now()})
+				err = db.Insert(db.PersonJobTitle).Value(&PersonJobTitle{IdJobTitle: j.Id, IdPerson: p.Id, CreatedAt: time.Now()})
 				if err != nil {
-					t.Errorf("Expected a insert PersonJob, got error: %v", err)
+					t.Errorf("Expected a insert PersonJobTitle, got error: %v", err)
 				}
 			},
 		},

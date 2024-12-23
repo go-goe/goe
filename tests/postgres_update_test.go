@@ -290,36 +290,36 @@ func TestPostgresUpdate(t *testing.T) {
 					t.Fatalf("Expected insert persons, got error: %v", err)
 				}
 
-				jobs := []Job{
+				jobs := []JobTitle{
 					{Name: "Developer"},
 					{Name: "Designer"},
 				}
-				err = db.Insert(db.Job).Value(&jobs)
+				err = db.Insert(db.JobTitle).Value(&jobs)
 				if err != nil {
 					t.Fatalf("Expected insert jobs, got error: %v", err)
 				}
 
-				personJobs := []PersonJob{
-					{IdPerson: persons[0].Id, IdJob: jobs[0].Id, CreatedAt: time.Now()},
-					{IdPerson: persons[1].Id, IdJob: jobs[0].Id, CreatedAt: time.Now()},
-					{IdPerson: persons[2].Id, IdJob: jobs[1].Id, CreatedAt: time.Now()},
+				personJobs := []PersonJobTitle{
+					{IdPerson: persons[0].Id, IdJobTitle: jobs[0].Id, CreatedAt: time.Now()},
+					{IdPerson: persons[1].Id, IdJobTitle: jobs[0].Id, CreatedAt: time.Now()},
+					{IdPerson: persons[2].Id, IdJobTitle: jobs[1].Id, CreatedAt: time.Now()},
 				}
-				err = db.Insert(db.PersonJob).Value(&personJobs)
+				err = db.Insert(db.PersonJobTitle).Value(&personJobs)
 				if err != nil {
 					t.Fatalf("Expected insert personJobs, got error: %v", err)
 				}
 
 				pj := []struct {
-					Job    string
-					Person string
+					JobTitle string
+					Person   string
 				}{}
-				err = db.Select(&db.Person.Name, &db.Job.Name).
+				err = db.Select(&db.Person.Name, &db.JobTitle.Name).
 					From(db.Person).
 					Joins(
-						jn.Join[int](&db.Person.Id, &db.PersonJob.IdPerson),
-						jn.Join[int](&db.Job.Id, &db.PersonJob.IdJob),
+						jn.Join[int](&db.Person.Id, &db.PersonJobTitle.IdPerson),
+						jn.Join[int](&db.JobTitle.Id, &db.PersonJobTitle.IdJobTitle),
 					).
-					Where(wh.Equals(&db.Job.Id, jobs[0].Id)).Scan(&pj)
+					Where(wh.Equals(&db.JobTitle.Id, jobs[0].Id)).Scan(&pj)
 				if err != nil {
 					t.Fatalf("Expected a select, got error: %v", err)
 				}
@@ -327,22 +327,22 @@ func TestPostgresUpdate(t *testing.T) {
 					t.Errorf("Expected %v, got : %v", 2, len(pj))
 				}
 
-				err = db.Update(&db.PersonJob.IdJob).Where(
-					wh.Equals(&db.PersonJob.IdPerson, persons[2].Id),
+				err = db.Update(&db.PersonJobTitle.IdJobTitle).Where(
+					wh.Equals(&db.PersonJobTitle.IdPerson, persons[2].Id),
 					wh.And(),
-					wh.Equals(&db.PersonJob.IdJob, jobs[1].Id),
-				).Value(PersonJob{IdJob: jobs[0].Id})
+					wh.Equals(&db.PersonJobTitle.IdJobTitle, jobs[1].Id),
+				).Value(PersonJobTitle{IdJobTitle: jobs[0].Id})
 				if err != nil {
 					t.Errorf("Expected a update, got error: %v", err)
 				}
 
-				err = db.Select(&db.Person.Name, &db.Job.Name).
+				err = db.Select(&db.Person.Name, &db.JobTitle.Name).
 					From(db.Person).
 					Joins(
-						jn.Join[int](&db.Person.Id, &db.PersonJob.IdPerson),
-						jn.Join[int](&db.Job.Id, &db.PersonJob.IdJob),
+						jn.Join[int](&db.Person.Id, &db.PersonJobTitle.IdPerson),
+						jn.Join[int](&db.JobTitle.Id, &db.PersonJobTitle.IdJobTitle),
 					).
-					Where(wh.Equals(&db.Job.Id, jobs[0].Id)).Scan(&pj)
+					Where(wh.Equals(&db.JobTitle.Id, jobs[0].Id)).Scan(&pj)
 				if err != nil {
 					t.Errorf("Expected a select, got error: %v", err)
 				}

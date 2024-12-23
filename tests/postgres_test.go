@@ -96,21 +96,21 @@ type Flag struct {
 }
 
 type Person struct {
-	Id         int
-	Name       string
-	PersonJobs []PersonJob
+	Id   int
+	Name string
+	Jobs []JobTitle
 }
 
-type PersonJob struct {
-	IdPerson  int `goe:"pk"`
-	IdJob     int `goe:"pk"`
-	CreatedAt time.Time
+type PersonJobTitle struct {
+	IdPerson   int `goe:"pk"`
+	IdJobTitle int `goe:"pk"`
+	CreatedAt  time.Time
 }
 
-type Job struct {
-	Name       string
-	Id         int
-	PersonJobs []PersonJob
+type JobTitle struct {
+	Name    string
+	Id      int
+	Persons []Person
 }
 
 type Exam struct {
@@ -120,21 +120,21 @@ type Exam struct {
 }
 
 type Database struct {
-	Animal     *Animal
-	AnimalFood *AnimalFood
-	Food       *Food
-	Habitat    *Habitat
-	Info       *Info
-	Status     *Status
-	Weather    *Weather
-	User       *User
-	UserRole   *UserRole
-	Role       *Role
-	Flag       *Flag
-	Person     *Person
-	PersonJob  *PersonJob
-	Job        *Job
-	Exam       *Exam
+	Animal         *Animal
+	AnimalFood     *AnimalFood
+	Food           *Food
+	Habitat        *Habitat
+	Info           *Info
+	Status         *Status
+	Weather        *Weather
+	User           *User
+	UserRole       *UserRole
+	Role           *Role
+	Flag           *Flag
+	Person         *Person
+	PersonJobTitle *PersonJobTitle
+	JobTitle       *JobTitle
+	Exam           *Exam
 	*goe.DB
 }
 

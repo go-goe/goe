@@ -58,11 +58,11 @@ func TestPostgresSelect(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Expected delete roles, got error: %v", err)
 	}
-	err = db.Delete(db.PersonJob).Where()
+	err = db.Delete(db.PersonJobTitle).Where()
 	if err != nil {
 		t.Fatalf("Expected delete personJobs, got error: %v", err)
 	}
-	err = db.Delete(db.Job).Where()
+	err = db.Delete(db.JobTitle).Where()
 	if err != nil {
 		t.Fatalf("Expected delete jobs, got error: %v", err)
 	}
@@ -188,21 +188,21 @@ func TestPostgresSelect(t *testing.T) {
 		t.Fatalf("Expected insert persons, got error: %v", err)
 	}
 
-	jobs := []Job{
+	jobs := []JobTitle{
 		{Name: "Developer"},
 		{Name: "Designer"},
 	}
-	err = db.Insert(db.Job).Value(&jobs)
+	err = db.Insert(db.JobTitle).Value(&jobs)
 	if err != nil {
 		t.Fatalf("Expected insert jobs, got error: %v", err)
 	}
 
-	personJobs := []PersonJob{
-		{IdPerson: persons[0].Id, IdJob: jobs[0].Id, CreatedAt: time.Now()},
-		{IdPerson: persons[1].Id, IdJob: jobs[0].Id, CreatedAt: time.Now()},
-		{IdPerson: persons[2].Id, IdJob: jobs[1].Id, CreatedAt: time.Now()},
+	personJobs := []PersonJobTitle{
+		{IdPerson: persons[0].Id, IdJobTitle: jobs[0].Id, CreatedAt: time.Now()},
+		{IdPerson: persons[1].Id, IdJobTitle: jobs[0].Id, CreatedAt: time.Now()},
+		{IdPerson: persons[2].Id, IdJobTitle: jobs[1].Id, CreatedAt: time.Now()},
 	}
-	err = db.Insert(db.PersonJob).Value(&personJobs)
+	err = db.Insert(db.PersonJobTitle).Value(&personJobs)
 	if err != nil {
 		t.Fatalf("Expected insert personJobs, got error: %v", err)
 	}
@@ -1091,14 +1091,14 @@ func TestPostgresSelect(t *testing.T) {
 			desc: "Select_Persons_And_Jobs",
 			testCase: func(t *testing.T) {
 				pj := []struct {
-					Job    string
-					Person string
+					JobTitle string
+					Person   string
 				}{}
-				err = db.Select(&db.Person.Name, &db.Job.Name).
+				err = db.Select(&db.Person.Name, &db.JobTitle.Name).
 					From(db.Person).
 					Joins(
-						jn.Join[int](&db.Person.Id, &db.PersonJob.IdPerson),
-						jn.Join[int](&db.PersonJob.IdJob, &db.Job.Id),
+						jn.Join[int](&db.Person.Id, &db.PersonJobTitle.IdPerson),
+						jn.Join[int](&db.PersonJobTitle.IdJobTitle, &db.JobTitle.Id),
 					).
 					Scan(&pj)
 				if err != nil {
