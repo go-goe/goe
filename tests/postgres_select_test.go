@@ -1088,6 +1088,32 @@ func TestPostgresSelect(t *testing.T) {
 			},
 		},
 		{
+			desc: "Select_User_And_Roles_RightJoin",
+			testCase: func(t *testing.T) {
+				var q []struct {
+					User    *string
+					Role    string
+					EndTime *time.Time
+				}
+				err = db.Select(&db.User.Name, &db.Role.Name, &db.UserRole.EndDate).
+					From(db.User).
+					Joins(
+						jn.RightJoin[int](&db.User.Id, &db.UserRole.IdUser),
+						jn.RightJoin[int](&db.UserRole.IdRole, &db.Role.Id),
+					).
+					OrderByAsc(&db.Role.Id).Scan(&q)
+				if err != nil {
+					t.Fatalf("Expected a select, got error: %v", err)
+				}
+				if len(q) != len(roles) {
+					t.Errorf("Expected %v, got : %v", len(roles), len(q))
+				}
+				if q[0].EndTime == nil {
+					t.Errorf("Expected a value, got : %v", q[0].EndTime)
+				}
+			},
+		},
+		{
 			desc: "Select_Persons_And_Jobs",
 			testCase: func(t *testing.T) {
 				pj := []struct {
