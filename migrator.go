@@ -85,11 +85,6 @@ func typeField(tables reflect.Value, valueOf reflect.Value, migrator *Migrator) 
 					}
 					continue
 				}
-				return fmt.Errorf("%w: field %q on %q has table %q specified but the table don't exists",
-					ErrInvalidManyToOne,
-					valueOf.Type().Field(i).Name,
-					valueOf.Type().Name(),
-					table)
 			}
 			migrateAtt(valueOf, field, i, pks[0], migrator)
 		default:
@@ -116,11 +111,6 @@ func typeField(tables reflect.Value, valueOf reflect.Value, migrator *Migrator) 
 					}
 					continue
 				}
-				return fmt.Errorf("%w: field %q on %q has table %q specified but the table don't exists",
-					ErrInvalidManyToOne,
-					valueOf.Type().Field(i).Name,
-					valueOf.Type().Name(),
-					table)
 			}
 			migrateAtt(valueOf, field, i, pks[0], migrator)
 		}
@@ -161,11 +151,6 @@ func handlerSliceMigrate(tables reflect.Value, field reflect.StructField, target
 				}
 				return nil
 			}
-			return fmt.Errorf("%w: field %q on %q has table %q specified but the table don't exists",
-				ErrInvalidManyToOne,
-				valueOf.Type().Field(i).Name,
-				valueOf.Type().Name(),
-				table)
 		}
 		migrateAtt(valueOf, field, i, pks[0], migrator)
 	}
@@ -179,7 +164,18 @@ func isMigrateManyToOne(tables reflect.Value, typeOf reflect.Type, nullable bool
 				// check if there is a slice to typeOf
 				if tables.Field(c).Elem().Field(i).Kind() == reflect.Slice {
 					if tables.Field(c).Elem().Field(i).Type().Elem().Name() == typeOf.Name() {
-						return createMigrateManyToOne(tables.Field(c).Elem().Type(), typeOf, false, nullable, prefix)
+						return createMigrateManyToOne(tables.Field(c).Elem().Type(), typeOf, nullable, prefix)
+					}
+				}
+			}
+			if tableMtm := strings.ReplaceAll(typeOf.Name(), table, ""); tableMtm != typeOf.Name() {
+				typeOfMtm := tables.FieldByName(tableMtm)
+				if typeOfMtm.IsValid() && !typeOfMtm.IsZero() {
+					typeOfMtm = typeOfMtm.Elem()
+					for i := 0; i < typeOfMtm.NumField(); i++ {
+						if typeOfMtm.Field(i).Kind() == reflect.Slice && typeOfMtm.Field(i).Type().Elem().Name() == table {
+							return createMigrateManyToOne(tables.Field(c).Elem().Type(), typeOf, nullable, prefix)
+						}
 					}
 				}
 			}
@@ -189,7 +185,7 @@ func isMigrateManyToOne(tables reflect.Value, typeOf reflect.Type, nullable bool
 	return nil
 }
 
-func createMigrateManyToOne(typeOf reflect.Type, targetTypeOf reflect.Type, hasMany bool, nullable bool, prefix string) *MigrateManyToOne {
+func createMigrateManyToOne(typeOf reflect.Type, targetTypeOf reflect.Type, nullable bool, prefix string) *MigrateManyToOne {
 	fieldPks := primaryKeys(typeOf)
 	count := 0
 	for i := range fieldPks {
@@ -206,7 +202,6 @@ func createMigrateManyToOne(typeOf reflect.Type, targetTypeOf reflect.Type, hasM
 	mto.TargetTable = utils.TableNamePattern(typeOf.Name())
 	mto.TargetColumn = utils.ColumnNamePattern(prefix)
 	mto.Id = fmt.Sprintf("%v.%v", utils.TableNamePattern(targetTypeOf.Name()), utils.ManyToOneNamePattern(prefix, typeOf.Name()))
-	mto.HasMany = hasMany
 	mto.Nullable = nullable
 	return mto
 }
@@ -260,7 +255,6 @@ type MigrateManyToOne struct {
 	TargetColumn string
 	Nullable     bool
 	Id           string
-	HasMany      bool
 }
 
 type AttributeStrings struct {

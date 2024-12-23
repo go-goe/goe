@@ -10,7 +10,6 @@ import (
 	"github.com/olauro/goe/utils"
 )
 
-var ErrInvalidManyToOne = errors.New("goe")
 var ErrStructWithoutPrimaryKey = errors.New("goe")
 
 func Open(db any, driver Driver, config Config) error {
@@ -109,17 +108,10 @@ func initField(tables reflect.Value, valueOf reflect.Value, db *DB, driver Drive
 							}
 						}
 					}
-
-				} else {
-					return fmt.Errorf("%w: field %q on %q has table %q specified but the table don't exists",
-						ErrInvalidManyToOne,
-						valueOf.Type().Field(i).Name,
-						valueOf.Type().Name(),
-						table)
+					continue
 				}
-			} else {
-				newAttr(valueOf, i, pks[0], uintptr(valueOf.Field(i).Addr().UnsafePointer()), db, driver)
 			}
+			newAttr(valueOf, i, pks[0], uintptr(valueOf.Field(i).Addr().UnsafePointer()), db, driver)
 		default:
 			table, prefix := checkTablePattern(tables, valueOf.Type().Field(i))
 			if table != "" {
@@ -156,16 +148,10 @@ func initField(tables reflect.Value, valueOf reflect.Value, db *DB, driver Drive
 							}
 						}
 					}
-				} else {
-					return fmt.Errorf("%w: field %q on %q has table %q specified but the table don't exists",
-						ErrInvalidManyToOne,
-						valueOf.Type().Field(i).Name,
-						valueOf.Type().Name(),
-						table)
+					continue
 				}
-			} else {
-				newAttr(valueOf, i, pks[0], uintptr(valueOf.Field(i).Addr().UnsafePointer()), db, driver)
 			}
+			newAttr(valueOf, i, pks[0], uintptr(valueOf.Field(i).Addr().UnsafePointer()), db, driver)
 		}
 	}
 	return nil
@@ -209,17 +195,8 @@ func handlerSlice(tables reflect.Value, targetTypeOf reflect.Type, valueOf refle
 							v.pk = pk
 						}
 					}
-					// //TODO: Check the usage of this primery key
-					// v.pk = p
-					// //TODO: Update key to be attribute name
-					// p.fks[key] = v
 				}
-			} else {
-				return fmt.Errorf("%w: field %q on %q has table %q specified but the table don't exists",
-					ErrInvalidManyToOne,
-					valueOf.Type().Field(i).Name,
-					valueOf.Type().Name(),
-					table)
+				break
 			}
 		}
 		//TODO: Check this
@@ -277,14 +254,24 @@ func isManyToOne(tables reflect.Value, typeOf reflect.Type, driver Driver, table
 				// check if there is a slice to typeOf
 				if tables.Field(c).Elem().Field(i).Kind() == reflect.Slice {
 					if tables.Field(c).Elem().Field(i).Type().Elem().Name() == typeOf.Name() {
-						return createManyToOne(tables.Field(c).Elem().Type(), typeOf, false, driver, prefix)
+						return createManyToOne(tables.Field(c).Elem().Type(), typeOf, driver, prefix)
+					}
+				}
+			}
+			if tableMtm := strings.ReplaceAll(typeOf.Name(), table, ""); tableMtm != typeOf.Name() {
+				typeOfMtm := tables.FieldByName(tableMtm)
+				if typeOfMtm.IsValid() && !typeOfMtm.IsZero() {
+					typeOfMtm = typeOfMtm.Elem()
+					for i := 0; i < typeOfMtm.NumField(); i++ {
+						if typeOfMtm.Field(i).Kind() == reflect.Slice && typeOfMtm.Field(i).Type().Elem().Name() == table {
+							return createManyToOne(typeOfMtm.Field(i).Type().Elem(), typeOf, driver, prefix)
+						}
 					}
 				}
 			}
 			return createOneToOne(tables.Field(c).Elem().Type(), typeOf, driver, prefix)
 		}
 	}
-
 	return nil
 }
 
@@ -332,7 +319,9 @@ func checkTablePattern(tables reflect.Value, field reflect.StructField) (table, 
 			if field.Name[r] < 'a' {
 				table = field.Name[r:]
 				prefix = field.Name[:r]
-				break
+				if tables.FieldByName(table).IsValid() {
+					return table, prefix
+				}
 			}
 		}
 		if !tables.FieldByName(table).IsValid() {
