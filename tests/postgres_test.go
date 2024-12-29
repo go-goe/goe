@@ -14,7 +14,6 @@ type Animal struct {
 	Name        string
 	IdHabitat   *uuid.UUID `goe:"table:Habitat"`
 	IdInfo      *[]byte    `goe:"table:Info"`
-	Foods       []Food
 	AnimalFoods []AnimalFood
 }
 
@@ -26,7 +25,6 @@ type AnimalFood struct {
 type Food struct {
 	Id          uuid.UUID
 	Name        string
-	Animals     []Animal
 	AnimalFoods []AnimalFood
 }
 
