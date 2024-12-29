@@ -14,10 +14,10 @@ type Config struct {
 }
 
 type DB struct {
-	config   *Config
+	Config   *Config
 	ConnPool ConnectionPool
-	addrMap  map[uintptr]field
-	driver   Driver
+	AddrMap  map[uintptr]Field
+	Driver   Driver
 }
 
 func (db *DB) Migrate(m *Migrator) error {
@@ -28,7 +28,7 @@ func (db *DB) Migrate(m *Migrator) error {
 	if m.Error != nil {
 		return m.Error
 	}
-	db.driver.Migrate(m, c)
+	db.Driver.Migrate(m, c)
 	return nil
 }
 
@@ -60,22 +60,22 @@ func (db *DB) Select(args ...any) *stateSelect {
 
 // SelectContext creates a select state with passed args
 func (db *DB) SelectContext(ctx context.Context, args ...any) *stateSelect {
-	uintArgs, aggregates, err := getArgsSelect(db.addrMap, args...)
+	uintArgs, aggregates, err := getArgsSelect(db.AddrMap, args...)
 
 	var state *stateSelect
 	if err != nil {
-		state = createSelectState(nil, db.config, ctx, nil, err)
+		state = createSelectState(nil, db.Config, ctx, nil, err)
 		return state.querySelect(nil, nil)
 	}
 
-	state = createSelectState(db.ConnPool, db.config, ctx, db.driver, err)
+	state = createSelectState(db.ConnPool, db.Config, ctx, db.Driver, err)
 
-	state.addrMap = db.addrMap
+	state.addrMap = db.AddrMap
 	return state.querySelect(uintArgs, aggregates)
 }
 
 func (db *DB) Count(arg any) any {
-	f := getArg(arg, db.addrMap)
+	f := getArg(arg, db.AddrMap)
 	if f == nil {
 		return nil
 	}
@@ -106,17 +106,17 @@ func (db *DB) Insert(table any) *stateInsert {
 
 // InsertContext creates a insert state for table
 func (db *DB) InsertContext(ctx context.Context, table any) *stateInsert {
-	stringArgs, err := getArgs(db.addrMap, table)
+	stringArgs, err := getArgs(db.AddrMap, table)
 
 	var state *stateInsert
 	if err != nil {
-		state = createInsertState(nil, db.config, ctx, nil, err)
+		state = createInsertState(nil, db.Config, ctx, nil, err)
 		return state.queryInsert(nil, nil)
 	}
 
-	state = createInsertState(db.ConnPool, db.config, ctx, db.driver, err)
+	state = createInsertState(db.ConnPool, db.Config, ctx, db.Driver, err)
 
-	return state.queryInsert(stringArgs, db.addrMap)
+	return state.queryInsert(stringArgs, db.AddrMap)
 }
 
 // Update creates a update state for table
@@ -144,16 +144,16 @@ func (db *DB) Update(table ...any) *stateUpdate {
 
 // UpdateContext creates a update state for table
 func (db *DB) UpdateContext(ctx context.Context, table ...any) *stateUpdate {
-	stringArgs, err := getArgsUpdate(db.addrMap, table...)
+	stringArgs, err := getArgsUpdate(db.AddrMap, table...)
 
 	var state *stateUpdate
 	if err != nil {
-		state = createUpdateState(nil, nil, db.config, ctx, nil, err)
+		state = createUpdateState(nil, nil, db.Config, ctx, nil, err)
 		return state.queryUpdate(nil, nil)
 	}
-	state = createUpdateState(db.addrMap, db.ConnPool, db.config, ctx, db.driver, err)
+	state = createUpdateState(db.AddrMap, db.ConnPool, db.Config, ctx, db.Driver, err)
 
-	return state.queryUpdate(stringArgs, db.addrMap)
+	return state.queryUpdate(stringArgs, db.AddrMap)
 }
 
 // Delete creates a delete state for table
@@ -171,36 +171,36 @@ func (db *DB) Delete(table any) *stateDelete {
 
 // DeleteContext creates a delete state for table
 func (db *DB) DeleteContext(ctx context.Context, table any) *stateDelete {
-	stringArgs, err := getArgs(db.addrMap, table)
+	stringArgs, err := getArgs(db.AddrMap, table)
 
 	var state *stateDelete
 	if err != nil {
-		state = createDeleteState(nil, nil, db.config, ctx, nil, err)
+		state = createDeleteState(nil, nil, db.Config, ctx, nil, err)
 		return state.queryDelete(nil, nil)
 	}
-	state = createDeleteState(db.addrMap, db.ConnPool, db.config, ctx, db.driver, err)
+	state = createDeleteState(db.AddrMap, db.ConnPool, db.Config, ctx, db.Driver, err)
 
-	return state.queryDelete(stringArgs, db.addrMap)
+	return state.queryDelete(stringArgs, db.AddrMap)
 }
 
 func (db *DB) DriverName() string {
-	return db.driver.Name()
+	return db.Driver.Name()
 }
 
-func getArg(arg any, addrMap map[uintptr]field) field {
+func getArg(arg any, AddrMap map[uintptr]Field) Field {
 	v := reflect.ValueOf(arg)
 	if v.Kind() != reflect.Pointer {
 		return nil
 	}
 
 	addr := uintptr(v.UnsafePointer())
-	if addrMap[addr] != nil {
-		return addrMap[addr]
+	if AddrMap[addr] != nil {
+		return AddrMap[addr]
 	}
 	return nil
 }
 
-func getArgsSelect(addrMap map[uintptr]field, args ...any) ([]uintptr, []aggregate, error) {
+func getArgsSelect(AddrMap map[uintptr]Field, args ...any) ([]uintptr, []aggregate, error) {
 	uintArgs := make([]uintptr, 0)
 	aggregates := make([]aggregate, 0)
 	for i := range args {
@@ -214,7 +214,7 @@ func getArgsSelect(addrMap map[uintptr]field, args ...any) ([]uintptr, []aggrega
 						continue
 					}
 					addr := uintptr(fieldOf.Addr().UnsafePointer())
-					if addrMap[addr] != nil {
+					if AddrMap[addr] != nil {
 						uintArgs = append(uintArgs, addr)
 					}
 				}
@@ -235,7 +235,7 @@ func getArgsSelect(addrMap map[uintptr]field, args ...any) ([]uintptr, []aggrega
 	return uintArgs, aggregates, nil
 }
 
-func getArgs(addrMap map[uintptr]field, args ...any) ([]uintptr, error) {
+func getArgs(AddrMap map[uintptr]Field, args ...any) ([]uintptr, error) {
 	stringArgs := make([]uintptr, 0)
 	for i := range args {
 		if reflect.ValueOf(args[i]).Kind() == reflect.Ptr {
@@ -248,7 +248,7 @@ func getArgs(addrMap map[uintptr]field, args ...any) ([]uintptr, error) {
 						continue
 					}
 					addr := uintptr(fieldOf.Addr().UnsafePointer())
-					if addrMap[addr] != nil {
+					if AddrMap[addr] != nil {
 						stringArgs = append(stringArgs, addr)
 					}
 				}
@@ -265,7 +265,7 @@ func getArgs(addrMap map[uintptr]field, args ...any) ([]uintptr, error) {
 	return stringArgs, nil
 }
 
-func getArgsUpdate(addrMap map[uintptr]field, args ...any) ([]uintptr, error) {
+func getArgsUpdate(AddrMap map[uintptr]Field, args ...any) ([]uintptr, error) {
 	stringArgs := make([]uintptr, 0)
 	var table string
 	for i := range args {
@@ -279,22 +279,22 @@ func getArgsUpdate(addrMap map[uintptr]field, args ...any) ([]uintptr, error) {
 						continue
 					}
 					addr := uintptr(fieldOf.Addr().UnsafePointer())
-					if addrMap[addr] != nil {
-						if table != "" && string(addrMap[addr].table()) != table {
+					if AddrMap[addr] != nil {
+						if table != "" && string(AddrMap[addr].Table()) != table {
 							return nil, ErrTooManyTablesUpdate
 						}
-						table = string(addrMap[addr].table())
+						table = string(AddrMap[addr].Table())
 						stringArgs = append(stringArgs, addr)
 					}
 				}
 			} else {
 				//TODO: Check this, update all comparable table to a Id
 				addr := uintptr(valueOf.Addr().UnsafePointer())
-				if addrMap[addr] != nil {
-					if table != "" && string(addrMap[addr].table()) != table {
+				if AddrMap[addr] != nil {
+					if table != "" && string(AddrMap[addr].Table()) != table {
 						return nil, ErrTooManyTablesUpdate
 					}
-					table = string(addrMap[addr].table())
+					table = string(AddrMap[addr].Table())
 					stringArgs = append(stringArgs, uintptr(valueOf.Addr().UnsafePointer()))
 				}
 			}
@@ -308,14 +308,14 @@ func getArgsUpdate(addrMap map[uintptr]field, args ...any) ([]uintptr, error) {
 	return stringArgs, nil
 }
 
-func getArgsIn(addrMap map[uintptr]field, args ...any) ([]uintptr, error) {
+func getArgsIn(AddrMap map[uintptr]Field, args ...any) ([]uintptr, error) {
 	stringArgs := make([]uintptr, 2)
 	var ptr uintptr
 	for i := range args {
 		if reflect.ValueOf(args[i]).Kind() == reflect.Ptr {
 			valueOf := reflect.ValueOf(args[i]).Elem()
 			ptr = uintptr(valueOf.Addr().UnsafePointer())
-			if addrMap[ptr] != nil {
+			if AddrMap[ptr] != nil {
 				stringArgs[i] = ptr
 			}
 		} else {
@@ -329,20 +329,20 @@ func getArgsIn(addrMap map[uintptr]field, args ...any) ([]uintptr, error) {
 	return stringArgs, nil
 }
 
-func getArgsTables(addrMap map[uintptr]field, tables []string, args ...any) ([]byte, error) {
+func getArgsTables(AddrMap map[uintptr]Field, tables []string, args ...any) ([]byte, error) {
 	from := make([]byte, 0)
 	var ptr uintptr
 	var i int
 	if reflect.ValueOf(args[0]).Kind() == reflect.Ptr {
 		valueOf := reflect.ValueOf(args[0]).Elem()
 		ptr = uintptr(valueOf.Addr().UnsafePointer())
-		if addrMap[ptr] == nil {
+		if AddrMap[ptr] == nil {
 			//TODO: add ErrInvalidTable
 			return nil, ErrInvalidArg
 		}
-		tables[i] = string(addrMap[ptr].table())
+		tables[i] = string(AddrMap[ptr].Table())
 		i++
-		from = append(from, addrMap[ptr].table()...)
+		from = append(from, AddrMap[ptr].Table()...)
 	} else {
 		return nil, ErrInvalidArg
 	}
@@ -350,14 +350,14 @@ func getArgsTables(addrMap map[uintptr]field, tables []string, args ...any) ([]b
 		if reflect.ValueOf(a).Kind() == reflect.Ptr {
 			valueOf := reflect.ValueOf(a).Elem()
 			ptr = uintptr(valueOf.Addr().UnsafePointer())
-			if addrMap[ptr] == nil {
+			if AddrMap[ptr] == nil {
 				//TODO: add ErrInvalidTable
 				return nil, ErrInvalidArg
 			}
-			tables[i] = string(addrMap[ptr].table())
+			tables[i] = string(AddrMap[ptr].Table())
 			i++
 			from = append(from, ',')
-			from = append(from, addrMap[ptr].table()...)
+			from = append(from, AddrMap[ptr].Table()...)
 		} else {
 			return nil, ErrInvalidArg
 		}

@@ -20,9 +20,9 @@ func Open(db any, driver Driver, config Config) error {
 	dbTarget := new(DB)
 	valueOf = valueOf.Elem()
 
-	dbTarget.addrMap = make(map[uintptr]field)
+	dbTarget.AddrMap = make(map[uintptr]Field)
 
-	// set value for fields
+	// set value for Fields
 	for i := 0; i < valueOf.NumField(); i++ {
 		if valueOf.Field(i).IsNil() {
 			valueOf.Field(i).Set(reflect.ValueOf(reflect.New(valueOf.Field(i).Type().Elem()).Interface()))
@@ -30,7 +30,7 @@ func Open(db any, driver Driver, config Config) error {
 	}
 
 	var err error
-	// init fields
+	// init Fields
 	for i := 0; i < valueOf.NumField(); i++ {
 		if valueOf.Field(i).Elem().Type().Name() != "DB" {
 			err = initField(valueOf, valueOf.Field(i).Elem(), dbTarget, driver)
@@ -40,30 +40,30 @@ func Open(db any, driver Driver, config Config) error {
 		}
 	}
 
-	dbTarget.driver = driver
-	dbTarget.driver.Init(dbTarget)
-	dbTarget.config = &config
+	dbTarget.Driver = driver
+	dbTarget.Driver.Init(dbTarget)
+	dbTarget.Config = &config
 	valueOf.FieldByName("DB").Set(reflect.ValueOf(dbTarget))
 	return nil
 }
 
 func initField(tables reflect.Value, valueOf reflect.Value, db *DB, driver Driver) error {
-	pks, fieldNames, err := getPk(valueOf.Type(), driver)
+	pks, FieldNames, err := getPk(valueOf.Type(), driver)
 	if err != nil {
 		return err
 	}
 
 	for i := range pks {
-		db.addrMap[uintptr(valueOf.FieldByName(fieldNames[i]).Addr().UnsafePointer())] = pks[i]
+		db.AddrMap[uintptr(valueOf.FieldByName(FieldNames[i]).Addr().UnsafePointer())] = pks[i]
 	}
-	var field reflect.StructField
+	var Field reflect.StructField
 
 	for i := 0; i < valueOf.NumField(); i++ {
-		field = valueOf.Type().Field(i)
+		Field = valueOf.Type().Field(i)
 		//skip primary key
-		if slices.Contains(fieldNames, field.Name) {
+		if slices.Contains(FieldNames, Field.Name) {
 			//TODO: Check this
-			table, prefix := checkTablePattern(tables, field)
+			table, prefix := checkTablePattern(tables, Field)
 			if table == "" && prefix == "" {
 				continue
 			}
@@ -87,7 +87,7 @@ func initField(tables reflect.Value, valueOf reflect.Value, db *DB, driver Drive
 							break
 						}
 						key := driver.KeywordHandler(utils.TableNamePattern(table))
-						db.addrMap[uintptr(valueOf.Field(i).Addr().UnsafePointer())] = v
+						db.AddrMap[uintptr(valueOf.Field(i).Addr().UnsafePointer())] = v
 						for _, pk := range pks {
 							if pk.structAttributeName == prefix || pk.structAttributeName == prefix+table {
 								pk.fks[key] = mto
@@ -100,7 +100,7 @@ func initField(tables reflect.Value, valueOf reflect.Value, db *DB, driver Drive
 							break
 						}
 						key := driver.KeywordHandler(utils.TableNamePattern(table))
-						db.addrMap[uintptr(valueOf.Field(i).Addr().UnsafePointer())] = v
+						db.AddrMap[uintptr(valueOf.Field(i).Addr().UnsafePointer())] = v
 						for _, pk := range pks {
 							if pk.structAttributeName == prefix || pk.structAttributeName == prefix+table {
 								pk.fks[key] = mto
@@ -123,7 +123,7 @@ func initField(tables reflect.Value, valueOf reflect.Value, db *DB, driver Drive
 							break
 						}
 						key := driver.KeywordHandler(utils.TableNamePattern(table))
-						db.addrMap[uintptr(valueOf.Field(i).Addr().UnsafePointer())] = v
+						db.AddrMap[uintptr(valueOf.Field(i).Addr().UnsafePointer())] = v
 						for _, pk := range pks {
 							if pk.structAttributeName == prefix {
 								pk.fks[key] = mto
@@ -140,7 +140,7 @@ func initField(tables reflect.Value, valueOf reflect.Value, db *DB, driver Drive
 							break
 						}
 						key := driver.KeywordHandler(utils.TableNamePattern(table))
-						db.addrMap[uintptr(valueOf.Field(i).Addr().UnsafePointer())] = v
+						db.AddrMap[uintptr(valueOf.Field(i).Addr().UnsafePointer())] = v
 						for _, pk := range pks {
 							if pk.structAttributeName == prefix || pk.structAttributeName == prefix+table {
 								pk.fks[key] = mto
@@ -176,7 +176,7 @@ func handlerSlice(tables reflect.Value, targetTypeOf reflect.Type, valueOf refle
 						break
 					}
 					key := driver.KeywordHandler(utils.TableNamePattern(table))
-					db.addrMap[uintptr(valueOf.Field(i).Addr().UnsafePointer())] = v
+					db.AddrMap[uintptr(valueOf.Field(i).Addr().UnsafePointer())] = v
 					for _, pk := range pks {
 						if pk.structAttributeName == prefix || pk.structAttributeName == prefix+table {
 							pk.fks[key] = mto
@@ -188,7 +188,7 @@ func handlerSlice(tables reflect.Value, targetTypeOf reflect.Type, valueOf refle
 						break
 					}
 					key := driver.KeywordHandler(utils.TableNamePattern(table))
-					db.addrMap[uintptr(valueOf.Field(i).Addr().UnsafePointer())] = v
+					db.AddrMap[uintptr(valueOf.Field(i).Addr().UnsafePointer())] = v
 					for _, pk := range pks {
 						if pk.structAttributeName == prefix || pk.structAttributeName == prefix+table {
 							pk.fks[key] = mto
@@ -212,42 +212,42 @@ func newAttr(valueOf reflect.Value, i int, p *pk, addr uintptr, db *DB, d Driver
 		p,
 		d,
 	)
-	db.addrMap[addr] = at
+	db.AddrMap[addr] = at
 }
 
 func getPk(typeOf reflect.Type, driver Driver) ([]*pk, []string, error) {
 	var pks []*pk
-	var fieldsNames []string
+	var FieldsNames []string
 
 	id, valid := typeOf.FieldByName("Id")
 	if valid {
 		pks := make([]*pk, 1)
-		fieldsNames = make([]string, 1)
+		FieldsNames = make([]string, 1)
 		pks[0] = createPk([]byte(typeOf.Name()), id.Name, isAutoIncrement(id), driver)
-		fieldsNames[0] = id.Name
-		return pks, fieldsNames, nil
+		FieldsNames[0] = id.Name
+		return pks, FieldsNames, nil
 	}
 
-	fields := fieldsByTags("pk", typeOf)
-	if len(fields) == 0 {
+	Fields := fieldsByTags("pk", typeOf)
+	if len(Fields) == 0 {
 		return nil, nil, fmt.Errorf("%w: struct %q don't have a primary key setted", ErrStructWithoutPrimaryKey, typeOf.Name())
 	}
 
-	pks = make([]*pk, len(fields))
-	fieldsNames = make([]string, len(fields))
-	for i := range fields {
-		pks[i] = createPk([]byte(typeOf.Name()), fields[i].Name, isAutoIncrement(fields[i]), driver)
-		fieldsNames[i] = fields[i].Name
+	pks = make([]*pk, len(Fields))
+	FieldsNames = make([]string, len(Fields))
+	for i := range Fields {
+		pks[i] = createPk([]byte(typeOf.Name()), Fields[i].Name, isAutoIncrement(Fields[i]), driver)
+		FieldsNames[i] = Fields[i].Name
 	}
 
-	return pks, fieldsNames, nil
+	return pks, FieldsNames, nil
 }
 
 func isAutoIncrement(id reflect.StructField) bool {
 	return strings.Contains(id.Type.Kind().String(), "int")
 }
 
-func isManyToOne(tables reflect.Value, typeOf reflect.Type, driver Driver, table, prefix string) field {
+func isManyToOne(tables reflect.Value, typeOf reflect.Type, driver Driver, table, prefix string) Field {
 	for c := 0; c < tables.NumField(); c++ {
 		if tables.Field(c).Elem().Type().Name() == table {
 			for i := 0; i < tables.Field(c).Elem().NumField(); i++ {
@@ -276,10 +276,10 @@ func isManyToOne(tables reflect.Value, typeOf reflect.Type, driver Driver, table
 }
 
 func primaryKeys(str reflect.Type) (pks []reflect.StructField) {
-	field, exists := str.FieldByName("Id")
+	Field, exists := str.FieldByName("Id")
 	if exists {
 		pks := make([]reflect.StructField, 1)
-		pks[0] = field
+		pks[0] = Field
 		return pks
 	} else {
 		//TODO: Return anonymous pk para len(pks) == 0
@@ -298,8 +298,8 @@ func fieldsByTags(tag string, str reflect.Type) (f []reflect.StructField) {
 	return f
 }
 
-func getTagValue(fieldTag string, subTag string) string {
-	values := strings.Split(fieldTag, ";")
+func getTagValue(FieldTag string, subTag string) string {
+	values := strings.Split(FieldTag, ";")
 	for _, v := range values {
 		if after, found := strings.CutPrefix(v, subTag); found {
 			return after
@@ -308,17 +308,17 @@ func getTagValue(fieldTag string, subTag string) string {
 	return ""
 }
 
-func checkTablePattern(tables reflect.Value, field reflect.StructField) (table, prefix string) {
-	table = getTagValue(field.Tag.Get("goe"), "table:")
+func checkTablePattern(tables reflect.Value, Field reflect.StructField) (table, prefix string) {
+	table = getTagValue(Field.Tag.Get("goe"), "table:")
 	if table != "" {
-		prefix = strings.ReplaceAll(field.Name, table, "")
+		prefix = strings.ReplaceAll(Field.Name, table, "")
 		return table, prefix
 	}
 	if table == "" {
-		for r := len(field.Name) - 1; r > 1; r-- {
-			if field.Name[r] < 'a' {
-				table = field.Name[r:]
-				prefix = field.Name[:r]
+		for r := len(Field.Name) - 1; r > 1; r-- {
+			if Field.Name[r] < 'a' {
+				table = Field.Name[r:]
+				prefix = Field.Name[:r]
 				if tables.FieldByName(table).IsValid() {
 					return table, prefix
 				}

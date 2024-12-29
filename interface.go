@@ -6,23 +6,13 @@ import (
 	"time"
 )
 
-type joins interface {
-	FirstArg() any
-	Join() string
-	SecondArg() any
-}
-
-type operator interface {
-	Operation() string
-}
-
-type field interface {
-	getPrimaryKey() *pk
-	getSelect() string
-	table() []byte
-	buildAttributeSelect(*builder, int)
-	buildAttributeInsert(*builder)
-	buildAttributeUpdate(*builder)
+type Field interface {
+	GetPrimaryKey() *pk
+	GetSelect() string
+	Table() []byte
+	BuildAttributeSelect(*Builder, int)
+	BuildAttributeInsert(*Builder)
+	BuildAttributeUpdate(*Builder)
 }
 
 type Driver interface {

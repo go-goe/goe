@@ -7,6 +7,7 @@ import (
 	"log"
 	"reflect"
 
+	"github.com/olauro/goe/jn"
 	"github.com/olauro/goe/wh"
 )
 
@@ -25,22 +26,22 @@ var ErrInvalidUpdateValue = errors.New("goe: invalid update value. try sending a
 type stateSelect struct {
 	config  *Config
 	conn    Connection
-	addrMap map[uintptr]field
-	builder *builder
+	addrMap map[uintptr]Field
+	builder *Builder
 	ctx     context.Context
 	err     error
 }
 
 func createSelectState(conn Connection, c *Config, ctx context.Context, d Driver, e error) *stateSelect {
-	return &stateSelect{conn: conn, builder: createBuilder(d), config: c, ctx: ctx, err: e}
+	return &stateSelect{conn: conn, builder: CreateBuilder(d), config: c, ctx: ctx, err: e}
 }
 
 // Where creates a where SQL using the operations
-func (s *stateSelect) Where(brs ...operator) *stateSelect {
+func (s *stateSelect) Where(Brs ...wh.Operator) *stateSelect {
 	if s.err != nil {
 		return s
 	}
-	s.err = helperWhere(s.builder, s.addrMap, brs...)
+	s.err = helperWhere(s.builder, s.addrMap, Brs...)
 	return s
 }
 
@@ -54,7 +55,7 @@ func (s *stateSelect) Where(brs ...operator) *stateSelect {
 //	// skips 20 and takes next 20 elements
 //	db.Select(db.Habitat).Skip(20).Take(20).Scan(&h)
 func (s *stateSelect) Take(i uint) *stateSelect {
-	s.builder.limit = i
+	s.builder.Limit = i
 	return s
 }
 
@@ -68,7 +69,7 @@ func (s *stateSelect) Take(i uint) *stateSelect {
 //	// skips 20 and takes next 20 elements
 //	db.Select(db.Habitat).Skip(20).Take(20).Scan(&h)
 func (s *stateSelect) Skip(i uint) *stateSelect {
-	s.builder.offset = i
+	s.builder.Offset = i
 	return s
 }
 
@@ -79,8 +80,8 @@ func (s *stateSelect) Skip(i uint) *stateSelect {
 //	// returns first 20 elements
 //	db.Select(db.Habitat).Page(1, 20).Scan(&h)
 func (s *stateSelect) Page(p uint, i uint) *stateSelect {
-	s.builder.offset = i * (p - 1)
-	s.builder.limit = i
+	s.builder.Offset = i * (p - 1)
+	s.builder.Limit = i
 	return s
 }
 
@@ -94,12 +95,12 @@ func (s *stateSelect) Page(p uint, i uint) *stateSelect {
 //	// same query
 //	db.Select(db.Habitat).OrderByAsc(&db.Habitat.Name).Page(1, 20).Scan(&h)
 func (s *stateSelect) OrderByAsc(arg any) *stateSelect {
-	field := getArg(arg, s.addrMap)
-	if field == nil {
+	Field := getArg(arg, s.addrMap)
+	if Field == nil {
 		s.err = ErrInvalidOrderBy
 		return s
 	}
-	s.builder.orderBy = fmt.Sprintf("\nORDER BY %v ASC", field.getSelect())
+	s.builder.OrderBy = fmt.Sprintf("\nORDER BY %v ASC", Field.GetSelect())
 	return s
 }
 
@@ -113,61 +114,61 @@ func (s *stateSelect) OrderByAsc(arg any) *stateSelect {
 //	// same query
 //	db.Select(db.Habitat).OrderByDesc(&db.Habitat.Id).Take(1).Scan(&h)
 func (s *stateSelect) OrderByDesc(arg any) *stateSelect {
-	field := getArg(arg, s.addrMap)
-	if field == nil {
+	Field := getArg(arg, s.addrMap)
+	if Field == nil {
 		s.err = ErrInvalidOrderBy
 		return s
 	}
-	s.builder.orderBy = fmt.Sprintf("\nORDER BY %v DESC", field.getSelect())
+	s.builder.OrderBy = fmt.Sprintf("\nORDER BY %v DESC", Field.GetSelect())
 	return s
 }
 
-func (s *stateSelect) querySelect(args []uintptr, aggregates []aggregate) *stateSelect {
+func (s *stateSelect) querySelect(Args []uintptr, aggregates []aggregate) *stateSelect {
 	if s.err == nil {
-		s.builder.args = args
-		s.builder.aggregates = aggregates
-		s.builder.buildSelect(s.addrMap)
+		s.builder.Args = Args
+		s.builder.Aggregates = aggregates
+		s.builder.BuildSelect(s.addrMap)
 	}
 	return s
 }
 
 // TODO: Add Doc
-func (s *stateSelect) From(tables ...any) *stateSelect {
-	s.builder.tables = make([]string, len(tables))
-	args, err := getArgsTables(s.addrMap, s.builder.tables, tables...)
+func (s *stateSelect) From(Tables ...any) *stateSelect {
+	s.builder.Tables = make([]string, len(Tables))
+	Args, err := getArgsTables(s.addrMap, s.builder.Tables, Tables...)
 	if err != nil {
 		s.err = err
 		return s
 	}
-	s.builder.froms = args
+	s.builder.Froms = Args
 	return s
 }
 
 // TODO: Add Doc
-func (s *stateSelect) Joins(joins ...joins) *stateSelect {
+func (s *stateSelect) Joins(joins ...jn.Joins) *stateSelect {
 	if s.err != nil {
 		return s
 	}
 
 	for _, j := range joins {
-		args, err := getArgsIn(s.addrMap, j.FirstArg(), j.SecondArg())
+		Args, err := getArgsIn(s.addrMap, j.FirstArg(), j.SecondArg())
 		if err != nil {
 			s.err = err
 			return s
 		}
-		s.builder.buildSelectJoins(s.addrMap, j.Join(), args)
+		s.builder.BuildSelectJoins(s.addrMap, j.Join(), Args)
 	}
 	return s
 }
 
-// Scan fills the target with the returned sql data,
+// Scan fills the target with the returned Sql data,
 // target can be a pointer or a pointer to [Slice].
 //
 // In case of passing a pointer of struct or a pointer to slice of
-// struct, goe package will match the fields by name
+// struct, goe package will match the Fields by name
 //
-// Scan uses [sql.Row] if a not slice pointer is the target, in
-// this case can return [sql.ErrNoRows]
+// Scan uses [Sql.Row] if a not slice pointer is the target, in
+// this case can return [Sql.ErrNoRows]
 //
 // Scan returns the SQL generated and a nil error if succeed.
 //
@@ -200,16 +201,16 @@ func (s *stateSelect) Scan(target any) error {
 	}
 
 	//generate query
-	s.err = s.builder.buildSqlSelect()
+	s.err = s.builder.BuildSqlSelect()
 	if s.err != nil {
 		return s.err
 	}
 
-	sql := s.builder.sql.String()
+	Sql := s.builder.Sql.String()
 	if s.config.LogQuery {
-		log.Println("\n" + sql)
+		log.Println("\n" + Sql)
 	}
-	return handlerResult(s.conn, sql, value, s.builder.argsAny, s.builder.structColumns, s.builder.limit, s.ctx)
+	return handlerResult(s.conn, Sql, value, s.builder.ArgsAny, s.builder.StructColumns, s.builder.Limit, s.ctx)
 }
 
 /*
@@ -218,24 +219,24 @@ State Insert
 type stateInsert struct {
 	config  *Config
 	conn    Connection
-	builder *builder
+	builder *Builder
 	ctx     context.Context
 	err     error
 }
 
 func createInsertState(conn Connection, c *Config, ctx context.Context, d Driver, e error) *stateInsert {
-	return &stateInsert{conn: conn, builder: createBuilder(d), config: c, ctx: ctx, err: e}
+	return &stateInsert{conn: conn, builder: CreateBuilder(d), config: c, ctx: ctx, err: e}
 }
 
-func (s *stateInsert) queryInsert(args []uintptr, addrMap map[uintptr]field) *stateInsert {
+func (s *stateInsert) queryInsert(Args []uintptr, addrMap map[uintptr]Field) *stateInsert {
 	if s.err == nil {
-		s.builder.args = args
+		s.builder.Args = Args
 		s.builder.buildInsert(addrMap)
 	}
 	return s
 }
 
-// Value inserts the value inside the database, and updates the Id field if
+// Value inserts the value inside the database, and updates the Id Field if
 // is a auto increment.
 //
 // The value needs to be a pointer to a struct of database types
@@ -279,14 +280,14 @@ func (s *stateInsert) Value(value any) error {
 
 	idName := s.builder.buildValues(v)
 
-	sql := s.builder.sql.String()
+	Sql := s.builder.Sql.String()
 	if s.config.LogQuery {
-		log.Println("\n" + sql)
+		log.Println("\n" + Sql)
 	}
-	if s.builder.returning != nil {
-		return handlerValuesReturning(s.conn, sql, v, s.builder.argsAny, idName, s.ctx)
+	if s.builder.Returning != nil {
+		return handlerValuesReturning(s.conn, Sql, v, s.builder.ArgsAny, idName, s.ctx)
 	}
-	return handlerValues(s.conn, sql, s.builder.argsAny, s.ctx)
+	return handlerValues(s.conn, Sql, s.builder.ArgsAny, s.ctx)
 }
 
 func (s *stateInsert) batchValue(value reflect.Value) error {
@@ -299,11 +300,11 @@ func (s *stateInsert) batchValue(value reflect.Value) error {
 	}
 	idName := s.builder.buildBatchValues(value)
 
-	sql := s.builder.sql.String()
+	Sql := s.builder.Sql.String()
 	if s.config.LogQuery {
-		log.Println("\n" + sql)
+		log.Println("\n" + Sql)
 	}
-	return handlerValuesReturningBatch(s.conn, sql, value, s.builder.argsAny, idName, s.ctx)
+	return handlerValuesReturningBatch(s.conn, Sql, value, s.builder.ArgsAny, idName, s.ctx)
 }
 
 /*
@@ -312,27 +313,27 @@ State Update
 type stateUpdate struct {
 	config  *Config
 	conn    Connection
-	addrMap map[uintptr]field
-	builder *builder
+	addrMap map[uintptr]Field
+	builder *Builder
 	ctx     context.Context
 	err     error
 }
 
-func createUpdateState(am map[uintptr]field, conn Connection, c *Config, ctx context.Context, d Driver, e error) *stateUpdate {
-	return &stateUpdate{addrMap: am, conn: conn, builder: createBuilder(d), config: c, ctx: ctx, err: e}
+func createUpdateState(am map[uintptr]Field, conn Connection, c *Config, ctx context.Context, d Driver, e error) *stateUpdate {
+	return &stateUpdate{addrMap: am, conn: conn, builder: CreateBuilder(d), config: c, ctx: ctx, err: e}
 }
 
-func (s *stateUpdate) Where(brs ...operator) *stateUpdate {
+func (s *stateUpdate) Where(Brs ...wh.Operator) *stateUpdate {
 	if s.err != nil {
 		return s
 	}
-	s.err = helperWhere(s.builder, s.addrMap, brs...)
+	s.err = helperWhere(s.builder, s.addrMap, Brs...)
 	return s
 }
 
-func (s *stateUpdate) queryUpdate(args []uintptr, addrMap map[uintptr]field) *stateUpdate {
+func (s *stateUpdate) queryUpdate(Args []uintptr, addrMap map[uintptr]Field) *stateUpdate {
 	if s.err == nil {
-		s.builder.args = args
+		s.builder.Args = Args
 		s.builder.buildUpdate(addrMap)
 	}
 	return s
@@ -374,29 +375,29 @@ func (s *stateUpdate) Value(value any) error {
 		return s.err
 	}
 
-	sql := s.builder.sql.String()
+	Sql := s.builder.Sql.String()
 	if s.config.LogQuery {
-		log.Println("\n" + sql)
+		log.Println("\n" + Sql)
 	}
-	return handlerValues(s.conn, sql, s.builder.argsAny, s.ctx)
+	return handlerValues(s.conn, Sql, s.builder.ArgsAny, s.ctx)
 }
 
 type stateDelete struct {
-	addrMap map[uintptr]field
+	addrMap map[uintptr]Field
 	config  *Config
 	conn    Connection
-	builder *builder
+	builder *Builder
 	ctx     context.Context
 	err     error
 }
 
-func createDeleteState(am map[uintptr]field, conn Connection, c *Config, ctx context.Context, d Driver, e error) *stateDelete {
-	return &stateDelete{addrMap: am, conn: conn, builder: createBuilder(d), config: c, ctx: ctx, err: e}
+func createDeleteState(am map[uintptr]Field, conn Connection, c *Config, ctx context.Context, d Driver, e error) *stateDelete {
+	return &stateDelete{addrMap: am, conn: conn, builder: CreateBuilder(d), config: c, ctx: ctx, err: e}
 }
 
-func (s *stateDelete) queryDelete(args []uintptr, addrMap map[uintptr]field) *stateDelete {
+func (s *stateDelete) queryDelete(Args []uintptr, addrMap map[uintptr]Field) *stateDelete {
 	if s.err == nil {
-		s.builder.args = args
+		s.builder.Args = Args
 		s.builder.buildDelete(addrMap)
 	}
 	return s
@@ -411,12 +412,12 @@ func (s *stateDelete) queryDelete(args []uintptr, addrMap map[uintptr]field) *st
 //
 //	// delete matched animals
 //	db.Delete(db.Animal).Where(wh.Equals(&db.Animal.Id, 23))
-func (s *stateDelete) Where(brs ...operator) error {
+func (s *stateDelete) Where(Brs ...wh.Operator) error {
 	if s.err != nil {
 		return s.err
 	}
 
-	s.err = helperWhere(s.builder, s.addrMap, brs...)
+	s.err = helperWhere(s.builder, s.addrMap, Brs...)
 	if s.err != nil {
 		return s.err
 	}
@@ -426,40 +427,40 @@ func (s *stateDelete) Where(brs ...operator) error {
 		return s.err
 	}
 
-	sql := s.builder.sql.String()
+	Sql := s.builder.Sql.String()
 	if s.config.LogQuery {
-		log.Println("\n" + sql)
+		log.Println("\n" + Sql)
 	}
-	return handlerValues(s.conn, sql, s.builder.argsAny, s.ctx)
+	return handlerValues(s.conn, Sql, s.builder.ArgsAny, s.ctx)
 }
 
-func helperWhere(builder *builder, addrMap map[uintptr]field, brs ...operator) error {
-	for i := range brs {
-		switch br := brs[i].(type) {
+func helperWhere(builder *Builder, addrMap map[uintptr]Field, Brs ...wh.Operator) error {
+	for i := range Brs {
+		switch br := Brs[i].(type) {
 		case wh.Operation:
 			if a := getArg(br.Arg, addrMap); a != nil {
-				br.Arg = a.getSelect()
-				builder.brs = append(builder.brs, br)
+				br.Arg = a.GetSelect()
+				builder.Brs = append(builder.Brs, br)
 				continue
 			}
 			return ErrInvalidWhere
 		case wh.OperationArg:
 			if a, b := getArg(br.Op.Arg, addrMap), getArg(br.Op.Value, addrMap); a != nil && b != nil {
-				br.Op.Arg = a.getSelect()
-				br.Op.ValueFlag = b.getSelect()
-				builder.brs = append(builder.brs, br)
+				br.Op.Arg = a.GetSelect()
+				br.Op.ValueFlag = b.GetSelect()
+				builder.Brs = append(builder.Brs, br)
 				continue
 			}
 			return ErrInvalidWhere
 		case wh.OperationIs:
 			if a := getArg(br.Arg, addrMap); a != nil {
-				br.Arg = a.getSelect()
-				builder.brs = append(builder.brs, br)
+				br.Arg = a.GetSelect()
+				builder.Brs = append(builder.Brs, br)
 				continue
 			}
 			return ErrInvalidWhere
 		default:
-			builder.brs = append(builder.brs, br)
+			builder.Brs = append(builder.Brs, br)
 		}
 	}
 	return nil

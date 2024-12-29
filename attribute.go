@@ -12,15 +12,15 @@ type oneToOne struct {
 	attributeStrings
 }
 
-func (o *oneToOne) getPrimaryKey() *pk {
+func (o *oneToOne) GetPrimaryKey() *pk {
 	return o.pk
 }
 
-func (o *oneToOne) table() []byte {
+func (o *oneToOne) Table() []byte {
 	return o.tableBytes
 }
 
-func createOneToOne(typeOf reflect.Type, targetTypeOf reflect.Type, driver Driver, prefix string) *oneToOne {
+func createOneToOne(typeOf reflect.Type, targetTypeOf reflect.Type, Driver Driver, prefix string) *oneToOne {
 	mto := new(oneToOne)
 	targetPks := primaryKeys(typeOf)
 	count := 0
@@ -35,10 +35,10 @@ func createOneToOne(typeOf reflect.Type, targetTypeOf reflect.Type, driver Drive
 	}
 
 	mto.selectName = fmt.Sprintf("%v.%v",
-		driver.KeywordHandler(utils.TableNamePattern(targetTypeOf.Name())),
-		driver.KeywordHandler(utils.ManyToOneNamePattern(prefix, typeOf.Name())))
-	mto.tableBytes = []byte(driver.KeywordHandler(utils.TableNamePattern(targetTypeOf.Name())))
-	mto.attributeName = driver.KeywordHandler(utils.ColumnNamePattern(utils.ManyToOneNamePattern(prefix, typeOf.Name())))
+		Driver.KeywordHandler(utils.TableNamePattern(targetTypeOf.Name())),
+		Driver.KeywordHandler(utils.ManyToOneNamePattern(prefix, typeOf.Name())))
+	mto.tableBytes = []byte(Driver.KeywordHandler(utils.TableNamePattern(targetTypeOf.Name())))
+	mto.attributeName = Driver.KeywordHandler(utils.ColumnNamePattern(utils.ManyToOneNamePattern(prefix, typeOf.Name())))
 	mto.structAttributeName = prefix + typeOf.Name()
 	return mto
 }
@@ -48,15 +48,15 @@ type manyToOne struct {
 	attributeStrings
 }
 
-func (m *manyToOne) getPrimaryKey() *pk {
+func (m *manyToOne) GetPrimaryKey() *pk {
 	return m.pk
 }
 
-func (m *manyToOne) table() []byte {
+func (m *manyToOne) Table() []byte {
 	return m.tableBytes
 }
 
-func createManyToOne(typeOf reflect.Type, targetTypeOf reflect.Type, driver Driver, prefix string) *manyToOne {
+func createManyToOne(typeOf reflect.Type, targetTypeOf reflect.Type, Driver Driver, prefix string) *manyToOne {
 	mto := new(manyToOne)
 	targetPks := primaryKeys(typeOf)
 	count := 0
@@ -71,10 +71,10 @@ func createManyToOne(typeOf reflect.Type, targetTypeOf reflect.Type, driver Driv
 	}
 
 	mto.selectName = fmt.Sprintf("%v.%v",
-		driver.KeywordHandler(utils.TableNamePattern(targetTypeOf.Name())),
-		driver.KeywordHandler(utils.ManyToOneNamePattern(prefix, typeOf.Name())))
-	mto.tableBytes = []byte(driver.KeywordHandler(utils.TableNamePattern(targetTypeOf.Name())))
-	mto.attributeName = driver.KeywordHandler(utils.ColumnNamePattern(utils.ManyToOneNamePattern(prefix, typeOf.Name())))
+		Driver.KeywordHandler(utils.TableNamePattern(targetTypeOf.Name())),
+		Driver.KeywordHandler(utils.ManyToOneNamePattern(prefix, typeOf.Name())))
+	mto.tableBytes = []byte(Driver.KeywordHandler(utils.TableNamePattern(targetTypeOf.Name())))
+	mto.attributeName = Driver.KeywordHandler(utils.ColumnNamePattern(utils.ManyToOneNamePattern(prefix, typeOf.Name())))
 	mto.structAttributeName = prefix + typeOf.Name()
 	return mto
 }
@@ -86,11 +86,11 @@ type attributeStrings struct {
 	structAttributeName string
 }
 
-func createAttributeStrings(table []byte, attributeName string, driver Driver) attributeStrings {
+func createAttributeStrings(table []byte, attributeName string, Driver Driver) attributeStrings {
 	return attributeStrings{
 		tableBytes:          table,
-		selectName:          fmt.Sprintf("%v.%v", string(table), driver.KeywordHandler(utils.ColumnNamePattern(attributeName))),
-		attributeName:       driver.KeywordHandler(utils.ColumnNamePattern(attributeName)),
+		selectName:          fmt.Sprintf("%v.%v", string(table), Driver.KeywordHandler(utils.ColumnNamePattern(attributeName))),
+		attributeName:       Driver.KeywordHandler(utils.ColumnNamePattern(attributeName)),
 		structAttributeName: attributeName,
 	}
 }
@@ -101,19 +101,19 @@ type pk struct {
 	attributeStrings
 }
 
-func (p *pk) getPrimaryKey() *pk {
+func (p *pk) GetPrimaryKey() *pk {
 	return p
 }
 
-func (p *pk) table() []byte {
+func (p *pk) Table() []byte {
 	return p.tableBytes
 }
 
-func createPk(table []byte, attributeName string, autoIncrement bool, driver Driver) *pk {
+func createPk(table []byte, attributeName string, autoIncrement bool, Driver Driver) *pk {
 	//TODO:: Check this utils
-	table = []byte(driver.KeywordHandler(utils.TableNamePattern(string(table))))
+	table = []byte(Driver.KeywordHandler(utils.TableNamePattern(string(table))))
 	return &pk{
-		attributeStrings: createAttributeStrings(table, attributeName, driver),
+		attributeStrings: createAttributeStrings(table, attributeName, Driver),
 		autoIncrement:    autoIncrement,
 		fks:              make(map[string]any)}
 }
@@ -123,11 +123,11 @@ type att struct {
 	pk *pk
 }
 
-func (a *att) getPrimaryKey() *pk {
+func (a *att) GetPrimaryKey() *pk {
 	return a.pk
 }
 
-func (a *att) table() []byte {
+func (a *att) Table() []byte {
 	return a.tableBytes
 }
 
@@ -136,98 +136,98 @@ func createAtt(attributeName string, pk *pk, d Driver) *att {
 		attributeStrings: createAttributeStrings(pk.tableBytes, attributeName, d), pk: pk}
 }
 
-func (p *pk) buildAttributeSelect(b *builder, i int) {
-	b.sql.WriteString(p.selectName)
-	b.structColumns[i] = p.structAttributeName
+func (p *pk) BuildAttributeSelect(b *Builder, i int) {
+	b.Sql.WriteString(p.selectName)
+	b.StructColumns[i] = p.structAttributeName
 }
 
-func (a *att) buildAttributeSelect(b *builder, i int) {
-	b.sql.WriteString(a.selectName)
-	b.structColumns[i] = a.structAttributeName
+func (a *att) BuildAttributeSelect(b *Builder, i int) {
+	b.Sql.WriteString(a.selectName)
+	b.StructColumns[i] = a.structAttributeName
 }
 
-func (m *manyToOne) buildAttributeSelect(b *builder, i int) {
-	b.sql.WriteString(m.selectName)
-	b.structColumns[i] = m.structAttributeName
+func (m *manyToOne) BuildAttributeSelect(b *Builder, i int) {
+	b.Sql.WriteString(m.selectName)
+	b.StructColumns[i] = m.structAttributeName
 }
 
-func (o *oneToOne) buildAttributeSelect(b *builder, i int) {
-	b.sql.WriteString(o.selectName)
-	b.structColumns[i] = o.structAttributeName
+func (o *oneToOne) BuildAttributeSelect(b *Builder, i int) {
+	b.Sql.WriteString(o.selectName)
+	b.StructColumns[i] = o.structAttributeName
 }
 
-func (p *pk) buildAttributeInsert(b *builder) {
+func (p *pk) BuildAttributeInsert(b *Builder) {
 	if !p.autoIncrement {
-		b.sql.WriteString(p.attributeName)
-		b.attrNames = append(b.attrNames, p.structAttributeName)
+		b.Sql.WriteString(p.attributeName)
+		b.AttrNames = append(b.AttrNames, p.structAttributeName)
 		return
 	}
-	b.returning = b.driver.Returning([]byte(p.attributeName))
-	b.structPkName = p.structAttributeName
+	b.Returning = b.Driver.Returning([]byte(p.attributeName))
+	b.StructPkName = p.structAttributeName
 }
 
-func (a *att) buildAttributeInsert(b *builder) {
-	b.sql.WriteString(a.attributeName)
-	b.attrNames = append(b.attrNames, a.structAttributeName)
+func (a *att) BuildAttributeInsert(b *Builder) {
+	b.Sql.WriteString(a.attributeName)
+	b.AttrNames = append(b.AttrNames, a.structAttributeName)
 }
 
-func (m *manyToOne) buildAttributeInsert(b *builder) {
-	b.sql.WriteString(m.attributeName)
-	b.attrNames = append(b.attrNames, m.structAttributeName)
+func (m *manyToOne) BuildAttributeInsert(b *Builder) {
+	b.Sql.WriteString(m.attributeName)
+	b.AttrNames = append(b.AttrNames, m.structAttributeName)
 }
 
-func (o *oneToOne) buildAttributeInsert(b *builder) {
-	b.sql.WriteString(o.attributeName)
-	b.attrNames = append(b.attrNames, o.structAttributeName)
+func (o *oneToOne) BuildAttributeInsert(b *Builder) {
+	b.Sql.WriteString(o.attributeName)
+	b.AttrNames = append(b.AttrNames, o.structAttributeName)
 }
 
-func (p *pk) buildAttributeUpdate(b *builder) {
+func (p *pk) BuildAttributeUpdate(b *Builder) {
 	if !p.autoIncrement {
-		b.attrNames = append(b.attrNames, p.attributeName)
-		b.structColumns = append(b.structColumns, p.structAttributeName)
+		b.AttrNames = append(b.AttrNames, p.attributeName)
+		b.StructColumns = append(b.StructColumns, p.structAttributeName)
 	}
 }
 
-func (a *att) buildAttributeUpdate(b *builder) {
-	b.attrNames = append(b.attrNames, a.attributeName)
-	b.structColumns = append(b.structColumns, a.structAttributeName)
+func (a *att) BuildAttributeUpdate(b *Builder) {
+	b.AttrNames = append(b.AttrNames, a.attributeName)
+	b.StructColumns = append(b.StructColumns, a.structAttributeName)
 }
 
-func (m *manyToOne) buildAttributeUpdate(b *builder) {
-	b.attrNames = append(b.attrNames, m.attributeName)
-	b.structColumns = append(b.structColumns, m.structAttributeName)
+func (m *manyToOne) BuildAttributeUpdate(b *Builder) {
+	b.AttrNames = append(b.AttrNames, m.attributeName)
+	b.StructColumns = append(b.StructColumns, m.structAttributeName)
 }
 
-func (o *oneToOne) buildAttributeUpdate(b *builder) {
-	b.attrNames = append(b.attrNames, o.attributeName)
-	b.structColumns = append(b.structColumns, o.structAttributeName)
+func (o *oneToOne) BuildAttributeUpdate(b *Builder) {
+	b.AttrNames = append(b.AttrNames, o.attributeName)
+	b.StructColumns = append(b.StructColumns, o.structAttributeName)
 }
 
-func (p *pk) getSelect() string {
+func (p *pk) GetSelect() string {
 	return p.selectName
 }
 
-func (a *att) getSelect() string {
+func (a *att) GetSelect() string {
 	return a.selectName
 }
 
-func (m *manyToOne) getSelect() string {
+func (m *manyToOne) GetSelect() string {
 	return m.selectName
 }
 
-func (o *oneToOne) getSelect() string {
+func (o *oneToOne) GetSelect() string {
 	return o.selectName
 }
 
 type aggregate struct {
 	function string
-	field    field
+	field    Field
 }
 
-func createAggregate(function string, f field) aggregate {
+func createAggregate(function string, f Field) aggregate {
 	return aggregate{function: function, field: f}
 }
 
 func (a aggregate) String() string {
-	return fmt.Sprintf("%v(%v)", a.function, a.field.getSelect())
+	return fmt.Sprintf("%v(%v)", a.function, a.field.GetSelect())
 }
