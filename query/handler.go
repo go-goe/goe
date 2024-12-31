@@ -3,50 +3,47 @@ package query
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"iter"
 	"reflect"
 
 	"github.com/olauro/goe"
 )
 
-var ErrNotFound = errors.New("goe: not found any element on result set")
+func handlerValues(conn goe.Connection, sqlQuery string, args []any, ctx context.Context) error {
+	_, err := conn.ExecContext(ctx, sqlQuery, args...)
+	if err != nil {
+		return err
+	}
+	return nil
+}
 
-// func handlerValues(conn goe.Connection, sqlQuery string, args []any, ctx context.Context) error {
-// 	_, err := conn.ExecContext(ctx, sqlQuery, args...)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	return nil
-// }
+func handlerValuesReturning(conn goe.Connection, sqlQuery string, value reflect.Value, args []any, idName string, ctx context.Context) error {
+	row := conn.QueryRowContext(ctx, sqlQuery, args...)
 
-// func handlerValuesReturning(conn goe.Connection, sqlQuery string, value reflect.Value, args []any, idName string, ctx context.Context) error {
-// 	row := conn.QueryRowContext(ctx, sqlQuery, args...)
+	err := row.Scan(value.FieldByName(idName).Addr().Interface())
+	if err != nil {
+		return err
+	}
+	return nil
+}
 
-// 	err := row.Scan(value.FieldByName(idName).Addr().Interface())
-// 	if err != nil {
-// 		return err
-// 	}
-// 	return nil
-// }
+func handlerValuesReturningBatch(conn goe.Connection, sqlQuery string, value reflect.Value, args []any, idName string, ctx context.Context) error {
+	rows, err := conn.QueryContext(ctx, sqlQuery, args...)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
 
-// func handlerValuesReturningBatch(conn goe.Connection, sqlQuery string, value reflect.Value, args []any, idName string, ctx context.Context) error {
-// 	rows, err := conn.QueryContext(ctx, sqlQuery, args...)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	defer rows.Close()
-
-// 	i := 0
-// 	for rows.Next() {
-// 		err = rows.Scan(value.Index(i).FieldByName(idName).Addr().Interface())
-// 		if err != nil {
-// 			return err
-// 		}
-// 		i++
-// 	}
-// 	return nil
-// }
+	i := 0
+	for rows.Next() {
+		err = rows.Scan(value.Index(i).FieldByName(idName).Addr().Interface())
+		if err != nil {
+			return err
+		}
+		i++
+	}
+	return nil
+}
 
 func handlerResult[T any](conn goe.Connection, sqlQuery string, args []any, structColumns []string, ctx context.Context) iter.Seq2[T, error] {
 	rows, err := conn.QueryContext(ctx, sqlQuery, args...)

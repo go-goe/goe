@@ -12,7 +12,7 @@ import (
 	"github.com/olauro/goe/wh"
 )
 
-type StateSelect[T any] struct {
+type stateSelect[T any] struct {
 	config  *goe.Config
 	conn    goe.Connection
 	addrMap map[uintptr]goe.Field
@@ -37,14 +37,14 @@ func FindContext[T any, P any](ctx context.Context, db *goe.DB, t *T, pk *P, v P
 	return row, goe.ErrNotFound
 }
 
-func Select[T any](db *goe.DB, t *T) *StateSelect[T] {
+func Select[T any](db *goe.DB, t *T) *stateSelect[T] {
 	return SelectContext(context.Background(), db, t)
 }
 
-func SelectContext[T any](ctx context.Context, db *goe.DB, t *T) *StateSelect[T] {
+func SelectContext[T any](ctx context.Context, db *goe.DB, t *T) *stateSelect[T] {
 	ts, err := getArgsSelect(db.AddrMap, t)
 
-	var state *StateSelect[T]
+	var state *stateSelect[T]
 	if err != nil {
 		state = createSelectState[T](nil, db.Config, ctx, nil, err)
 		return state.querySelect(nil)
@@ -57,7 +57,7 @@ func SelectContext[T any](ctx context.Context, db *goe.DB, t *T) *StateSelect[T]
 }
 
 // Where creates a where SQL using the operations
-func (s *StateSelect[T]) Where(brs ...wh.Operator) *StateSelect[T] {
+func (s *stateSelect[T]) Where(brs ...wh.Operator) *stateSelect[T] {
 	if s.err != nil {
 		return s
 	}
@@ -74,7 +74,7 @@ func (s *StateSelect[T]) Where(brs ...wh.Operator) *StateSelect[T] {
 //
 //	// skips 20 and takes next 20 elements
 //	db.Select(db.Habitat).Skip(20).Take(20).Scan(&h)
-func (s *StateSelect[T]) Take(i uint) *StateSelect[T] {
+func (s *stateSelect[T]) Take(i uint) *stateSelect[T] {
 	s.builder.Limit = i
 	return s
 }
@@ -88,7 +88,7 @@ func (s *StateSelect[T]) Take(i uint) *StateSelect[T] {
 //
 //	// skips 20 and takes next 20 elements
 //	db.Select(db.Habitat).Skip(20).Take(20).Scan(&h)
-func (s *StateSelect[T]) Skip(i uint) *StateSelect[T] {
+func (s *stateSelect[T]) Skip(i uint) *stateSelect[T] {
 	s.builder.Offset = i
 	return s
 }
@@ -99,7 +99,7 @@ func (s *StateSelect[T]) Skip(i uint) *StateSelect[T] {
 //
 //	// returns first 20 elements
 //	db.Select(db.Habitat).Page(1, 20).Scan(&h)
-func (s *StateSelect[T]) Page(p uint, i uint) *StateSelect[T] {
+func (s *stateSelect[T]) Page(p uint, i uint) *stateSelect[T] {
 	s.builder.Offset = i * (p - 1)
 	s.builder.Limit = i
 	return s
@@ -114,7 +114,7 @@ func (s *StateSelect[T]) Page(p uint, i uint) *StateSelect[T] {
 //
 //	// same query
 //	db.Select(db.Habitat).OrderByAsc(&db.Habitat.Name).Page(1, 20).Scan(&h)
-func (s *StateSelect[T]) OrderByAsc(arg any) *StateSelect[T] {
+func (s *stateSelect[T]) OrderByAsc(arg any) *stateSelect[T] {
 	Field := getArg(arg, s.addrMap)
 	if Field == nil {
 		s.err = goe.ErrInvalidOrderBy
@@ -133,7 +133,7 @@ func (s *StateSelect[T]) OrderByAsc(arg any) *StateSelect[T] {
 //
 //	// same query
 //	db.Select(db.Habitat).OrderByDesc(&db.Habitat.Id).Take(1).Scan(&h)
-func (s *StateSelect[T]) OrderByDesc(arg any) *StateSelect[T] {
+func (s *stateSelect[T]) OrderByDesc(arg any) *stateSelect[T] {
 	Field := getArg(arg, s.addrMap)
 	if Field == nil {
 		s.err = goe.ErrInvalidOrderBy
@@ -144,7 +144,7 @@ func (s *StateSelect[T]) OrderByDesc(arg any) *StateSelect[T] {
 }
 
 // TODO: Add Doc
-func (s *StateSelect[T]) From(tables ...any) *StateSelect[T] {
+func (s *stateSelect[T]) From(tables ...any) *stateSelect[T] {
 	s.builder.Tables = make([]string, len(tables))
 	args, err := getArgsTables(s.addrMap, s.builder.Tables, tables...)
 	if err != nil {
@@ -156,7 +156,7 @@ func (s *StateSelect[T]) From(tables ...any) *StateSelect[T] {
 }
 
 // TODO: Add Doc
-func (s *StateSelect[T]) Joins(joins ...jn.Joins) *StateSelect[T] {
+func (s *stateSelect[T]) Joins(joins ...jn.Joins) *stateSelect[T] {
 	if s.err != nil {
 		return s
 	}
@@ -173,7 +173,7 @@ func (s *StateSelect[T]) Joins(joins ...jn.Joins) *StateSelect[T] {
 }
 
 // TODO: Add doc
-func (s *StateSelect[T]) Rows() iter.Seq2[T, error] {
+func (s *stateSelect[T]) Rows() iter.Seq2[T, error] {
 	if s.err != nil {
 		var v T
 		return func(yield func(T, error) bool) {
@@ -205,11 +205,11 @@ func SafeGet[T any](v *T) T {
 	return *v
 }
 
-func createSelectState[T any](conn goe.Connection, c *goe.Config, ctx context.Context, d goe.Driver, e error) *StateSelect[T] {
-	return &StateSelect[T]{conn: conn, builder: goe.CreateBuilder(d), config: c, ctx: ctx, err: e}
+func createSelectState[T any](conn goe.Connection, c *goe.Config, ctx context.Context, d goe.Driver, e error) *stateSelect[T] {
+	return &stateSelect[T]{conn: conn, builder: goe.CreateBuilder(d), config: c, ctx: ctx, err: e}
 }
 
-func (s *StateSelect[T]) querySelect(args []uintptr) *StateSelect[T] {
+func (s *stateSelect[T]) querySelect(args []uintptr) *stateSelect[T] {
 	if s.err == nil {
 		s.builder.Args = args
 		s.builder.BuildSelect(s.addrMap)
