@@ -231,7 +231,7 @@ func createInsertState(conn Connection, c *Config, ctx context.Context, d Driver
 func (s *stateInsert) queryInsert(Args []uintptr, addrMap map[uintptr]Field) *stateInsert {
 	if s.err == nil {
 		s.builder.Args = Args
-		s.builder.buildInsert(addrMap)
+		s.builder.BuildInsert(addrMap)
 	}
 	return s
 }
@@ -278,7 +278,7 @@ func (s *stateInsert) Value(value any) error {
 		return ErrInvalidInsertValue
 	}
 
-	idName := s.builder.buildValues(v)
+	idName := s.builder.BuildValues(v)
 
 	Sql := s.builder.Sql.String()
 	if s.config.LogQuery {
@@ -298,7 +298,7 @@ func (s *stateInsert) batchValue(value reflect.Value) error {
 	if value.Index(0).Kind() != reflect.Struct {
 		return ErrInvalidInsertBatchValue
 	}
-	idName := s.builder.buildBatchValues(value)
+	idName := s.builder.BuildBatchValues(value)
 
 	Sql := s.builder.Sql.String()
 	if s.config.LogQuery {
@@ -334,7 +334,7 @@ func (s *stateUpdate) Where(Brs ...wh.Operator) *stateUpdate {
 func (s *stateUpdate) queryUpdate(Args []uintptr, addrMap map[uintptr]Field) *stateUpdate {
 	if s.err == nil {
 		s.builder.Args = Args
-		s.builder.buildUpdate(addrMap)
+		s.builder.BuildUpdate(addrMap)
 	}
 	return s
 }
@@ -367,10 +367,10 @@ func (s *stateUpdate) Value(value any) error {
 		return ErrInvalidUpdateValue
 	}
 
-	s.builder.buildSet(v)
+	s.builder.BuildSet(v)
 
 	//generate query
-	s.err = s.builder.buildSqlUpdate()
+	s.err = s.builder.BuildSqlUpdate()
 	if s.err != nil {
 		return s.err
 	}

@@ -101,7 +101,7 @@ func (b *Builder) BuildSqlSelect() (err error) {
 	return err
 }
 
-func (b *Builder) buildSqlUpdate() (err error) {
+func (b *Builder) BuildSqlUpdate() (err error) {
 	err = b.buildWhere()
 	b.Sql.WriteByte(';')
 	return err
@@ -161,7 +161,7 @@ func buildJoins(join string, Sql *strings.Builder, f1, f2 Field, Tables []string
 	return nil
 }
 
-func (b *Builder) buildInsert(addrMap map[uintptr]Field) {
+func (b *Builder) BuildInsert(addrMap map[uintptr]Field) {
 	//TODO: Set a drive type to share stm
 	b.Sql.WriteString("INSERT ")
 	b.Sql.WriteString("INTO ")
@@ -189,7 +189,7 @@ func (b *Builder) buildInsert(addrMap map[uintptr]Field) {
 	b.Sql.WriteString("VALUES ")
 }
 
-func (b *Builder) buildValues(value reflect.Value) string {
+func (b *Builder) BuildValues(value reflect.Value) string {
 	b.Sql.WriteByte(40)
 	b.ArgsAny = make([]any, 0, len(b.AttrNames))
 
@@ -211,7 +211,7 @@ func (b *Builder) buildValues(value reflect.Value) string {
 
 }
 
-func (b *Builder) buildBatchValues(value reflect.Value) string {
+func (b *Builder) BuildBatchValues(value reflect.Value) string {
 	b.ArgsAny = make([]any, 0, len(b.AttrNames))
 
 	c := 1
@@ -222,7 +222,6 @@ func (b *Builder) buildBatchValues(value reflect.Value) string {
 		buildBatchValues(value.Index(j), b, &c)
 		c++
 	}
-	//pk := b.TablesPk[0]
 	if b.Returning != nil {
 		b.Sql.Write(b.Returning)
 	}
@@ -248,7 +247,7 @@ func buildValueField(valueField reflect.Value, b *Builder) {
 	b.ArgsAny = append(b.ArgsAny, valueField.Interface())
 }
 
-func (b *Builder) buildUpdate(addrMap map[uintptr]Field) {
+func (b *Builder) BuildUpdate(addrMap map[uintptr]Field) {
 	//TODO: Set a drive type to share stm
 	b.Sql.WriteString("UPDATE ")
 
@@ -265,7 +264,7 @@ func (b *Builder) buildUpdate(addrMap map[uintptr]Field) {
 	}
 }
 
-func (b *Builder) buildSet(value reflect.Value) {
+func (b *Builder) BuildSet(value reflect.Value) {
 	b.ArgsAny = make([]any, 0, len(b.AttrNames))
 	var c uint16 = 1
 	buildSetField(value.FieldByName(b.StructColumns[0]), b.AttrNames[0], b, c)
