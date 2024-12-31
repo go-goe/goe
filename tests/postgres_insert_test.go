@@ -8,7 +8,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/olauro/goe"
-	"github.com/olauro/goe/wh"
+	"github.com/olauro/goe/query"
 )
 
 func TestPostgresInsert(t *testing.T) {
@@ -41,13 +41,12 @@ func TestPostgresInsert(t *testing.T) {
 					Uint32:  32,
 					Bool:    true,
 				}
-				err = db.Insert(db.Flag).Value(&f)
+				err = query.Insert(db.DB, db.Flag).One(&f)
 				if err != nil {
-					t.Errorf("Expected a insert, got error: %v", err)
+					t.Fatalf("Expected a insert, got error: %v", err)
 				}
 
-				var fs Flag
-				db.Select(db.Flag).From(db.Flag).Where(wh.Equals(&db.Flag.Id, f.Id)).Scan(&fs)
+				fs, _ := query.Find(db.DB, db.Flag, &db.Flag.Id, f.Id)
 
 				if fs.Id != f.Id {
 					t.Errorf("Expected %v, got : %v", f.Id, fs.Id)
@@ -109,7 +108,7 @@ func TestPostgresInsert(t *testing.T) {
 			desc: "Insert_Animal",
 			testCase: func(t *testing.T) {
 				a := Animal{Name: "Cat"}
-				err = db.Insert(db.Animal).Value(&a)
+				err = query.Insert(db.DB, db.Animal).One(&a)
 				if err != nil {
 					t.Errorf("Expected a insert, got error: %v", err)
 				}
@@ -122,17 +121,17 @@ func TestPostgresInsert(t *testing.T) {
 			desc: "Insert_Composed_Pk",
 			testCase: func(t *testing.T) {
 				p := Person{Name: "Jhon"}
-				err = db.Insert(db.Person).Value(&p)
+				err = query.Insert(db.DB, db.Person).One(&p)
 				if err != nil {
-					t.Errorf("Expected a insert person, got error: %v", err)
+					t.Fatalf("Expected a insert person, got error: %v", err)
 				}
 				j := JobTitle{Name: "Developer"}
-				err = db.Insert(db.JobTitle).Value(&j)
+				err = query.Insert(db.DB, db.JobTitle).One(&j)
 				if err != nil {
-					t.Errorf("Expected a insert job, got error: %v", err)
+					t.Fatalf("Expected a insert job, got error: %v", err)
 				}
 
-				err = db.Insert(db.PersonJobTitle).Value(&PersonJobTitle{IdJobTitle: j.Id, IdPerson: p.Id, CreatedAt: time.Now()})
+				err = query.Insert(db.DB, db.PersonJobTitle).One(&PersonJobTitle{IdJobTitle: j.Id, IdPerson: p.Id, CreatedAt: time.Now()})
 				if err != nil {
 					t.Errorf("Expected a insert PersonJobTitle, got error: %v", err)
 				}
@@ -151,7 +150,7 @@ func TestPostgresInsert(t *testing.T) {
 					{Name: "Snake"},
 					{Name: "Whale"},
 				}
-				err = db.Insert(db.Animal).Value(&animals)
+				err = query.Insert(db.DB, db.Animal).All(animals)
 				if err != nil {
 					t.Fatalf("Expected insert animals, got error: %v", err)
 				}
@@ -163,35 +162,11 @@ func TestPostgresInsert(t *testing.T) {
 			},
 		},
 		{
-			desc: "Insert_Invalid_Pointer",
-			testCase: func(t *testing.T) {
-				a := Animal{Name: "Cat"}
-				err = db.Insert(db.Animal).Value(a)
-				if !errors.Is(err, goe.ErrInvalidInsertPointer) {
-					t.Errorf("Expected goe.ErrInvalidInsertPointer, got : %v", err)
-				}
-			},
-		},
-		{
 			desc: "Insert_Invalid_Value",
 			testCase: func(t *testing.T) {
-				a := 2
-				err = db.Insert(db.Animal).Value(&a)
+				err = query.Insert(db.DB, db.Animal).One(nil)
 				if !errors.Is(err, goe.ErrInvalidInsertValue) {
 					t.Errorf("Expected goe.ErrInvalidInsertValue, got : %v", err)
-				}
-			},
-		},
-		{
-			desc: "Insert_Invalid_Batch_Value",
-			testCase: func(t *testing.T) {
-				animals := []int{
-					1,
-					2,
-				}
-				err = db.Insert(db.Animal).Value(&animals)
-				if !errors.Is(err, goe.ErrInvalidInsertBatchValue) {
-					t.Errorf("Expected goe.ErrInvalidInsertBatchValue, got : %v", err)
 				}
 			},
 		},
@@ -199,7 +174,7 @@ func TestPostgresInsert(t *testing.T) {
 			desc: "Insert_Invalid_Empty_Batch",
 			testCase: func(t *testing.T) {
 				animals := []Animal{}
-				err = db.Insert(db.Animal).Value(&animals)
+				err = query.Insert(db.DB, db.Animal).All(animals)
 				if !errors.Is(err, goe.ErrEmptyBatchValue) {
 					t.Errorf("Expected goe.ErrInvalidInsertBatchValue, got : %v", err)
 				}
@@ -208,13 +183,12 @@ func TestPostgresInsert(t *testing.T) {
 		{
 			desc: "Insert_Invalid_Arg",
 			testCase: func(t *testing.T) {
-				a := 2
-				err = db.Insert(db.DB).Value(&a)
+				err = query.Insert(db.DB, db.DB).One(nil)
 				if !errors.Is(err, goe.ErrInvalidArg) {
 					t.Errorf("Expected goe.ErrInvalidArg, got : %v", err)
 				}
 
-				err = db.Insert(nil).Value(&a)
+				err = query.Insert[any](db.DB, nil).One(nil)
 				if !errors.Is(err, goe.ErrInvalidArg) {
 					t.Errorf("Expected goe.ErrInvalidArg, got : %v", err)
 				}
@@ -226,7 +200,7 @@ func TestPostgresInsert(t *testing.T) {
 				a := Animal{}
 				ctx, cancel := context.WithCancel(context.Background())
 				cancel()
-				err = db.InsertContext(ctx, db.Animal).Value(&a)
+				err = query.InsertContext(ctx, db.DB, db.Animal).One(&a)
 				if !errors.Is(err, context.Canceled) {
 					t.Errorf("Expected context.Canceled, got : %v", err)
 				}
@@ -238,7 +212,7 @@ func TestPostgresInsert(t *testing.T) {
 				a := Animal{}
 				ctx, cancel := context.WithTimeout(context.Background(), time.Nanosecond*1)
 				defer cancel()
-				err = db.InsertContext(ctx, db.Animal).Value(&a)
+				err = query.InsertContext(ctx, db.DB, db.Animal).One(&a)
 				if !errors.Is(err, context.DeadlineExceeded) {
 					t.Errorf("Expected context.DeadlineExceeded, got : %v", err)
 				}

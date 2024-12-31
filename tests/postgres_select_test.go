@@ -84,7 +84,7 @@ func TestPostgresSelect(t *testing.T) {
 		{Name: "Nice"},
 		{Name: "Ocean"},
 	}
-	err = db.Insert(db.Weather).Value(&weathers)
+	err = query.Insert(db.DB, db.Weather).All(weathers)
 	if err != nil {
 		t.Fatalf("Expected insert weathers, got error: %v", err)
 	}
@@ -95,7 +95,7 @@ func TestPostgresSelect(t *testing.T) {
 		{Id: uuid.New(), Name: "Savannah", IdWeather: weathers[0].Id},
 		{Id: uuid.New(), Name: "Ocean", IdWeather: weathers[2].Id},
 	}
-	err = db.Insert(db.Habitat).Value(&habitats)
+	err = query.Insert(db.DB, db.Habitat).All(habitats)
 	if err != nil {
 		t.Fatalf("Expected insert habitats, got error: %v", err)
 	}
@@ -106,7 +106,7 @@ func TestPostgresSelect(t *testing.T) {
 		{Name: "Big Dog Alive"},
 	}
 
-	err = db.Insert(db.Status).Value(&status)
+	err = query.Insert(db.DB, db.Status).All(status)
 	if err != nil {
 		t.Fatalf("Expected insert habitats, got error: %v", err)
 	}
@@ -115,7 +115,7 @@ func TestPostgresSelect(t *testing.T) {
 		{Id: uuid.New().NodeID(), Name: "Little Cat", IdStatus: status[0].Id, NameStatus: "Test"},
 		{Id: uuid.New().NodeID(), Name: "Big Dog", IdStatus: status[2].Id},
 	}
-	err = db.Insert(db.Info).Value(&infos)
+	err = query.Insert(db.DB, db.Info).All(infos)
 	if err != nil {
 		t.Fatalf("Expected insert infos, got error: %v", err)
 	}
@@ -131,13 +131,13 @@ func TestPostgresSelect(t *testing.T) {
 		{Name: "Snake", IdHabitat: &habitats[1].Id},
 		{Name: "Whale"},
 	}
-	err = db.Insert(db.Animal).Value(&animals)
+	err = query.Insert(db.DB, db.Animal).All(animals)
 	if err != nil {
 		t.Fatalf("Expected insert animals, got error: %v", err)
 	}
 
 	foods := []Food{{Id: uuid.New(), Name: "Meat"}, {Id: uuid.New(), Name: "Grass"}}
-	err = db.Insert(db.Food).Value(&foods)
+	err = query.Insert(db.DB, db.Food).All(foods)
 	if err != nil {
 		t.Fatalf("Expected insert foods, got error: %v", err)
 	}
@@ -145,17 +145,22 @@ func TestPostgresSelect(t *testing.T) {
 	animalFoods := []AnimalFood{
 		{IdFood: foods[0].Id, IdAnimal: animals[0].Id},
 		{IdFood: foods[0].Id, IdAnimal: animals[1].Id}}
-	err = db.Insert(db.AnimalFood).Value(&animalFoods)
+	err = query.Insert(db.DB, db.AnimalFood).All(animalFoods)
 	if err != nil {
 		t.Fatalf("Expected insert animalFoods, got error: %v", err)
 	}
+
+	/*
+		query.Update(db.DB, db.Animal).Fields(&db.Animal.Id)
+	*/
+	//query.Update(db.DB, db.Animal).Fields()
 
 	users := []User{
 		{Name: "Lauro Santana", Email: "lauro@email.com"},
 		{Name: "John Constantine", Email: "hunter@email.com"},
 		{Name: "Harry Potter", Email: "harry@email.com"},
 	}
-	err = db.Insert(db.User).Value(&users)
+	err = query.Insert(db.DB, db.User).All(users)
 	if err != nil {
 		t.Fatalf("Expected insert users, got error: %v", err)
 	}
@@ -165,7 +170,7 @@ func TestPostgresSelect(t *testing.T) {
 		{Name: "User"},
 		{Name: "Mid-Level"},
 	}
-	err = db.Insert(db.Role).Value(&roles)
+	err = query.Insert(db.DB, db.Role).All(roles)
 	if err != nil {
 		t.Fatalf("Expected insert roles, got error: %v", err)
 	}
@@ -175,7 +180,7 @@ func TestPostgresSelect(t *testing.T) {
 		{IdUser: users[0].Id, IdRole: roles[0].Id, EndDate: &tt},
 		{IdUser: users[1].Id, IdRole: roles[2].Id},
 	}
-	err = db.Insert(db.UserRole).Value(&userRoles)
+	err = query.Insert(db.DB, db.UserRole).All(userRoles)
 	if err != nil {
 		t.Fatalf("Expected insert user roles, got error: %v", err)
 	}
@@ -185,7 +190,7 @@ func TestPostgresSelect(t *testing.T) {
 		{Name: "Laura"},
 		{Name: "Luana"},
 	}
-	err = db.Insert(db.Person).Value(&persons)
+	err = query.Insert(db.DB, db.Person).All(persons)
 	if err != nil {
 		t.Fatalf("Expected insert persons, got error: %v", err)
 	}
@@ -194,7 +199,7 @@ func TestPostgresSelect(t *testing.T) {
 		{Name: "Developer"},
 		{Name: "Designer"},
 	}
-	err = db.Insert(db.JobTitle).Value(&jobs)
+	err = query.Insert(db.DB, db.JobTitle).All(jobs)
 	if err != nil {
 		t.Fatalf("Expected insert jobs, got error: %v", err)
 	}
@@ -204,7 +209,7 @@ func TestPostgresSelect(t *testing.T) {
 		{IdPerson: persons[1].Id, IdJobTitle: jobs[0].Id, CreatedAt: time.Now()},
 		{IdPerson: persons[2].Id, IdJobTitle: jobs[1].Id, CreatedAt: time.Now()},
 	}
-	err = db.Insert(db.PersonJobTitle).Value(&personJobs)
+	err = query.Insert(db.DB, db.PersonJobTitle).All(personJobs)
 	if err != nil {
 		t.Fatalf("Expected insert personJobs, got error: %v", err)
 	}
@@ -214,7 +219,7 @@ func TestPostgresSelect(t *testing.T) {
 		{Score: 4.9, Minimum: 5.5},
 		{Score: 5.5, Minimum: 5.5},
 	}
-	err = db.Insert(db.Exam).Value(&exams)
+	err = query.Insert(db.DB, db.Exam).All(exams)
 	if err != nil {
 		t.Fatalf("Expected insert exams, got error: %v", err)
 	}
