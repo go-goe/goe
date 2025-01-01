@@ -7,6 +7,7 @@ import (
 )
 
 type Field interface {
+	IsPrimaryKey() bool
 	GetPrimaryKey() *pk
 	GetSelect() string
 	Table() []byte

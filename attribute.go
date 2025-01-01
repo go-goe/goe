@@ -12,6 +12,10 @@ type oneToOne struct {
 	attributeStrings
 }
 
+func (o *oneToOne) IsPrimaryKey() bool {
+	return o.selectName == o.pk.selectName
+}
+
 func (o *oneToOne) GetPrimaryKey() *pk {
 	return o.pk
 }
@@ -46,6 +50,10 @@ func createOneToOne(typeOf reflect.Type, targetTypeOf reflect.Type, Driver Drive
 type manyToOne struct {
 	pk *pk
 	attributeStrings
+}
+
+func (m *manyToOne) IsPrimaryKey() bool {
+	return m.selectName == m.pk.selectName
 }
 
 func (m *manyToOne) GetPrimaryKey() *pk {
@@ -101,6 +109,10 @@ type pk struct {
 	attributeStrings
 }
 
+func (p *pk) IsPrimaryKey() bool {
+	return true
+}
+
 func (p *pk) GetPrimaryKey() *pk {
 	return p
 }
@@ -121,6 +133,10 @@ func createPk(table []byte, attributeName string, autoIncrement bool, Driver Dri
 type att struct {
 	attributeStrings
 	pk *pk
+}
+
+func (a *att) IsPrimaryKey() bool {
+	return false
 }
 
 func (a *att) GetPrimaryKey() *pk {

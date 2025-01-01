@@ -4,10 +4,106 @@ import (
 	"context"
 	"log"
 	"reflect"
+	"slices"
 
 	"github.com/olauro/goe"
 	"github.com/olauro/goe/wh"
 )
+
+type save[T any] struct {
+	table    *T
+	pks      []uintptr
+	pksValue []any
+	includes []uintptr
+	update   *stateUpdate[T]
+}
+
+func Save[T any](db *goe.DB, table *T) *save[T] {
+	return SaveContext(context.Background(), db, table)
+}
+
+func SaveContext[T any](ctx context.Context, db *goe.DB, table *T) *save[T] {
+	save := &save[T]{}
+	save.update = UpdateContext(ctx, db, table)
+
+	if table == nil {
+		save.update.err = goe.ErrInvalidArg
+		return save
+	}
+
+	save.table = table
+
+	return save
+}
+
+func (s *save[T]) Includes(args ...any) *save[T] {
+	ptrArgs, err := getArgsUpdate(s.update.addrMap, args...)
+	if err != nil {
+		s.update.err = err
+		return s
+	}
+
+	s.includes = append(s.includes, ptrArgs...)
+	return s
+}
+
+func (s *save[T]) Replace(replace T) *save[T] {
+	if s.update.err != nil {
+		return s
+	}
+
+	s.pks, s.pksValue, s.update.err = getArgsReplace(s.update.addrMap, s.table, replace)
+	return s
+}
+
+func (s *save[T]) Value(v T) error {
+	if s.update.err != nil {
+		return s.update.err
+	}
+
+	includes, pks, pksValue, err := getArgsSave(s.update.addrMap, s.table, v)
+	if err != nil {
+		return err
+	}
+
+	if s.pks != nil {
+		for i := range pks {
+			if pksValue[i] != s.pksValue[i] {
+				includes = append(includes, pks[i])
+			}
+		}
+		pks = s.pks
+		pksValue = s.pksValue
+	}
+
+	if len(includes) == 0 {
+		//TODO: error inclues empty
+		return goe.ErrInvalidArg
+	}
+
+	s.update.builder.Brs = append(s.update.builder.Brs, wh.Operation{
+		Arg:      s.update.addrMap[pks[0]].GetSelect(),
+		Operator: "=",
+		Value:    pksValue[0]})
+	pkCount := 1
+	for _, pk := range pks[1:] {
+		s.update.builder.Brs = append(s.update.builder.Brs, wh.Logical{Operator: "AND"})
+		s.update.builder.Brs = append(s.update.builder.Brs, wh.Operation{
+			Arg:      s.update.addrMap[pk].GetSelect(),
+			Operator: "=",
+			Value:    pksValue[pkCount]})
+		pkCount++
+	}
+
+	for i := range s.includes {
+		if !slices.Contains(includes, s.includes[i]) {
+			includes = append(includes, s.includes[i])
+		}
+	}
+	s.update.queryUpdate(includes, s.update.addrMap)
+
+	return s.update.Value(v)
+}
 
 type stateUpdate[T any] struct {
 	config  *goe.Config
@@ -16,23 +112,6 @@ type stateUpdate[T any] struct {
 	builder *goe.Builder
 	ctx     context.Context
 	err     error
-}
-
-func Save[T any, U any](db *goe.DB, table *T, pk *U, id U, value T) error {
-	return SaveContext(context.Background(), db, table, pk, id, value)
-}
-
-func SaveContext[T any, U any](ctx context.Context, db *goe.DB, table *T, pk *U, id U, value T) error {
-	if table == nil {
-		return goe.ErrInvalidArg
-	}
-	includes, err := getArgsTable(db.AddrMap, table)
-
-	if err != nil {
-		return err
-	}
-
-	return UpdateContext(ctx, db, table).queryUpdate(includes, db.AddrMap).Where(wh.Equals(pk, id)).Value(value)
 }
 
 func Update[T any](db *goe.DB, table *T) *stateUpdate[T] {
@@ -126,6 +205,72 @@ func getArgsUpdate(AddrMap map[uintptr]goe.Field, args ...any) ([]uintptr, error
 		return nil, goe.ErrInvalidArg
 	}
 	return ptrArgs, nil
+}
+
+func getArgsSave[T any](AddrMap map[uintptr]goe.Field, table *T, value T) ([]uintptr, []uintptr, []any, error) {
+	if table == nil {
+		return nil, nil, nil, goe.ErrInvalidArg
+	}
+
+	tableOf := reflect.ValueOf(table).Elem()
+
+	args, pks, pksValue := make([]uintptr, 0), make([]uintptr, 0), make([]any, 0)
+
+	if tableOf.Kind() != reflect.Struct {
+		return nil, nil, nil, goe.ErrInvalidArg
+	}
+
+	valueOf := reflect.ValueOf(value)
+	var addr uintptr
+	for i := 0; i < valueOf.NumField(); i++ {
+		if !valueOf.Field(i).IsZero() {
+			addr = uintptr(tableOf.Field(i).Addr().UnsafePointer())
+			//TODO: Update to Field
+			if AddrMap[addr] != nil {
+				if AddrMap[addr].IsPrimaryKey() {
+					pks = append(pks, addr)
+					pksValue = append(pksValue, valueOf.Field(i).Interface())
+					continue
+				}
+				args = append(args, addr)
+			}
+		}
+	}
+
+	if len(args) == 0 && len(pks) == 0 {
+		return nil, nil, nil, goe.ErrInvalidArg
+	}
+	return args, pks, pksValue, nil
+}
+
+func getArgsReplace[T any](AddrMap map[uintptr]goe.Field, table *T, value T) ([]uintptr, []any, error) {
+	pks, pksValue := make([]uintptr, 0), make([]any, 0)
+
+	tableOf := reflect.ValueOf(table).Elem()
+	if tableOf.Kind() != reflect.Struct {
+		return nil, nil, goe.ErrInvalidArg
+	}
+
+	valueOf := reflect.ValueOf(value)
+	var addr uintptr
+	for i := 0; i < valueOf.NumField(); i++ {
+		if !valueOf.Field(i).IsZero() {
+			addr = uintptr(tableOf.Field(i).Addr().UnsafePointer())
+			//TODO: Update to Field
+			if AddrMap[addr] != nil {
+				if AddrMap[addr].IsPrimaryKey() {
+					pks = append(pks, addr)
+					pksValue = append(pksValue, valueOf.Field(i).Interface())
+					continue
+				}
+			}
+		}
+	}
+
+	if len(pks) == 0 {
+		return nil, nil, goe.ErrInvalidArg
+	}
+	return pks, pksValue, nil
 }
 
 func createUpdateState[T any](
