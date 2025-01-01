@@ -109,7 +109,7 @@ func TestPostgresUpdate(t *testing.T) {
 
 				a.IdHabitat = &h.Id
 				a.Name = "Update Cat"
-				err = query.Save(db.DB, db.Animal, &db.Animal.Id, a.Id, a)
+				err = query.Save(db.DB, db.Animal).Includes(&db.Animal.IdHabitat).Value(a)
 				if err != nil {
 					t.Errorf("Expected a update, got error: %v", err)
 				}
@@ -227,6 +227,121 @@ func TestPostgresUpdate(t *testing.T) {
 
 				if len(pj) != 3 {
 					t.Errorf("Expected %v, got : %v", 3, len(pj))
+				}
+			},
+		},
+		{
+			desc: "Save_PersonJobs",
+			testCase: func(t *testing.T) {
+				persons := []Person{
+					{Name: "Jhon"},
+					{Name: "Laura"},
+					{Name: "Luana"},
+				}
+				err = query.Insert(db.DB, db.Person).All(persons)
+				if err != nil {
+					t.Fatalf("Expected insert persons, got error: %v", err)
+				}
+
+				jobs := []JobTitle{
+					{Name: "Developer"},
+					{Name: "Designer"},
+				}
+				err = query.Insert(db.DB, db.JobTitle).All(jobs)
+				if err != nil {
+					t.Fatalf("Expected insert jobs, got error: %v", err)
+				}
+
+				personJobs := []PersonJobTitle{
+					{IdPerson: persons[0].Id, IdJobTitle: jobs[0].Id},
+					{IdPerson: persons[1].Id, IdJobTitle: jobs[0].Id},
+					{IdPerson: persons[2].Id, IdJobTitle: jobs[1].Id},
+				}
+				err = query.Insert(db.DB, db.PersonJobTitle).All(personJobs)
+				if err != nil {
+					t.Fatalf("Expected insert personJobs, got error: %v", err)
+				}
+
+				pj := []struct {
+					JobTitle  string
+					Person    string
+					CreatedAt time.Time
+				}{}
+				for row, err := range query.Select(db.DB, &struct {
+					JobTitle *string
+					Person   *string
+				}{
+					JobTitle: &db.JobTitle.Name,
+					Person:   &db.Person.Name,
+				}).From(db.Person).
+					Joins(
+						jn.Join[int](&db.Person.Id, &db.PersonJobTitle.IdPerson),
+						jn.Join[int](&db.JobTitle.Id, &db.PersonJobTitle.IdJobTitle),
+					).
+					Where(wh.Equals(&db.JobTitle.Id, jobs[0].Id)).Rows() {
+
+					if err != nil {
+						t.Fatalf("Expected a select, got error: %v", err)
+					}
+					pj = append(pj, struct {
+						JobTitle  string
+						Person    string
+						CreatedAt time.Time
+					}{
+						JobTitle: query.SafeGet(row.JobTitle),
+						Person:   query.SafeGet(row.Person),
+					})
+				}
+
+				if len(pj) != 2 {
+					t.Errorf("Expected %v, got : %v", 2, len(pj))
+				}
+
+				err = query.Save(db.DB, db.PersonJobTitle).Replace(PersonJobTitle{
+					IdPerson:   persons[2].Id,
+					IdJobTitle: jobs[1].Id}).Value(PersonJobTitle{
+					IdJobTitle: jobs[0].Id, CreatedAt: time.Now()})
+				if err != nil {
+					t.Errorf("Expected a update, got error: %v", err)
+				}
+
+				pj = nil
+				for row, err := range query.Select(db.DB, &struct {
+					JobTitle  *string
+					Person    *string
+					CreatedAt *time.Time
+				}{
+					JobTitle:  &db.JobTitle.Name,
+					CreatedAt: &db.PersonJobTitle.CreatedAt,
+					Person:    &db.Person.Name,
+				}).From(db.Person).
+					Joins(
+						jn.Join[int](&db.Person.Id, &db.PersonJobTitle.IdPerson),
+						jn.Join[int](&db.JobTitle.Id, &db.PersonJobTitle.IdJobTitle),
+					).
+					Where(wh.Equals(&db.JobTitle.Id, jobs[0].Id)).OrderByAsc(&db.Person.Id).Rows() {
+
+					if err != nil {
+						t.Fatalf("Expected a select, got error: %v", err)
+					}
+					pj = append(pj, struct {
+						JobTitle  string
+						Person    string
+						CreatedAt time.Time
+					}{
+						JobTitle:  query.SafeGet(row.JobTitle),
+						Person:    query.SafeGet(row.Person),
+						CreatedAt: query.SafeGet(row.CreatedAt),
+					})
+				}
+
+				if len(pj) != 3 {
+					t.Errorf("Expected %v, got : %v", 3, len(pj))
+				}
+
+				tm := time.Time{}
+				if pj[len(pj)-1].CreatedAt.Unix() == tm.Unix() {
+					t.Errorf("Expected value, got %v", pj[len(pj)-1].CreatedAt.Unix())
 				}
 			},
 		},
