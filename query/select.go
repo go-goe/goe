@@ -21,20 +21,34 @@ type stateSelect[T any] struct {
 	err     error
 }
 
-func Find[T any, P any](db *goe.DB, t *T, pk *P, v P) (T, error) {
-	return FindContext(context.Background(), db, t, pk, v)
+func Find[T any](db *goe.DB, t *T, v T) (*T, error) {
+	return FindContext(context.Background(), db, t, v)
 }
 
-func FindContext[T any, P any](ctx context.Context, db *goe.DB, t *T, pk *P, v P) (T, error) {
-	var (
-		row T
-		err error
-	)
-	for row, err = range SelectContext(ctx, db, t).From(t).
-		Where(wh.Equals(pk, v)).Rows() {
-		return row, err
+func FindContext[T any](ctx context.Context, db *goe.DB, t *T, v T) (*T, error) {
+	pks, pksValue, err := getArgsReplace(db.AddrMap, t, v)
+
+	if err != nil {
+		return nil, err
 	}
-	return row, goe.ErrNotFound
+
+	s := SelectContext(ctx, db, t).From(t)
+	s.builder.Brs = append(s.builder.Brs, wh.Operation{Arg: db.AddrMap[pks[0]].GetSelect(), Operator: "=", Value: pksValue[0]})
+
+	c := 1
+	for _, pk := range pks[1:] {
+		s.builder.Brs = append(s.builder.Brs, wh.Logical{Operator: "AND"})
+		s.builder.Brs = append(s.builder.Brs, wh.Operation{Arg: db.AddrMap[pk].GetSelect(), Operator: "=", Value: pksValue[c]})
+	}
+
+	for row, err := range s.Rows() {
+		if err != nil {
+			return nil, err
+		}
+		return &row, nil
+	}
+
+	return nil, goe.ErrNotFound
 }
 
 func Select[T any](db *goe.DB, t *T) *stateSelect[T] {
