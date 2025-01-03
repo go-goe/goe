@@ -61,8 +61,11 @@ func TestPostgresUpdate(t *testing.T) {
 					t.Errorf("Expected a update, got error: %v", err)
 				}
 
-				var fselect Flag
-				fselect, err = query.Find(db.DB, db.Flag, &db.Flag.Id, f.Id)
+				var fselect *Flag
+				fselect, err = query.Find(db.DB, db.Flag, Flag{Id: f.Id})
+				if err != nil {
+					t.Fatalf("Expected a select, got error: %v", err)
+				}
 
 				if fselect.Name != ff.Name {
 					t.Errorf("Expected a update on name, got : %v", fselect.Name)
@@ -114,8 +117,11 @@ func TestPostgresUpdate(t *testing.T) {
 					t.Errorf("Expected a update, got error: %v", err)
 				}
 
-				var aselect Animal
-				aselect, err = query.Find(db.DB, db.Animal, &db.Animal.Id, a.Id)
+				var aselect *Animal
+				aselect, err = query.Find(db.DB, db.Animal, Animal{Id: a.Id})
+				if err != nil {
+					t.Fatalf("Expected a select, got error: %v", err)
+				}
 
 				if aselect.IdHabitat == nil || *aselect.IdHabitat != h.Id {
 					t.Errorf("Expected a update on id habitat, got : %v", aselect.IdHabitat)

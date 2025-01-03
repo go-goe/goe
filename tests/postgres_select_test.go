@@ -150,11 +150,6 @@ func TestPostgresSelect(t *testing.T) {
 		t.Fatalf("Expected insert animalFoods, got error: %v", err)
 	}
 
-	/*
-		query.Update(db.DB, db.Animal).Fields(&db.Animal.Id)
-	*/
-	//query.Update(db.DB, db.Animal).Fields()
-
 	users := []User{
 		{Name: "Lauro Santana", Email: "lauro@email.com"},
 		{Name: "John Constantine", Email: "hunter@email.com"},
@@ -240,13 +235,29 @@ func TestPostgresSelect(t *testing.T) {
 		{
 			desc: "Find",
 			testCase: func(t *testing.T) {
-				var a Animal
-				a, err = query.Find(db.DB, db.Animal, &db.Animal.Id, animals[0].Id)
+				var a *Animal
+				a, err = query.Find(db.DB, db.Animal, Animal{Id: animals[0].Id})
 				if err != nil {
 					t.Fatalf("Expected a select, got error: %v", err)
 				}
 				if a.Name != animals[0].Name {
 					t.Errorf("Expected a %v, got %v", animals[0].Name, a.Name)
+				}
+			},
+		},
+		{
+			desc: "Find_Composed_Pk",
+			testCase: func(t *testing.T) {
+				var a *AnimalFood
+				a, err = query.Find(db.DB, db.AnimalFood, AnimalFood{IdAnimal: animals[0].Id, IdFood: foods[0].Id})
+				if err != nil {
+					t.Fatalf("Expected a select, got error: %v", err)
+				}
+				if a.IdAnimal != animals[0].Id {
+					t.Errorf("Expected a %v, got %v", animals[0].Id, a.IdAnimal)
+				}
+				if a.IdFood != foods[0].Id {
+					t.Errorf("Expected a %v, got %v", foods[0].Id, a.IdFood)
 				}
 			},
 		},
@@ -364,7 +375,7 @@ func TestPostgresSelect(t *testing.T) {
 		{
 			desc: "Find_Not_Found",
 			testCase: func(t *testing.T) {
-				_, err = query.Find(db.DB, db.Animal, &db.Animal.Id, 0)
+				_, err = query.Find(db.DB, db.Animal, Animal{Id: -1})
 				if !errors.Is(err, goe.ErrNotFound) {
 					t.Errorf("Expected a select, got error: %v", err)
 				}

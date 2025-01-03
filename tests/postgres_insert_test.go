@@ -46,7 +46,7 @@ func TestPostgresInsert(t *testing.T) {
 					t.Fatalf("Expected a insert, got error: %v", err)
 				}
 
-				fs, _ := query.Find(db.DB, db.Flag, &db.Flag.Id, f.Id)
+				fs, _ := query.Find(db.DB, db.Flag, Flag{Id: f.Id})
 
 				if fs.Id != f.Id {
 					t.Errorf("Expected %v, got : %v", f.Id, fs.Id)
