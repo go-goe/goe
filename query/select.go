@@ -186,6 +186,17 @@ func (s *stateSelect[T]) Joins(joins ...jn.Joins) *stateSelect[T] {
 	return s
 }
 
+func (s *stateSelect[T]) RowsAsSlice() ([]T, error) {
+	rows := make([]T, 0)
+	for row, err := range s.Rows() {
+		if err != nil {
+			return nil, err
+		}
+		rows = append(rows, row)
+	}
+	return rows, nil
+}
+
 // TODO: Add doc
 func (s *stateSelect[T]) Rows() iter.Seq2[T, error] {
 	if s.err != nil {
