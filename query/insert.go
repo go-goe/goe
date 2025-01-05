@@ -9,6 +9,7 @@ import (
 )
 
 type stateInsert[T any] struct {
+	addrMap map[uintptr]goe.Field
 	config  *goe.Config
 	conn    goe.Connection
 	builder *goe.Builder
@@ -16,6 +17,10 @@ type stateInsert[T any] struct {
 	err     error
 }
 
+// Insert uses [context.Background] internally;
+// to specify the context, use [query.InsertContext].
+//
+// # Example
 func Insert[T any](db *goe.DB, table *T) *stateInsert[T] {
 	return InsertContext[T](context.Background(), db, table)
 }
@@ -26,21 +31,13 @@ func InsertContext[T any](ctx context.Context, db *goe.DB, table *T) *stateInser
 
 	var state *stateInsert[T]
 	if err != nil {
-		state = createInsertState[T](nil, db.Config, ctx, nil, err)
-		return state.queryInsert(nil, nil)
+		state = createInsertState[T](nil, nil, db.Config, ctx, nil, err)
+		return state
 	}
 
-	state = createInsertState[T](db.ConnPool, db.Config, ctx, db.Driver, err)
-
-	return state.queryInsert(ptrArgs, db.AddrMap)
-}
-
-func (s *stateInsert[T]) queryInsert(Args []uintptr, addrMap map[uintptr]goe.Field) *stateInsert[T] {
-	if s.err == nil {
-		s.builder.Args = Args
-		s.builder.BuildInsert(addrMap)
-	}
-	return s
+	state = createInsertState[T](db.AddrMap, db.ConnPool, db.Config, ctx, db.Driver, err)
+	state.builder.Args = ptrArgs
+	return state
 }
 
 func (s *stateInsert[T]) One(value *T) error {
@@ -54,6 +51,7 @@ func (s *stateInsert[T]) One(value *T) error {
 
 	v := reflect.ValueOf(value).Elem()
 
+	s.builder.BuildInsert(s.addrMap)
 	idName := s.builder.BuildValues(v)
 
 	sql := s.builder.Sql.String()
@@ -72,6 +70,8 @@ func (s *stateInsert[T]) All(value []T) error {
 	}
 
 	valueOf := reflect.ValueOf(value)
+
+	s.builder.BuildInsert(s.addrMap)
 	idName := s.builder.BuildBatchValues(valueOf)
 
 	Sql := s.builder.Sql.String()
@@ -81,8 +81,8 @@ func (s *stateInsert[T]) All(value []T) error {
 	return handlerValuesReturningBatch(s.conn, Sql, valueOf, s.builder.ArgsAny, idName, s.ctx)
 }
 
-func createInsertState[T any](conn goe.Connection, c *goe.Config, ctx context.Context, d goe.Driver, e error) *stateInsert[T] {
-	return &stateInsert[T]{conn: conn, builder: goe.CreateBuilder(d), config: c, ctx: ctx, err: e}
+func createInsertState[T any](am map[uintptr]goe.Field, conn goe.Connection, c *goe.Config, ctx context.Context, d goe.Driver, e error) *stateInsert[T] {
+	return &stateInsert[T]{addrMap: am, conn: conn, builder: goe.CreateBuilder(d), config: c, ctx: ctx, err: e}
 }
 
 func getArgsTable[T any](AddrMap map[uintptr]goe.Field, table *T) ([]uintptr, error) {

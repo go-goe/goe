@@ -21,30 +21,42 @@ func createDeleteState(am map[uintptr]goe.Field, conn goe.Connection, c *goe.Con
 	return &stateDelete{addrMap: am, conn: conn, builder: goe.CreateBuilder(d), config: c, ctx: ctx, err: e}
 }
 
-func (s *stateDelete) queryDelete(Args []uintptr, addrMap map[uintptr]goe.Field) *stateDelete {
-	if s.err == nil {
-		s.builder.Args = Args
-		s.builder.BuildDelete(addrMap)
-	}
-	return s
+func Remove[T any](db *goe.DB, table *T, value T) error {
+	return RemoveContext(context.Background(), db, table, value)
 }
 
+func RemoveContext[T any](ctx context.Context, db *goe.DB, table *T, value T) error {
+	pks, pksValue, err := getArgsPks(db.AddrMap, table, value)
+	if err != nil {
+		return err
+	}
+
+	s := DeleteContext(ctx, db, table)
+	helperOperation(s.builder, s.addrMap, pks, pksValue)
+	return s.Where()
+}
+
+// Delete uses [context.Background] internally;
+// to specify the context, use [query.DeleteContext].
+//
+// # Example
 func Delete[T any](db *goe.DB, table *T) *stateDelete {
 	return DeleteContext(context.Background(), db, table)
 }
 
 // DeleteContext creates a delete state for table
 func DeleteContext[T any](ctx context.Context, db *goe.DB, table *T) *stateDelete {
-	stringArgs, err := getArgsTable(db.AddrMap, table)
+	ptrArgs, err := getArgsTable(db.AddrMap, table)
 
 	var state *stateDelete
 	if err != nil {
 		state = createDeleteState(nil, nil, db.Config, ctx, nil, err)
-		return state.queryDelete(nil, nil)
+		return state
 	}
 	state = createDeleteState(db.AddrMap, db.ConnPool, db.Config, ctx, db.Driver, err)
-
-	return state.queryDelete(stringArgs, db.AddrMap)
+	//TODO: ptrArgs to goe.Fields
+	state.builder.Args = ptrArgs
+	return state
 }
 
 func (s *stateDelete) Where(Brs ...wh.Operator) error {
@@ -57,6 +69,7 @@ func (s *stateDelete) Where(Brs ...wh.Operator) error {
 		return s.err
 	}
 
+	s.builder.BuildDelete(s.addrMap)
 	s.err = s.builder.BuildSqlDelete()
 	if s.err != nil {
 		return s.err

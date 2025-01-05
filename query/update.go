@@ -52,7 +52,7 @@ func (s *save[T]) Replace(replace T) *save[T] {
 		return s
 	}
 
-	s.pks, s.pksValue, s.update.err = getArgsReplace(s.update.addrMap, s.table, replace)
+	s.pks, s.pksValue, s.update.err = getArgsPks(s.update.addrMap, s.table, replace)
 	return s
 }
 
@@ -81,27 +81,15 @@ func (s *save[T]) Value(v T) error {
 		return goe.ErrInvalidArg
 	}
 
-	s.update.builder.Brs = append(s.update.builder.Brs, wh.Operation{
-		Arg:      s.update.addrMap[pks[0]].GetSelect(),
-		Operator: "=",
-		Value:    pksValue[0]})
-	pkCount := 1
-	for _, pk := range pks[1:] {
-		s.update.builder.Brs = append(s.update.builder.Brs, wh.Logical{Operator: "AND"})
-		s.update.builder.Brs = append(s.update.builder.Brs, wh.Operation{
-			Arg:      s.update.addrMap[pk].GetSelect(),
-			Operator: "=",
-			Value:    pksValue[pkCount]})
-		pkCount++
-	}
+	helperOperation(s.update.builder, s.update.addrMap, pks, pksValue)
 
 	for i := range s.includes {
 		if !slices.Contains(includes, s.includes[i]) {
 			includes = append(includes, s.includes[i])
 		}
 	}
-	s.update.queryUpdate(includes, s.update.addrMap)
 
+	s.update.builder.Args = includes
 	return s.update.Value(v)
 }
 
@@ -114,6 +102,10 @@ type stateUpdate[T any] struct {
 	err     error
 }
 
+// Update uses [context.Background] internally;
+// to specify the context, use [DB.UpdateContext].
+//
+// # Example
 func Update[T any](db *goe.DB, table *T) *stateUpdate[T] {
 	return UpdateContext[T](context.Background(), db, table)
 }
@@ -139,7 +131,8 @@ func (s *stateUpdate[T]) Includes(args ...any) *stateUpdate[T] {
 		return s
 	}
 
-	return s.queryUpdate(ptrArgs, s.addrMap)
+	s.builder.Args = append(s.builder.Args, ptrArgs...)
+	return s
 }
 
 func (s *stateUpdate[T]) Where(brs ...wh.Operator) *stateUpdate[T] {
@@ -162,9 +155,8 @@ func (s *stateUpdate[T]) Value(value T) error {
 
 	v := reflect.ValueOf(value)
 
+	s.builder.BuildUpdate(s.addrMap)
 	s.builder.BuildSet(v)
-
-	//generate query
 	s.err = s.builder.BuildSqlUpdate()
 	if s.err != nil {
 		return s.err
@@ -175,14 +167,6 @@ func (s *stateUpdate[T]) Value(value T) error {
 		log.Println("\n" + sql)
 	}
 	return handlerValues(s.conn, sql, s.builder.ArgsAny, s.ctx)
-}
-
-func (s *stateUpdate[T]) queryUpdate(args []uintptr, addrMap map[uintptr]goe.Field) *stateUpdate[T] {
-	if s.err == nil {
-		s.builder.Args = append(s.builder.Args, args...)
-		s.builder.BuildUpdate(addrMap)
-	}
-	return s
 }
 
 func getArgsUpdate(AddrMap map[uintptr]goe.Field, args ...any) ([]uintptr, error) {
@@ -243,7 +227,7 @@ func getArgsSave[T any](AddrMap map[uintptr]goe.Field, table *T, value T) ([]uin
 	return args, pks, pksValue, nil
 }
 
-func getArgsReplace[T any](AddrMap map[uintptr]goe.Field, table *T, value T) ([]uintptr, []any, error) {
+func getArgsPks[T any](AddrMap map[uintptr]goe.Field, table *T, value T) ([]uintptr, []any, error) {
 	pks, pksValue := make([]uintptr, 0), make([]any, 0)
 
 	tableOf := reflect.ValueOf(table).Elem()
@@ -271,6 +255,22 @@ func getArgsReplace[T any](AddrMap map[uintptr]goe.Field, table *T, value T) ([]
 		return nil, nil, goe.ErrInvalidArg
 	}
 	return pks, pksValue, nil
+}
+
+func helperOperation(builder *goe.Builder, addrMap map[uintptr]goe.Field, pks []uintptr, pksValue []any) {
+	builder.Brs = append(builder.Brs, wh.Operation{
+		Arg:      addrMap[pks[0]].GetSelect(),
+		Operator: "=",
+		Value:    pksValue[0]})
+	pkCount := 1
+	for _, pk := range pks[1:] {
+		builder.Brs = append(builder.Brs, wh.Logical{Operator: "AND"})
+		builder.Brs = append(builder.Brs, wh.Operation{
+			Arg:      addrMap[pk].GetSelect(),
+			Operator: "=",
+			Value:    pksValue[pkCount]})
+		pkCount++
+	}
 }
 
 func createUpdateState[T any](

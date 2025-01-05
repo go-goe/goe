@@ -26,20 +26,14 @@ func Find[T any](db *goe.DB, t *T, v T) (*T, error) {
 }
 
 func FindContext[T any](ctx context.Context, db *goe.DB, t *T, v T) (*T, error) {
-	pks, pksValue, err := getArgsReplace(db.AddrMap, t, v)
+	pks, pksValue, err := getArgsPks(db.AddrMap, t, v)
 
 	if err != nil {
 		return nil, err
 	}
 
 	s := SelectContext(ctx, db, t).From(t)
-	s.builder.Brs = append(s.builder.Brs, wh.Operation{Arg: db.AddrMap[pks[0]].GetSelect(), Operator: "=", Value: pksValue[0]})
-
-	c := 1
-	for _, pk := range pks[1:] {
-		s.builder.Brs = append(s.builder.Brs, wh.Logical{Operator: "AND"})
-		s.builder.Brs = append(s.builder.Brs, wh.Operation{Arg: db.AddrMap[pk].GetSelect(), Operator: "=", Value: pksValue[c]})
-	}
+	helperOperation(s.builder, s.addrMap, pks, pksValue)
 
 	for row, err := range s.Rows() {
 		if err != nil {
@@ -51,6 +45,10 @@ func FindContext[T any](ctx context.Context, db *goe.DB, t *T, v T) (*T, error) 
 	return nil, goe.ErrNotFound
 }
 
+// Select uses [context.Background] internally;
+// to specify the context, use [query.SelectContext].
+//
+// # Example
 func Select[T any](db *goe.DB, t *T) *stateSelect[T] {
 	return SelectContext(context.Background(), db, t)
 }
@@ -61,13 +59,14 @@ func SelectContext[T any](ctx context.Context, db *goe.DB, t *T) *stateSelect[T]
 	var state *stateSelect[T]
 	if err != nil {
 		state = createSelectState[T](nil, db.Config, ctx, nil, err)
-		return state.querySelect(nil)
+		return state
 	}
 
 	state = createSelectState[T](db.ConnPool, db.Config, ctx, db.Driver, err)
 
 	state.addrMap = db.AddrMap
-	return state.querySelect(ts)
+	state.builder.Args = ts
+	return state
 }
 
 // Where creates a where SQL using the operations
@@ -206,7 +205,7 @@ func (s *stateSelect[T]) Rows() iter.Seq2[T, error] {
 		}
 	}
 
-	//generate query
+	s.builder.BuildSelect(s.addrMap)
 	s.err = s.builder.BuildSqlSelect()
 	if s.err != nil {
 		var v T
@@ -232,14 +231,6 @@ func SafeGet[T any](v *T) T {
 
 func createSelectState[T any](conn goe.Connection, c *goe.Config, ctx context.Context, d goe.Driver, e error) *stateSelect[T] {
 	return &stateSelect[T]{conn: conn, builder: goe.CreateBuilder(d), config: c, ctx: ctx, err: e}
-}
-
-func (s *stateSelect[T]) querySelect(args []uintptr) *stateSelect[T] {
-	if s.err == nil {
-		s.builder.Args = args
-		s.builder.BuildSelect(s.addrMap)
-	}
-	return s
 }
 
 func getArgsSelect(AddrMap map[uintptr]goe.Field, arg any) ([]uintptr, error) {
