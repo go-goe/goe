@@ -20,6 +20,8 @@ var ErrInvalidInsertInValue = errors.New("goe: invalid insertIn value. try sendi
 
 var ErrInvalidUpdateValue = errors.New("goe: invalid update value. try sending a struct or a pointer to struct as value")
 
+var ErrNotFound = errors.New("goe: not found any element on result set")
+
 type Config struct {
 	LogQuery bool
 }
