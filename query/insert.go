@@ -89,15 +89,9 @@ func getArgsTable[T any](AddrMap map[uintptr]goe.Field, table *T) ([]uintptr, er
 	if table == nil {
 		return nil, goe.ErrInvalidArg
 	}
-
-	valueOf := reflect.ValueOf(table)
-	if valueOf.Kind() != reflect.Pointer {
-		return nil, goe.ErrInvalidArg
-	}
-
 	args := make([]uintptr, 0)
 
-	valueOf = valueOf.Elem()
+	valueOf := reflect.ValueOf(table).Elem()
 	if valueOf.Kind() != reflect.Struct {
 		return nil, goe.ErrInvalidArg
 	}
