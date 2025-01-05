@@ -107,7 +107,7 @@ func (b *Builder) BuildSqlUpdate() (err error) {
 	return err
 }
 
-func (b *Builder) buildSqlDelete() (err error) {
+func (b *Builder) BuildSqlDelete() (err error) {
 	err = b.buildWhere()
 	b.Sql.WriteByte(';')
 	return err
@@ -284,7 +284,7 @@ func buildSetField(valueField reflect.Value, FieldName string, b *Builder, c uin
 	c++
 }
 
-func (b *Builder) buildDelete(addrMap map[uintptr]Field) {
+func (b *Builder) BuildDelete(addrMap map[uintptr]Field) {
 	//TODO: Set a drive type to share stm
 	b.Sql.WriteString("DELETE FROM ")
 	b.Sql.Write(addrMap[b.Args[0]].Table())

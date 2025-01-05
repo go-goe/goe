@@ -398,7 +398,7 @@ func createDeleteState(am map[uintptr]Field, conn Connection, c *Config, ctx con
 func (s *stateDelete) queryDelete(Args []uintptr, addrMap map[uintptr]Field) *stateDelete {
 	if s.err == nil {
 		s.builder.Args = Args
-		s.builder.buildDelete(addrMap)
+		s.builder.BuildDelete(addrMap)
 	}
 	return s
 }
@@ -422,7 +422,7 @@ func (s *stateDelete) Where(Brs ...wh.Operator) error {
 		return s.err
 	}
 
-	s.err = s.builder.buildSqlDelete()
+	s.err = s.builder.BuildSqlDelete()
 	if s.err != nil {
 		return s.err
 	}
