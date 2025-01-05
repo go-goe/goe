@@ -20,59 +20,59 @@ func TestPostgresSelect(t *testing.T) {
 		t.Fatalf("Expected database, got error: %v", err)
 	}
 
-	err = db.Delete(db.AnimalFood).Where()
+	err = query.Delete(db.DB, db.AnimalFood).Where()
 	if err != nil {
 		t.Fatalf("Expected delete AnimalFood, got error: %v", err)
 	}
-	err = db.Delete(db.Flag).Where()
+	err = query.Delete(db.DB, db.Flag).Where()
 	if err != nil {
 		t.Fatalf("Expected delete flags, got error: %v", err)
 	}
-	err = db.Delete(db.Animal).Where()
+	err = query.Delete(db.DB, db.Animal).Where()
 	if err != nil {
 		t.Fatalf("Expected delete animals, got error: %v", err)
 	}
-	err = db.Delete(db.Food).Where()
+	err = query.Delete(db.DB, db.Food).Where()
 	if err != nil {
 		t.Fatalf("Expected delete foods, got error: %v", err)
 	}
-	err = db.Delete(db.Habitat).Where()
+	err = query.Delete(db.DB, db.Habitat).Where()
 	if err != nil {
 		t.Fatalf("Expected delete habitats, got error: %v", err)
 	}
-	err = db.Delete(db.Info).Where()
+	err = query.Delete(db.DB, db.Info).Where()
 	if err != nil {
 		t.Fatalf("Expected delete infos, got error: %v", err)
 	}
-	err = db.Delete(db.Status).Where()
+	err = query.Delete(db.DB, db.Status).Where()
 	if err != nil {
 		t.Fatalf("Expected delete status, got error: %v", err)
 	}
-	err = db.Delete(db.UserRole).Where()
+	err = query.Delete(db.DB, db.UserRole).Where()
 	if err != nil {
 		t.Fatalf("Expected delete user roles, got error: %v", err)
 	}
-	err = db.Delete(db.User).Where()
+	err = query.Delete(db.DB, db.User).Where()
 	if err != nil {
 		t.Fatalf("Expected delete users, got error: %v", err)
 	}
-	err = db.Delete(db.Role).Where()
+	err = query.Delete(db.DB, db.Role).Where()
 	if err != nil {
 		t.Fatalf("Expected delete roles, got error: %v", err)
 	}
-	err = db.Delete(db.PersonJobTitle).Where()
+	err = query.Delete(db.DB, db.PersonJobTitle).Where()
 	if err != nil {
 		t.Fatalf("Expected delete personJobs, got error: %v", err)
 	}
-	err = db.Delete(db.JobTitle).Where()
+	err = query.Delete(db.DB, db.JobTitle).Where()
 	if err != nil {
 		t.Fatalf("Expected delete jobs, got error: %v", err)
 	}
-	err = db.Delete(db.Person).Where()
+	err = query.Delete(db.DB, db.Person).Where()
 	if err != nil {
 		t.Fatalf("Expected delete persons, got error: %v", err)
 	}
-	err = db.Delete(db.Exam).Where()
+	err = query.Delete(db.DB, db.Exam).Where()
 	if err != nil {
 		t.Fatalf("Expected delete exams, got error: %v", err)
 	}
@@ -342,7 +342,7 @@ func TestPostgresSelect(t *testing.T) {
 		{
 			desc: "Select_Where_Custom_Operation",
 			testCase: func(t *testing.T) {
-				if db.DriverName() == "PostgreSQL" {
+				if db.Driver.Name() == "PostgreSQL" {
 					qr := query.Select(db.DB, db.Animal).From(db.Animal).Where(wh.NewOperator(&db.Animal.Name, "ILIKE", "%CAT%")).Rows()
 					a := runSelect(t, qr)
 					if len(a) != 3 {

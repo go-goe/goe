@@ -54,9 +54,10 @@ func TestPostgresUpdate(t *testing.T) {
 					Float64: 4.4,
 					Bool:    false,
 				}
-				err = query.Update(db.DB, db.Flag).
-					Includes(&db.Flag.Name, &db.Flag.Bool, &db.Flag.Float64, &db.Flag.Float32).
-					Where(wh.Equals(&db.Flag.Id, f.Id)).Value(ff)
+				u := query.Update(db.DB, db.Flag).
+					Includes(&db.Flag.Name, &db.Flag.Bool).
+					Where(wh.Equals(&db.Flag.Id, f.Id))
+				err = u.Includes(&db.Flag.Float64, &db.Flag.Float32).Value(ff)
 				if err != nil {
 					t.Errorf("Expected a update, got error: %v", err)
 				}
