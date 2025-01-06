@@ -8,11 +8,11 @@ import (
 
 type Field interface {
 	IsPrimaryKey() bool
-	GetPrimaryKey() *pk
 	GetSelect() string
 	Table() []byte
 	BuildAttributeSelect(*Builder, int)
 	BuildAttributeInsert(*Builder)
+	WriteAttributeInsert(*Builder)
 	BuildAttributeUpdate(*Builder)
 }
 

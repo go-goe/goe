@@ -8,16 +8,12 @@ import (
 )
 
 type oneToOne struct {
-	pk *pk
+	isPrimaryKey bool
 	attributeStrings
 }
 
 func (o *oneToOne) IsPrimaryKey() bool {
-	return o.selectName == o.pk.selectName
-}
-
-func (o *oneToOne) GetPrimaryKey() *pk {
-	return o.pk
+	return o.isPrimaryKey
 }
 
 func (o *oneToOne) Table() []byte {
@@ -48,16 +44,12 @@ func createOneToOne(typeOf reflect.Type, targetTypeOf reflect.Type, Driver Drive
 }
 
 type manyToOne struct {
-	pk *pk
+	isPrimaryKey bool
 	attributeStrings
 }
 
 func (m *manyToOne) IsPrimaryKey() bool {
-	return m.selectName == m.pk.selectName
-}
-
-func (m *manyToOne) GetPrimaryKey() *pk {
-	return m.pk
+	return m.isPrimaryKey
 }
 
 func (m *manyToOne) Table() []byte {
@@ -105,16 +97,11 @@ func createAttributeStrings(table []byte, attributeName string, Driver Driver) a
 
 type pk struct {
 	autoIncrement bool
-	fks           map[string]any
 	attributeStrings
 }
 
 func (p *pk) IsPrimaryKey() bool {
 	return true
-}
-
-func (p *pk) GetPrimaryKey() *pk {
-	return p
 }
 
 func (p *pk) Table() []byte {
@@ -126,30 +113,24 @@ func createPk(table []byte, attributeName string, autoIncrement bool, Driver Dri
 	table = []byte(Driver.KeywordHandler(utils.TableNamePattern(string(table))))
 	return &pk{
 		attributeStrings: createAttributeStrings(table, attributeName, Driver),
-		autoIncrement:    autoIncrement,
-		fks:              make(map[string]any)}
+		autoIncrement:    autoIncrement}
 }
 
 type att struct {
 	attributeStrings
-	pk *pk
 }
 
 func (a *att) IsPrimaryKey() bool {
 	return false
 }
 
-func (a *att) GetPrimaryKey() *pk {
-	return a.pk
-}
-
 func (a *att) Table() []byte {
 	return a.tableBytes
 }
 
-func createAtt(attributeName string, pk *pk, d Driver) *att {
+func createAtt(attributeName string, tableBytes []byte, d Driver) *att {
 	return &att{
-		attributeStrings: createAttributeStrings(pk.tableBytes, attributeName, d), pk: pk}
+		attributeStrings: createAttributeStrings(tableBytes, attributeName, d)}
 }
 
 func (p *pk) BuildAttributeSelect(b *Builder, i int) {
@@ -174,25 +155,40 @@ func (o *oneToOne) BuildAttributeSelect(b *Builder, i int) {
 
 func (p *pk) BuildAttributeInsert(b *Builder) {
 	if !p.autoIncrement {
-		b.Sql.WriteString(p.attributeName)
-		b.AttrNames = append(b.AttrNames, p.structAttributeName)
-		return
+		b.Inserts = append(b.Inserts, p)
 	}
 	b.Returning = b.Driver.Returning([]byte(p.attributeName))
 	b.StructPkName = p.structAttributeName
 }
 
+func (p *pk) WriteAttributeInsert(b *Builder) {
+	b.Sql.WriteString(p.attributeName)
+	b.AttrNames = append(b.AttrNames, p.structAttributeName)
+}
+
 func (a *att) BuildAttributeInsert(b *Builder) {
+	b.Inserts = append(b.Inserts, a)
+}
+
+func (a *att) WriteAttributeInsert(b *Builder) {
 	b.Sql.WriteString(a.attributeName)
 	b.AttrNames = append(b.AttrNames, a.structAttributeName)
 }
 
 func (m *manyToOne) BuildAttributeInsert(b *Builder) {
+	b.Inserts = append(b.Inserts, m)
+}
+
+func (m *manyToOne) WriteAttributeInsert(b *Builder) {
 	b.Sql.WriteString(m.attributeName)
 	b.AttrNames = append(b.AttrNames, m.structAttributeName)
 }
 
 func (o *oneToOne) BuildAttributeInsert(b *Builder) {
+	b.Inserts = append(b.Inserts, o)
+}
+
+func (o *oneToOne) WriteAttributeInsert(b *Builder) {
 	b.Sql.WriteString(o.attributeName)
 	b.AttrNames = append(b.AttrNames, o.structAttributeName)
 }

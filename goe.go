@@ -6,8 +6,6 @@ import (
 	"reflect"
 	"slices"
 	"strings"
-
-	"github.com/olauro/goe/utils"
 )
 
 var ErrStructWithoutPrimaryKey = errors.New("goe")
@@ -15,7 +13,7 @@ var ErrStructWithoutPrimaryKey = errors.New("goe")
 func Open(db any, driver Driver, config Config) error {
 	valueOf := reflect.ValueOf(db)
 	if valueOf.Kind() != reflect.Ptr {
-		return fmt.Errorf("%v: the target value needs to be pass as a pointer", pkg)
+		return errors.New("goe: the target value needs to be pass as a pointer")
 	}
 	dbTarget := new(DB)
 	valueOf = valueOf.Elem()
@@ -77,81 +75,9 @@ func initField(tables reflect.Value, valueOf reflect.Value, db *DB, driver Drive
 		case reflect.Struct:
 			handlerStruct(valueOf.Field(i).Type(), valueOf, i, pks[0], db, driver)
 		case reflect.Ptr:
-			table, prefix := checkTablePattern(tables, valueOf.Type().Field(i))
-			if table != "" {
-				if mto := isManyToOne(tables, valueOf.Type(), driver, table, prefix); mto != nil {
-					switch v := mto.(type) {
-					case *manyToOne:
-						if v == nil {
-							newAttr(valueOf, i, pks[0], uintptr(valueOf.Field(i).Addr().UnsafePointer()), db, driver)
-							break
-						}
-						key := driver.KeywordHandler(utils.TableNamePattern(table))
-						db.AddrMap[uintptr(valueOf.Field(i).Addr().UnsafePointer())] = v
-						for _, pk := range pks {
-							if pk.structAttributeName == prefix || pk.structAttributeName == prefix+table {
-								pk.fks[key] = mto
-								v.pk = pk
-							}
-						}
-					case *oneToOne:
-						if v == nil {
-							newAttr(valueOf, i, pks[0], uintptr(valueOf.Field(i).Addr().UnsafePointer()), db, driver)
-							break
-						}
-						key := driver.KeywordHandler(utils.TableNamePattern(table))
-						db.AddrMap[uintptr(valueOf.Field(i).Addr().UnsafePointer())] = v
-						for _, pk := range pks {
-							if pk.structAttributeName == prefix || pk.structAttributeName == prefix+table {
-								pk.fks[key] = mto
-								v.pk = pk
-							}
-						}
-					}
-					continue
-				}
-			}
-			newAttr(valueOf, i, pks[0], uintptr(valueOf.Field(i).Addr().UnsafePointer()), db, driver)
+			helperAttribute(tables, valueOf, i, db, driver, pks, true)
 		default:
-			table, prefix := checkTablePattern(tables, valueOf.Type().Field(i))
-			if table != "" {
-				if mto := isManyToOne(tables, valueOf.Type(), driver, table, prefix); mto != nil {
-					switch v := mto.(type) {
-					case *manyToOne:
-						if v == nil {
-							newAttr(valueOf, i, pks[0], uintptr(valueOf.Field(i).Addr().UnsafePointer()), db, driver)
-							break
-						}
-						key := driver.KeywordHandler(utils.TableNamePattern(table))
-						db.AddrMap[uintptr(valueOf.Field(i).Addr().UnsafePointer())] = v
-						for _, pk := range pks {
-							if pk.structAttributeName == prefix {
-								pk.fks[key] = mto
-								v.pk = pk
-							} else if pk.structAttributeName == v.structAttributeName {
-								pk.fks[key] = mto
-								pk.autoIncrement = false
-								v.pk = pk
-							}
-						}
-					case *oneToOne:
-						if v == nil {
-							newAttr(valueOf, i, pks[0], uintptr(valueOf.Field(i).Addr().UnsafePointer()), db, driver)
-							break
-						}
-						key := driver.KeywordHandler(utils.TableNamePattern(table))
-						db.AddrMap[uintptr(valueOf.Field(i).Addr().UnsafePointer())] = v
-						for _, pk := range pks {
-							if pk.structAttributeName == prefix || pk.structAttributeName == prefix+table {
-								pk.fks[key] = mto
-								v.pk = pk
-							}
-						}
-					}
-					continue
-				}
-			}
-			newAttr(valueOf, i, pks[0], uintptr(valueOf.Field(i).Addr().UnsafePointer()), db, driver)
+			helperAttribute(tables, valueOf, i, db, driver, pks, false)
 		}
 	}
 	return nil
@@ -160,56 +86,22 @@ func initField(tables reflect.Value, valueOf reflect.Value, db *DB, driver Drive
 func handlerStruct(targetTypeOf reflect.Type, valueOf reflect.Value, i int, p *pk, db *DB, driver Driver) {
 	switch targetTypeOf.Name() {
 	case "Time":
-		newAttr(valueOf, i, p, uintptr(valueOf.Field(i).Addr().UnsafePointer()), db, driver)
+		newAttr(valueOf, i, p.tableBytes, uintptr(valueOf.Field(i).Addr().UnsafePointer()), db, driver)
 	}
 }
 
 func handlerSlice(tables reflect.Value, targetTypeOf reflect.Type, valueOf reflect.Value, i int, pks []*pk, db *DB, driver Driver) error {
 	switch targetTypeOf.Kind() {
 	case reflect.Uint8:
-		table, prefix := checkTablePattern(tables, valueOf.Type().Field(i))
-		if table != "" {
-			if mto := isManyToOne(tables, valueOf.Type(), driver, table, prefix); mto != nil {
-				switch v := mto.(type) {
-				case *manyToOne:
-					if v == nil {
-						break
-					}
-					key := driver.KeywordHandler(utils.TableNamePattern(table))
-					db.AddrMap[uintptr(valueOf.Field(i).Addr().UnsafePointer())] = v
-					for _, pk := range pks {
-						if pk.structAttributeName == prefix || pk.structAttributeName == prefix+table {
-							pk.fks[key] = mto
-							v.pk = pk
-						}
-					}
-				case *oneToOne:
-					if v == nil {
-						break
-					}
-					key := driver.KeywordHandler(utils.TableNamePattern(table))
-					db.AddrMap[uintptr(valueOf.Field(i).Addr().UnsafePointer())] = v
-					for _, pk := range pks {
-						if pk.structAttributeName == prefix || pk.structAttributeName == prefix+table {
-							pk.fks[key] = mto
-							v.pk = pk
-						}
-					}
-				}
-				break
-			}
-		}
-		//TODO: Check this
-		valueOf.Field(i).SetBytes([]byte{})
-		newAttr(valueOf, i, pks[0], uintptr(valueOf.Field(i).Addr().UnsafePointer()), db, driver)
+		helperAttribute(tables, valueOf, i, db, driver, pks, false)
 	}
 	return nil
 }
 
-func newAttr(valueOf reflect.Value, i int, p *pk, addr uintptr, db *DB, d Driver) {
+func newAttr(valueOf reflect.Value, i int, tableBytes []byte, addr uintptr, db *DB, d Driver) {
 	at := createAtt(
 		valueOf.Type().Field(i).Name,
-		p,
+		tableBytes,
 		d,
 	)
 	db.AddrMap[addr] = at
@@ -329,4 +221,41 @@ func checkTablePattern(tables reflect.Value, Field reflect.StructField) (table, 
 		}
 	}
 	return table, prefix
+}
+
+func helperAttribute(tables reflect.Value, valueOf reflect.Value, i int, db *DB, driver Driver, pks []*pk, nullable bool) {
+	table, prefix := checkTablePattern(tables, valueOf.Type().Field(i))
+	if table != "" {
+		if mto := isManyToOne(tables, valueOf.Type(), driver, table, prefix); mto != nil {
+			switch v := mto.(type) {
+			case *manyToOne:
+				if v == nil {
+					newAttr(valueOf, i, pks[0].tableBytes, uintptr(valueOf.Field(i).Addr().UnsafePointer()), db, driver)
+					break
+				}
+				db.AddrMap[uintptr(valueOf.Field(i).Addr().UnsafePointer())] = v
+				for _, pk := range pks {
+					if !nullable && pk.structAttributeName == v.structAttributeName {
+						pk.autoIncrement = false
+						v.isPrimaryKey = true
+					}
+				}
+			case *oneToOne:
+				if v == nil {
+					newAttr(valueOf, i, pks[0].tableBytes, uintptr(valueOf.Field(i).Addr().UnsafePointer()), db, driver)
+					break
+				}
+				db.AddrMap[uintptr(valueOf.Field(i).Addr().UnsafePointer())] = v
+				for _, pk := range pks {
+					//TODO: Check this
+					if !nullable && pk.structAttributeName == v.structAttributeName {
+						pk.autoIncrement = false
+						v.isPrimaryKey = true
+					}
+				}
+			}
+			return
+		}
+	}
+	newAttr(valueOf, i, pks[0].tableBytes, uintptr(valueOf.Field(i).Addr().UnsafePointer()), db, driver)
 }

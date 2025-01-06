@@ -19,6 +19,7 @@ type Builder struct {
 	Driver        Driver
 	StructPkName  string //insert
 	Returning     []byte //insert
+	Inserts       []Field
 	Froms         []byte
 	Args          []uintptr
 	Aggregates    []aggregate
@@ -171,20 +172,16 @@ func (b *Builder) BuildInsert(addrMap map[uintptr]Field) {
 	f := addrMap[b.Args[0]]
 	b.Sql.Write(f.Table())
 	b.Sql.WriteString(" (")
-	f.BuildAttributeInsert(b)
-	if !f.GetPrimaryKey().autoIncrement {
+	for i := range b.Args {
+		addrMap[b.Args[i]].BuildAttributeInsert(b)
+	}
+
+	b.Inserts[0].WriteAttributeInsert(b)
+	for _, f := range b.Inserts[1:] {
 		b.Sql.WriteByte(',')
+		f.WriteAttributeInsert(b)
 	}
 
-	l := len(b.Args[1:]) - 1
-
-	a := b.Args[1:]
-	for i := range a {
-		addrMap[a[i]].BuildAttributeInsert(b)
-		if i != l {
-			b.Sql.WriteByte(',')
-		}
-	}
 	b.Sql.WriteString(") ")
 	b.Sql.WriteString("VALUES ")
 }
