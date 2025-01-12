@@ -10,18 +10,68 @@ import (
 )
 
 type Migrator struct {
-	Tables []any
+	Tables map[string]*TableMigrate
 	Error  error
+}
+
+type TableMigrate struct {
+	Name         string
+	EscapingName string
+	Migrated     bool
+	PrimaryKeys  []PrimaryKeyMigrate
+	Attributes   []AttributeMigrate
+	ManyToOnes   []ManyToOneMigrate
+	OneToOnes    []OneToOneMigrate
+	Indexes      []IndexMigrate
+}
+
+type IndexMigrate struct {
+	Name         string
+	EscapingName string
+	Unique       bool
+	Attributes   []AttributeMigrate
+}
+
+type PrimaryKeyMigrate struct {
+	AutoIncrement bool
+	Name          string
+	EscapingName  string
+	DataType      string
+}
+
+type AttributeMigrate struct {
+	Nullable     bool
+	Name         string
+	EscapingName string
+	DataType     string
+}
+
+type OneToOneMigrate struct {
+	AttributeMigrate
+	TargetTable          string
+	TargetColumn         string
+	EscapingTargetTable  string
+	EscapingTargetColumn string
+}
+
+type ManyToOneMigrate struct {
+	AttributeMigrate
+	TargetTable          string
+	TargetColumn         string
+	EscapingTargetTable  string
+	EscapingTargetColumn string
 }
 
 func MigrateFrom(db any) *Migrator {
 	valueOf := reflect.ValueOf(db).Elem()
 
+	driver := valueOf.FieldByName("DB").Elem().FieldByName("Driver").Interface().(Driver)
+
 	migrator := new(Migrator)
-	migrator.Tables = make([]any, 0)
+	migrator.Tables = make(map[string]*TableMigrate)
 	for i := 0; i < valueOf.NumField(); i++ {
 		if valueOf.Field(i).Type().Elem().Name() != "DB" {
-			migrator.Error = typeField(valueOf, valueOf.Field(i).Elem(), migrator)
+			migrator.Error = typeField(valueOf, valueOf.Field(i).Elem(), migrator, driver)
 			if migrator.Error != nil {
 				return migrator
 			}
@@ -31,15 +81,14 @@ func MigrateFrom(db any) *Migrator {
 	return migrator
 }
 
-func typeField(tables reflect.Value, valueOf reflect.Value, migrator *Migrator) error {
-	pks, fieldNames, err := migratePk(valueOf.Type())
+func typeField(tables reflect.Value, valueOf reflect.Value, migrator *Migrator, driver Driver) error {
+	pks, fieldNames, err := migratePk(valueOf.Type(), driver)
 	if err != nil {
 		return err
 	}
+	table := new(TableMigrate)
 
-	for _, pk := range pks {
-		migrator.Tables = append(migrator.Tables, pk)
-	}
+	table.Name = utils.TableNamePattern(valueOf.Type().Name())
 	var field reflect.StructField
 
 	for i := 0; i < valueOf.NumField(); i++ {
@@ -54,117 +103,61 @@ func typeField(tables reflect.Value, valueOf reflect.Value, migrator *Migrator) 
 		}
 		switch valueOf.Field(i).Kind() {
 		case reflect.Slice:
-			err = handlerSliceMigrate(tables, field, valueOf.Field(i).Type().Elem(), valueOf, i, pks, migrator)
+			err = handlerSliceMigrate(table, tables, field, valueOf.Field(i).Type().Elem(), valueOf, i, driver)
 			if err != nil {
 				return err
 			}
 		case reflect.Struct:
-			handlerStructMigrate(field, valueOf.Field(i).Type(), valueOf, i, pks[0], migrator)
+			err = handlerStructMigrate(table, field, valueOf.Field(i).Type(), valueOf, i, driver)
+			if err != nil {
+				return err
+			}
 		case reflect.Ptr:
-			table, prefix := checkTablePattern(tables, valueOf.Type().Field(i))
-			if table != "" {
-				if mto := isMigrateManyToOne(tables, valueOf.Type(), true, table, prefix); mto != nil {
-					switch v := mto.(type) {
-					case *MigrateManyToOne:
-						if v == nil {
-							migrateAtt(valueOf, field, i, pks[0], migrator)
-							continue
-						}
-					case *MigrateOneToOne:
-						if v == nil {
-							migrateAtt(valueOf, field, i, pks[0], migrator)
-							continue
-						}
-					}
-
-					key := utils.TableNamePattern(table)
-					for _, pk := range pks {
-						if pk.AttributeName == strings.ToLower(prefix) || pk.AttributeName == strings.ToLower(prefix+table) {
-							pk.Fks[key] = mto
-						}
-					}
-					continue
-				}
+			err = helperAttributeMigrate(table, tables, valueOf, field, i, true, driver)
+			if err != nil {
+				return err
 			}
-			migrateAtt(valueOf, field, i, pks[0], migrator)
 		default:
-			table, prefix := checkTablePattern(tables, valueOf.Type().Field(i))
-			if table != "" {
-				if mto := isMigrateManyToOne(tables, valueOf.Type(), false, table, prefix); mto != nil {
-					switch v := mto.(type) {
-					case *MigrateManyToOne:
-						if v == nil {
-							migrateAtt(valueOf, field, i, pks[0], migrator)
-							continue
-						}
-					case *MigrateOneToOne:
-						if v == nil {
-							migrateAtt(valueOf, field, i, pks[0], migrator)
-							continue
-						}
-					}
-					key := utils.TableNamePattern(table)
-					for _, pk := range pks {
-						if pk.AttributeName == strings.ToLower(prefix) || pk.AttributeName == strings.ToLower(prefix+table) {
-							pk.Fks[key] = mto
-						}
-					}
-					continue
-				}
+			err = helperAttributeMigrate(table, tables, valueOf, field, i, false, driver)
+			if err != nil {
+				return err
 			}
-			migrateAtt(valueOf, field, i, pks[0], migrator)
 		}
 	}
+
+	for _, pk := range pks {
+		table.PrimaryKeys = append(table.PrimaryKeys, *pk)
+	}
+
+	table.EscapingName = driver.KeywordHandler(table.Name)
+	migrator.Tables[table.Name] = table
 	return nil
 }
 
-func handlerStructMigrate(field reflect.StructField, targetTypeOf reflect.Type, valueOf reflect.Value, i int, p *MigratePk, migrator *Migrator) {
+func handlerStructMigrate(table *TableMigrate, field reflect.StructField, targetTypeOf reflect.Type, valueOf reflect.Value, i int, driver Driver) error {
 	switch targetTypeOf.Name() {
 	case "Time":
-		migrateAtt(valueOf, field, i, p, migrator)
-	}
-}
-
-func handlerSliceMigrate(tables reflect.Value, field reflect.StructField, targetTypeOf reflect.Type, valueOf reflect.Value, i int, pks []*MigratePk, migrator *Migrator) error {
-	switch targetTypeOf.Kind() {
-	case reflect.Uint8:
-		table, prefix := checkTablePattern(tables, valueOf.Type().Field(i))
-		if table != "" {
-			if mto := isMigrateManyToOne(tables, valueOf.Type(), false, table, prefix); mto != nil {
-				switch v := mto.(type) {
-				case *MigrateManyToOne:
-					if v == nil {
-						migrateAtt(valueOf, field, i, pks[0], migrator)
-						return nil
-					}
-				case *MigrateOneToOne:
-					if v == nil {
-						migrateAtt(valueOf, field, i, pks[0], migrator)
-						return nil
-					}
-				}
-				key := utils.TableNamePattern(table)
-				for _, pk := range pks {
-					if pk.AttributeName == strings.ToLower(prefix) || pk.AttributeName == strings.ToLower(prefix+table) {
-						pk.Fks[key] = mto
-					}
-				}
-				return nil
-			}
-		}
-		migrateAtt(valueOf, field, i, pks[0], migrator)
+		return migrateAtt(table, valueOf, field, i, driver)
 	}
 	return nil
 }
 
-func isMigrateManyToOne(tables reflect.Value, typeOf reflect.Type, nullable bool, table, prefix string) any {
+func handlerSliceMigrate(table *TableMigrate, tables reflect.Value, field reflect.StructField, targetTypeOf reflect.Type, valueOf reflect.Value, i int, driver Driver) error {
+	switch targetTypeOf.Kind() {
+	case reflect.Uint8:
+		return helperAttributeMigrate(table, tables, valueOf, field, i, false, driver)
+	}
+	return nil
+}
+
+func isManyToOneMigrate(tables reflect.Value, typeOf reflect.Type, nullable bool, table, prefix string, driver Driver) any {
 	for c := 0; c < tables.NumField(); c++ {
 		if tables.Field(c).Elem().Type().Name() == table {
 			for i := 0; i < tables.Field(c).Elem().NumField(); i++ {
 				// check if there is a slice to typeOf
 				if tables.Field(c).Elem().Field(i).Kind() == reflect.Slice {
 					if tables.Field(c).Elem().Field(i).Type().Elem().Name() == typeOf.Name() {
-						return createMigrateManyToOne(tables.Field(c).Elem().Type(), typeOf, nullable, prefix)
+						return createManyToOneMigrate(tables.Field(c).Elem().Type(), nullable, prefix, driver)
 					}
 				}
 			}
@@ -174,18 +167,18 @@ func isMigrateManyToOne(tables reflect.Value, typeOf reflect.Type, nullable bool
 					typeOfMtm = typeOfMtm.Elem()
 					for i := 0; i < typeOfMtm.NumField(); i++ {
 						if typeOfMtm.Field(i).Kind() == reflect.Slice && typeOfMtm.Field(i).Type().Elem().Name() == table {
-							return createMigrateManyToOne(tables.Field(c).Elem().Type(), typeOf, nullable, prefix)
+							return createManyToOneMigrate(tables.Field(c).Elem().Type(), nullable, prefix, driver)
 						}
 					}
 				}
 			}
-			return createMigrateOneToOne(tables.Field(c).Elem().Type(), typeOf, nullable, prefix)
+			return createOneToOneMigrate(tables.Field(c).Elem().Type(), nullable, prefix, driver)
 		}
 	}
 	return nil
 }
 
-func createMigrateManyToOne(typeOf reflect.Type, targetTypeOf reflect.Type, nullable bool, prefix string) *MigrateManyToOne {
+func createManyToOneMigrate(typeOf reflect.Type, nullable bool, prefix string, driver Driver) *ManyToOneMigrate {
 	fieldPks := primaryKeys(typeOf)
 	count := 0
 	for i := range fieldPks {
@@ -198,15 +191,20 @@ func createMigrateManyToOne(typeOf reflect.Type, targetTypeOf reflect.Type, null
 		return nil
 	}
 
-	mto := new(MigrateManyToOne)
+	mto := new(ManyToOneMigrate)
+
 	mto.TargetTable = utils.TableNamePattern(typeOf.Name())
 	mto.TargetColumn = utils.ColumnNamePattern(prefix)
-	mto.Id = fmt.Sprintf("%v.%v", utils.TableNamePattern(targetTypeOf.Name()), utils.ManyToOneNamePattern(prefix, typeOf.Name()))
+	mto.EscapingTargetTable = driver.KeywordHandler(mto.TargetTable)
+	mto.EscapingTargetColumn = driver.KeywordHandler(mto.TargetColumn)
+
+	mto.Name = utils.ManyToOneNamePattern(prefix, typeOf.Name())
+	mto.EscapingName = driver.KeywordHandler(mto.Name)
 	mto.Nullable = nullable
 	return mto
 }
 
-func createMigrateOneToOne(typeOf reflect.Type, targetTypeOf reflect.Type, nullable bool, prefix string) *MigrateOneToOne {
+func createOneToOneMigrate(typeOf reflect.Type, nullable bool, prefix string, driver Driver) *OneToOneMigrate {
 	fieldPks := primaryKeys(typeOf)
 	count := 0
 	for i := range fieldPks {
@@ -219,58 +217,28 @@ func createMigrateOneToOne(typeOf reflect.Type, targetTypeOf reflect.Type, nulla
 		return nil
 	}
 
-	mto := new(MigrateOneToOne)
+	mto := new(OneToOneMigrate)
+
 	mto.TargetTable = utils.TableNamePattern(typeOf.Name())
 	mto.TargetColumn = utils.ColumnNamePattern(prefix)
-	mto.Id = fmt.Sprintf("%v.%v", utils.TableNamePattern(targetTypeOf.Name()), utils.ManyToOneNamePattern(prefix, typeOf.Name()))
+	mto.EscapingTargetTable = driver.KeywordHandler(mto.TargetTable)
+	mto.EscapingTargetColumn = driver.KeywordHandler(mto.TargetColumn)
+
+	mto.Name = utils.ManyToOneNamePattern(prefix, typeOf.Name())
+	mto.EscapingName = driver.KeywordHandler(mto.Name)
 	mto.Nullable = nullable
 	return mto
 }
 
-type MigratePk struct {
-	Table         string
-	AutoIncrement bool
-	Fks           map[string]any
-	AttributeName string
-	DataType      string
-}
-
-type MigrateAtt struct {
-	Nullable      bool
-	Index         string
-	Pk            *MigratePk
-	AttributeName string
-	DataType      string
-}
-
-type MigrateOneToOne struct {
-	TargetTable  string
-	TargetColumn string
-	Nullable     bool
-	Id           string
-}
-
-type MigrateManyToOne struct {
-	TargetTable  string
-	TargetColumn string
-	Nullable     bool
-	Id           string
-}
-
-type AttributeStrings struct {
-	AttributeName string
-	DataType      string
-}
-
-func migratePk(typeOf reflect.Type) ([]*MigratePk, []string, error) {
-	var pks []*MigratePk
+func migratePk(typeOf reflect.Type, driver Driver) ([]*PrimaryKeyMigrate, []string, error) {
+	var pks []*PrimaryKeyMigrate
 	var fieldsNames []string
 
 	id, valid := typeOf.FieldByName("Id")
 	if valid {
-		pks = make([]*MigratePk, 1)
+		pks = make([]*PrimaryKeyMigrate, 1)
 		fieldsNames = make([]string, 1)
-		pks[0] = createMigratePk(typeOf.Name(), id.Name, isAutoIncrement(id), getType(id))
+		pks[0] = createMigratePk(id.Name, isAutoIncrement(id), getType(id), driver)
 		fieldsNames[0] = id.Name
 		return pks, fieldsNames, nil
 	}
@@ -280,24 +248,77 @@ func migratePk(typeOf reflect.Type) ([]*MigratePk, []string, error) {
 		return nil, nil, fmt.Errorf("%w: struct %q don't have a primary key setted", ErrStructWithoutPrimaryKey, typeOf.Name())
 	}
 
-	pks = make([]*MigratePk, len(fields))
+	pks = make([]*PrimaryKeyMigrate, len(fields))
 	fieldsNames = make([]string, len(fields))
 	for i := range fields {
-		pks[i] = createMigratePk(typeOf.Name(), fields[i].Name, isAutoIncrement(fields[i]), getType(fields[i]))
+		pks[i] = createMigratePk(fields[i].Name, isAutoIncrement(fields[i]), getType(fields[i]), driver)
 		fieldsNames[i] = fields[i].Name
 	}
 	return pks, fieldsNames, nil
 }
 
-func migrateAtt(valueOf reflect.Value, field reflect.StructField, i int, pk *MigratePk, m *Migrator) {
+func migrateAtt(table *TableMigrate, valueOf reflect.Value, field reflect.StructField, i int, driver Driver) error {
 	at := createMigrateAtt(
 		valueOf.Type().Field(i).Name,
-		pk,
 		getType(field),
 		field.Type.String()[0] == '*',
-		getIndex(field),
+		driver,
 	)
-	m.Tables = append(m.Tables, at)
+	table.Attributes = append(table.Attributes, *at)
+
+	indexFunc := getIndex(field)
+	if indexFunc != "" {
+		for _, index := range strings.Split(indexFunc, ",") {
+			indexName := getIndexValue(index, "n:")
+
+			if indexName == "" {
+				indexName = table.Name + "_idx_" + strings.ToLower(field.Name)
+			}
+			in := IndexMigrate{
+				Name:         table.Name + "_" + indexName,
+				EscapingName: driver.KeywordHandler(table.Name + "_" + indexName),
+				Unique:       strings.Contains(index, "unique"),
+				Attributes:   []AttributeMigrate{*at},
+			}
+
+			var i int
+			if i = slices.IndexFunc(table.Indexes, func(i IndexMigrate) bool {
+				return i.Name == in.Name && i.Unique == in.Unique
+			}); i == -1 {
+				if c := slices.IndexFunc(table.Indexes, func(i IndexMigrate) bool {
+					return i.Name == in.Name && i.Unique != in.Unique
+				}); c != -1 {
+					return fmt.Errorf(`goe: struct "%v" have two or more indexes with same name but different uniqueness "%v"`, table.Name, in.Name)
+				}
+
+				table.Indexes = append(table.Indexes, in)
+				continue
+			}
+			table.Indexes[i].Attributes = append(table.Indexes[i].Attributes, *at)
+		}
+	}
+
+	tagValue := field.Tag.Get("goe")
+	if tagValueExist(tagValue, "unique") {
+		in := IndexMigrate{
+			Name:         table.Name + "_idx_" + strings.ToLower(field.Name),
+			EscapingName: driver.KeywordHandler(table.Name + "_idx_" + strings.ToLower(field.Name)),
+			Unique:       true,
+			Attributes:   []AttributeMigrate{*at},
+		}
+		table.Indexes = append(table.Indexes, in)
+	}
+
+	if tagValueExist(tagValue, "index") {
+		in := IndexMigrate{
+			Name:         table.Name + "_idx_" + strings.ToLower(field.Name),
+			EscapingName: driver.KeywordHandler(table.Name + "_idx_" + strings.ToLower(field.Name)),
+			Unique:       false,
+			Attributes:   []AttributeMigrate{*at},
+		}
+		table.Indexes = append(table.Indexes, in)
+	}
+	return nil
 }
 
 func getType(field reflect.StructField) string {
@@ -320,21 +341,63 @@ func getIndex(field reflect.StructField) string {
 	return ""
 }
 
-func createMigratePk(table string, attributeName string, autoIncrement bool, dataType string) *MigratePk {
-	return &MigratePk{
-		Table:         utils.TableNamePattern(table),
-		AttributeName: utils.ColumnNamePattern(attributeName),
-		DataType:      dataType,
-		AutoIncrement: autoIncrement,
-		Fks:           make(map[string]any)}
+func tagValueExist(tag string, subTag string) bool {
+	values := strings.Split(tag, ";")
+	for _, v := range values {
+		if v == subTag {
+			return true
+		}
+	}
+	return false
 }
 
-func createMigrateAtt(attributeName string, pk *MigratePk, dataType string, nullable bool, index string) *MigrateAtt {
-	return &MigrateAtt{
-		AttributeName: utils.ColumnNamePattern(attributeName),
-		DataType:      dataType,
-		Pk:            pk,
-		Nullable:      nullable,
-		Index:         index,
+func getIndexValue(valueTag string, tag string) string {
+	values := strings.Split(valueTag, " ")
+	for _, v := range values {
+		if _, value, ok := strings.Cut(v, tag); ok {
+			return value
+		}
 	}
+	return ""
+}
+
+func createMigratePk(attributeName string, autoIncrement bool, dataType string, driver Driver) *PrimaryKeyMigrate {
+	return &PrimaryKeyMigrate{
+		Name:          utils.ColumnNamePattern(attributeName),
+		EscapingName:  driver.KeywordHandler(utils.ColumnNamePattern(attributeName)),
+		DataType:      dataType,
+		AutoIncrement: autoIncrement}
+}
+
+func createMigrateAtt(attributeName string, dataType string, nullable bool, driver Driver) *AttributeMigrate {
+	return &AttributeMigrate{
+		Name:         utils.ColumnNamePattern(attributeName),
+		EscapingName: driver.KeywordHandler(utils.ColumnNamePattern(attributeName)),
+		DataType:     dataType,
+		Nullable:     nullable,
+	}
+}
+
+func helperAttributeMigrate(tbl *TableMigrate, tables reflect.Value, valueOf reflect.Value, field reflect.StructField, i int, nullable bool, driver Driver) error {
+	table, prefix := checkTablePattern(tables, valueOf.Type().Field(i))
+	if table != "" {
+		if mto := isManyToOneMigrate(tables, valueOf.Type(), nullable, table, prefix, driver); mto != nil {
+			switch v := mto.(type) {
+			case *ManyToOneMigrate:
+				if v == nil {
+					return migrateAtt(tbl, valueOf, field, i, driver)
+				}
+				v.DataType = getType(field)
+				tbl.ManyToOnes = append(tbl.ManyToOnes, *v)
+			case *OneToOneMigrate:
+				if v == nil {
+					return migrateAtt(tbl, valueOf, field, i, driver)
+				}
+				v.DataType = getType(field)
+				tbl.OneToOnes = append(tbl.OneToOnes, *v)
+			}
+			return nil
+		}
+	}
+	return migrateAtt(tbl, valueOf, field, i, driver)
 }
