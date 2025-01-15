@@ -1,6 +1,7 @@
 package goe_test
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"testing"
@@ -15,7 +16,20 @@ func (md *MockDriver) Name() string {
 	return "Mock"
 }
 
-func (md *MockDriver) Migrate(*goe.Migrator, goe.Connection) {
+func (md *MockDriver) MigrateContext(context.Context, *goe.Migrator, goe.Connection) (string, error) {
+	return "", nil
+}
+
+func (md *MockDriver) DropTable(string, goe.Connection) (string, error) {
+	return "", nil
+}
+
+func (md *MockDriver) DropColumn(string, string, goe.Connection) (string, error) {
+	return "", nil
+}
+
+func (md *MockDriver) RenameColumn(string, string, string, goe.Connection) (string, error) {
+	return "", nil
 }
 
 func (md *MockDriver) Init(*goe.DB) {

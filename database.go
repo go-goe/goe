@@ -1,7 +1,6 @@
 package goe
 
 import (
-	"context"
 	"errors"
 )
 
@@ -31,16 +30,4 @@ type DB struct {
 	ConnPool ConnectionPool
 	AddrMap  map[uintptr]Field
 	Driver   Driver
-}
-
-func (db *DB) Migrate(m *Migrator) error {
-	c, err := db.ConnPool.Conn(context.Background())
-	if err != nil {
-		return err
-	}
-	if m.Error != nil {
-		return m.Error
-	}
-	db.Driver.Migrate(m, c)
-	return nil
 }

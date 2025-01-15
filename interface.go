@@ -18,7 +18,10 @@ type Field interface {
 
 type Driver interface {
 	Name() string
-	Migrate(*Migrator, Connection)
+	MigrateContext(context.Context, *Migrator, Connection) (string, error)
+	DropTable(string, Connection) (string, error)
+	DropColumn(table, column string, conn Connection) (string, error)
+	RenameColumn(table, oldColumn, newColumn string, conn Connection) (string, error)
 	Init(*DB)
 	KeywordHandler(string) string
 	Select() []byte
