@@ -1,19 +1,22 @@
 package tests_test
 
 import (
+	"context"
+	"errors"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/olauro/goe"
+	"github.com/olauro/goe/migrate"
 	"github.com/olauro/postgres"
 )
 
 type Animal struct {
-	Id          int
-	Name        string
+	Name        string     `goe:"index"`
 	IdHabitat   *uuid.UUID `goe:"table:Habitat"`
 	IdInfo      *[]byte    `goe:"table:Info"`
+	Id          int
 	AnimalFoods []AnimalFood
 }
 
@@ -44,8 +47,8 @@ type Weather struct {
 
 type Info struct {
 	Id         []byte
-	Name       string
-	NameStatus string
+	Name       string `goe:"index(unique n:idx_name_status);index"`
+	NameStatus string `goe:"index(unique n:idx_name_status)"`
 	IdStatus   int
 }
 
@@ -57,7 +60,7 @@ type Status struct {
 type User struct {
 	Id        int
 	Name      string
-	Email     string `goe:"index(unique n:idx_email)"`
+	Email     string `goe:"unique"`
 	UserRoles []UserRole
 }
 
@@ -91,6 +94,7 @@ type Flag struct {
 	Uint32  uint32
 	Uint64  uint64
 	Bool    bool
+	Byte    []byte
 }
 
 type Person struct {
@@ -117,6 +121,11 @@ type Exam struct {
 	Minimum float32
 }
 
+type Select struct {
+	Id   int
+	Name string
+}
+
 type Database struct {
 	Animal         *Animal
 	AnimalFood     *AnimalFood
@@ -133,6 +142,7 @@ type Database struct {
 	PersonJobTitle *PersonJobTitle
 	JobTitle       *JobTitle
 	Exam           *Exam
+	Select         *Select
 	*goe.DB
 }
 
@@ -147,7 +157,7 @@ func SetupPostgres() (*Database, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = db.Migrate(goe.MigrateFrom(db))
+	err = migrate.AutoMigrate(db.DB, goe.MigrateFrom(db))
 	if err != nil {
 		return nil, err
 	}
@@ -158,5 +168,34 @@ func TestPostgresConnection(t *testing.T) {
 	_, err := SetupPostgres()
 	if err != nil {
 		t.Fatalf("Expected Postgres Connection, got error %v", err)
+	}
+}
+
+func TestPostgresMigrate(t *testing.T) {
+	_, err := SetupPostgres()
+	if err != nil {
+		t.Fatalf("Expected Postgres Connection, got error %v", err)
+	}
+
+	err = migrate.RenameColumn(db.DB, "Select", "Name", "NewName")
+	if err != nil {
+		t.Fatalf("Expected rename column, got error %v", err)
+	}
+
+	err = migrate.DropColumn(db.DB, "Select", "NewName")
+	if err != nil {
+		t.Fatalf("Expected drop column, got error %v", err)
+	}
+
+	err = migrate.DropTable(db.DB, "Select")
+	if err != nil {
+		t.Fatalf("Expected drop table Select, got error %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	err = migrate.AutoMigrateContext(ctx, db.DB, goe.MigrateFrom(db))
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("Expected context.Canceled, got %v", err)
 	}
 }

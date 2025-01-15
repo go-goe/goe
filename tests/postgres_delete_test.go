@@ -74,7 +74,7 @@ func TestPostgresDelete(t *testing.T) {
 				a := Animal{Name: "Dog"}
 				err = query.Insert(db.DB, db.Animal).One(&a)
 				if err != nil {
-					t.Errorf("Expected a insert animal, got error: %v", err)
+					t.Fatalf("Expected a insert animal, got error: %v", err)
 				}
 
 				if db.ConnPool.Stats().InUse != 0 {
@@ -84,7 +84,7 @@ func TestPostgresDelete(t *testing.T) {
 				var as *Animal
 				as, err = query.Find(db.DB, db.Animal, Animal{Id: a.Id})
 				if err != nil {
-					t.Errorf("Expected a select, got error: %v", err)
+					t.Fatalf("Expected a select, got error: %v", err)
 				}
 
 				if db.ConnPool.Stats().InUse != 0 {

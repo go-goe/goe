@@ -42,6 +42,7 @@ func TestPostgresUpdate(t *testing.T) {
 					Uint16:  16,
 					Uint32:  32,
 					Bool:    true,
+					Byte:    []byte{1, 2, 3},
 				}
 				err = query.Insert(db.DB, db.Flag).One(&f)
 				if err != nil {
@@ -53,13 +54,14 @@ func TestPostgresUpdate(t *testing.T) {
 					Float32: 3.3,
 					Float64: 4.4,
 					Bool:    false,
+					Byte:    []byte{1},
 				}
 				u := query.Update(db.DB, db.Flag).
 					Includes(&db.Flag.Name, &db.Flag.Bool).
 					Where(wh.Equals(&db.Flag.Id, f.Id))
-				err = u.Includes(&db.Flag.Float64, &db.Flag.Float32).Value(ff)
+				err = u.Includes(&db.Flag.Float64, &db.Flag.Float32, &db.Flag.Byte).Value(ff)
 				if err != nil {
-					t.Errorf("Expected a update, got error: %v", err)
+					t.Fatalf("Expected a update, got error: %v", err)
 				}
 
 				var fselect *Flag
@@ -75,10 +77,13 @@ func TestPostgresUpdate(t *testing.T) {
 					t.Errorf("Expected a update on float32, got : %v", fselect.Float32)
 				}
 				if fselect.Float64 != ff.Float64 {
-					t.Errorf("Expected a update on float32, got : %v", fselect.Float64)
+					t.Errorf("Expected a update on float64, got : %v", fselect.Float64)
 				}
 				if fselect.Bool != ff.Bool {
-					t.Errorf("Expected a update on float32, got : %v", fselect.Bool)
+					t.Errorf("Expected a update on bool, got : %v", fselect.Bool)
+				}
+				if len(fselect.Byte) != len(ff.Byte) {
+					t.Errorf("Expected a update on byte, got : %v", len(fselect.Byte))
 				}
 			},
 		},
@@ -90,7 +95,7 @@ func TestPostgresUpdate(t *testing.T) {
 				}
 				err = query.Insert(db.DB, db.Animal).One(&a)
 				if err != nil {
-					t.Errorf("Expected a insert animal, got error: %v", err)
+					t.Fatalf("Expected a insert animal, got error: %v", err)
 				}
 
 				w := Weather{
@@ -98,7 +103,7 @@ func TestPostgresUpdate(t *testing.T) {
 				}
 				err = query.Insert(db.DB, db.Weather).One(&w)
 				if err != nil {
-					t.Errorf("Expected a insert weather, got error: %v", err)
+					t.Fatalf("Expected a insert weather, got error: %v", err)
 				}
 
 				h := Habitat{
@@ -108,7 +113,7 @@ func TestPostgresUpdate(t *testing.T) {
 				}
 				err = query.Insert(db.DB, db.Habitat).One(&h)
 				if err != nil {
-					t.Errorf("Expected a insert habitat, got error: %v", err)
+					t.Fatalf("Expected a insert habitat, got error: %v", err)
 				}
 
 				a.IdHabitat = &h.Id

@@ -40,6 +40,7 @@ func TestPostgresInsert(t *testing.T) {
 					Uint16:  16,
 					Uint32:  32,
 					Bool:    true,
+					Byte:    []byte{1, 2, 3},
 				}
 				err = query.Insert(db.DB, db.Flag).One(&f)
 				if err != nil {
@@ -101,6 +102,10 @@ func TestPostgresInsert(t *testing.T) {
 
 				if fs.Bool != f.Bool {
 					t.Errorf("Expected %v, got : %v", f.Bool, fs.Bool)
+				}
+
+				if len(fs.Byte) != len(f.Byte) {
+					t.Errorf("Expected %v, got : %v", len(f.Byte), len(fs.Byte))
 				}
 			},
 		},
