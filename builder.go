@@ -21,7 +21,7 @@ type Builder struct {
 	Returning     []byte //insert
 	Inserts       []Field
 	Froms         []byte
-	Args          []uintptr
+	Fields        []Field
 	Aggregates    []aggregate
 	ArgsAny       []any
 	StructColumns []string //select and update
@@ -42,26 +42,26 @@ func CreateBuilder(d Driver) *Builder {
 	}
 }
 
-func (b *Builder) BuildSelect(addrMap map[uintptr]Field) {
+func (b *Builder) BuildSelect() {
 	b.Sql.Write(b.Driver.Select())
 
 	if len(b.Aggregates) > 0 {
 		b.buildAggregates()
 	}
 
-	lenArgs := len(b.Args)
-	if lenArgs == 0 {
+	len := len(b.Fields)
+	if len == 0 {
 		return
 	}
 
-	b.StructColumns = make([]string, lenArgs)
+	b.StructColumns = make([]string, len)
 
-	for i := range b.Args[:lenArgs-1] {
-		addrMap[b.Args[i]].BuildAttributeSelect(b, i)
+	for i := range b.Fields[:len-1] {
+		b.Fields[i].BuildAttributeSelect(b, i)
 		b.Sql.WriteByte(',')
 	}
 
-	addrMap[b.Args[lenArgs-1]].BuildAttributeSelect(b, lenArgs-1)
+	b.Fields[len-1].BuildAttributeSelect(b, len-1)
 }
 
 func (b *Builder) buildAggregates() {
@@ -72,13 +72,13 @@ func (b *Builder) buildAggregates() {
 	b.Sql.WriteString(b.Aggregates[len(b.Aggregates)-1].String())
 }
 
-func (b *Builder) BuildSelectJoins(addrMap map[uintptr]Field, join string, ArgsJoins []uintptr) {
+func (b *Builder) BuildSelectJoins(addrMap map[uintptr]Field, join string, fields []Field) {
 	j := len(b.JoinsArgs)
 	b.JoinsArgs = append(b.JoinsArgs, make([]Field, 2)...)
 	b.Tables = append(b.Tables, make([]string, 1)...)
 	b.Joins = append(b.Joins, join)
-	b.JoinsArgs[j] = addrMap[ArgsJoins[0]]
-	b.JoinsArgs[j+1] = addrMap[ArgsJoins[1]]
+	b.JoinsArgs[j] = fields[0]
+	b.JoinsArgs[j+1] = fields[1]
 }
 
 func (b *Builder) buildPage() {
@@ -162,18 +162,18 @@ func buildJoins(join string, Sql *strings.Builder, f1, f2 Field, Tables []string
 	return nil
 }
 
-func (b *Builder) BuildInsert(addrMap map[uintptr]Field) {
+func (b *Builder) BuildInsert() {
 	//TODO: Set a drive type to share stm
 	b.Sql.WriteString("INSERT ")
 	b.Sql.WriteString("INTO ")
 
-	b.AttrNames = make([]string, 0, len(b.Args))
+	b.AttrNames = make([]string, 0, len(b.Fields))
 
-	f := addrMap[b.Args[0]]
+	f := b.Fields[0]
 	b.Sql.Write(f.Table())
 	b.Sql.WriteString(" (")
-	for i := range b.Args {
-		addrMap[b.Args[i]].BuildAttributeInsert(b)
+	for i := range b.Fields {
+		b.Fields[i].BuildAttributeInsert(b)
 	}
 
 	b.Inserts[0].WriteAttributeInsert(b)
@@ -244,20 +244,20 @@ func buildValueField(valueField reflect.Value, b *Builder) {
 	b.ArgsAny = append(b.ArgsAny, valueField.Interface())
 }
 
-func (b *Builder) BuildUpdate(addrMap map[uintptr]Field) {
+func (b *Builder) BuildUpdate() {
 	//TODO: Set a drive type to share stm
 	b.Sql.WriteString("UPDATE ")
 
-	b.StructColumns = make([]string, 0, len(b.Args))
-	b.AttrNames = make([]string, 0, len(b.Args))
+	b.StructColumns = make([]string, 0, len(b.Fields))
+	b.AttrNames = make([]string, 0, len(b.Fields))
 
-	b.Sql.Write(addrMap[b.Args[0]].Table())
+	b.Sql.Write(b.Fields[0].Table())
 	b.Sql.WriteString(" SET ")
-	addrMap[b.Args[0]].BuildAttributeUpdate(b)
+	b.Fields[0].BuildAttributeUpdate(b)
 
-	a := b.Args[1:]
+	a := b.Fields[1:]
 	for i := range a {
-		addrMap[a[i]].BuildAttributeUpdate(b)
+		a[i].BuildAttributeUpdate(b)
 	}
 }
 
@@ -281,8 +281,8 @@ func buildSetField(valueField reflect.Value, FieldName string, b *Builder, c uin
 	c++
 }
 
-func (b *Builder) BuildDelete(addrMap map[uintptr]Field) {
+func (b *Builder) BuildDelete() {
 	//TODO: Set a drive type to share stm
 	b.Sql.WriteString("DELETE FROM ")
-	b.Sql.Write(addrMap[b.Args[0]].Table())
+	b.Sql.Write(b.Fields[0].Table())
 }

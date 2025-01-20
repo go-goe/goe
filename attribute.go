@@ -12,6 +12,10 @@ type oneToOne struct {
 	attributeStrings
 }
 
+func (o *oneToOne) GetDb() *DB {
+	return o.db
+}
+
 func (o *oneToOne) IsPrimaryKey() bool {
 	return o.isPrimaryKey
 }
@@ -20,7 +24,7 @@ func (o *oneToOne) Table() []byte {
 	return o.tableBytes
 }
 
-func createOneToOne(typeOf reflect.Type, targetTypeOf reflect.Type, Driver Driver, prefix string) *oneToOne {
+func createOneToOne(db *DB, typeOf reflect.Type, targetTypeOf reflect.Type, Driver Driver, prefix string) *oneToOne {
 	mto := new(oneToOne)
 	targetPks := primaryKeys(typeOf)
 	count := 0
@@ -34,18 +38,22 @@ func createOneToOne(typeOf reflect.Type, targetTypeOf reflect.Type, Driver Drive
 		return nil
 	}
 
-	mto.selectName = fmt.Sprintf("%v.%v",
-		Driver.KeywordHandler(utils.TableNamePattern(targetTypeOf.Name())),
-		Driver.KeywordHandler(utils.ManyToOneNamePattern(prefix, typeOf.Name())))
-	mto.tableBytes = []byte(Driver.KeywordHandler(utils.TableNamePattern(targetTypeOf.Name())))
-	mto.attributeName = Driver.KeywordHandler(utils.ColumnNamePattern(utils.ManyToOneNamePattern(prefix, typeOf.Name())))
-	mto.structAttributeName = prefix + typeOf.Name()
+	mto.attributeStrings = createAttributeStrings(
+		db,
+		[]byte(Driver.KeywordHandler(utils.TableNamePattern(targetTypeOf.Name()))),
+		prefix+typeOf.Name(),
+		Driver,
+	)
 	return mto
 }
 
 type manyToOne struct {
 	isPrimaryKey bool
 	attributeStrings
+}
+
+func (m *manyToOne) GetDb() *DB {
+	return m.db
 }
 
 func (m *manyToOne) IsPrimaryKey() bool {
@@ -56,7 +64,7 @@ func (m *manyToOne) Table() []byte {
 	return m.tableBytes
 }
 
-func createManyToOne(typeOf reflect.Type, targetTypeOf reflect.Type, Driver Driver, prefix string) *manyToOne {
+func createManyToOne(db *DB, typeOf reflect.Type, targetTypeOf reflect.Type, Driver Driver, prefix string) *manyToOne {
 	mto := new(manyToOne)
 	targetPks := primaryKeys(typeOf)
 	count := 0
@@ -70,24 +78,26 @@ func createManyToOne(typeOf reflect.Type, targetTypeOf reflect.Type, Driver Driv
 		return nil
 	}
 
-	mto.selectName = fmt.Sprintf("%v.%v",
-		Driver.KeywordHandler(utils.TableNamePattern(targetTypeOf.Name())),
-		Driver.KeywordHandler(utils.ManyToOneNamePattern(prefix, typeOf.Name())))
-	mto.tableBytes = []byte(Driver.KeywordHandler(utils.TableNamePattern(targetTypeOf.Name())))
-	mto.attributeName = Driver.KeywordHandler(utils.ColumnNamePattern(utils.ManyToOneNamePattern(prefix, typeOf.Name())))
-	mto.structAttributeName = prefix + typeOf.Name()
+	mto.attributeStrings = createAttributeStrings(
+		db,
+		[]byte(Driver.KeywordHandler(utils.TableNamePattern(targetTypeOf.Name()))),
+		prefix+typeOf.Name(),
+		Driver,
+	)
 	return mto
 }
 
 type attributeStrings struct {
+	db                  *DB
 	tableBytes          []byte
 	selectName          string
 	attributeName       string
 	structAttributeName string
 }
 
-func createAttributeStrings(table []byte, attributeName string, Driver Driver) attributeStrings {
+func createAttributeStrings(db *DB, table []byte, attributeName string, Driver Driver) attributeStrings {
 	return attributeStrings{
+		db:                  db,
 		tableBytes:          table,
 		selectName:          fmt.Sprintf("%v.%v", string(table), Driver.KeywordHandler(utils.ColumnNamePattern(attributeName))),
 		attributeName:       Driver.KeywordHandler(utils.ColumnNamePattern(attributeName)),
@@ -100,6 +110,10 @@ type pk struct {
 	attributeStrings
 }
 
+func (p *pk) GetDb() *DB {
+	return p.db
+}
+
 func (p *pk) IsPrimaryKey() bool {
 	return true
 }
@@ -108,16 +122,20 @@ func (p *pk) Table() []byte {
 	return p.tableBytes
 }
 
-func createPk(table []byte, attributeName string, autoIncrement bool, Driver Driver) *pk {
+func createPk(db *DB, table []byte, attributeName string, autoIncrement bool, Driver Driver) *pk {
 	//TODO:: Check this utils
 	table = []byte(Driver.KeywordHandler(utils.TableNamePattern(string(table))))
 	return &pk{
-		attributeStrings: createAttributeStrings(table, attributeName, Driver),
+		attributeStrings: createAttributeStrings(db, table, attributeName, Driver),
 		autoIncrement:    autoIncrement}
 }
 
 type att struct {
 	attributeStrings
+}
+
+func (a *att) GetDb() *DB {
+	return a.db
 }
 
 func (a *att) IsPrimaryKey() bool {
@@ -128,9 +146,9 @@ func (a *att) Table() []byte {
 	return a.tableBytes
 }
 
-func createAtt(attributeName string, tableBytes []byte, d Driver) *att {
+func createAtt(db *DB, attributeName string, tableBytes []byte, d Driver) *att {
 	return &att{
-		attributeStrings: createAttributeStrings(tableBytes, attributeName, d)}
+		attributeStrings: createAttributeStrings(db, tableBytes, attributeName, d)}
 }
 
 func (p *pk) BuildAttributeSelect(b *Builder, i int) {

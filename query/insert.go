@@ -9,7 +9,6 @@ import (
 )
 
 type stateInsert[T any] struct {
-	addrMap map[uintptr]goe.Field
 	config  *goe.Config
 	conn    goe.Connection
 	builder *goe.Builder
@@ -21,22 +20,22 @@ type stateInsert[T any] struct {
 // to specify the context, use [query.InsertContext].
 //
 // # Example
-func Insert[T any](db *goe.DB, table *T) *stateInsert[T] {
-	return InsertContext[T](context.Background(), db, table)
+func Insert[T any](table *T) *stateInsert[T] {
+	return InsertContext[T](context.Background(), table)
 }
 
 // InsertContext creates a insert state for table
-func InsertContext[T any](ctx context.Context, db *goe.DB, table *T) *stateInsert[T] {
-	ptrArgs, err := getArgsTable(db.AddrMap, table)
+func InsertContext[T any](ctx context.Context, table *T) *stateInsert[T] {
+	fields, err := getArgsTable(goe.AddrMap, table)
 
 	var state *stateInsert[T]
 	if err != nil {
-		state = createInsertState[T](nil, nil, db.Config, ctx, nil, err)
+		state = createInsertState[T](nil, nil, ctx, nil, err)
 		return state
 	}
-
-	state = createInsertState[T](db.AddrMap, db.ConnPool, db.Config, ctx, db.Driver, err)
-	state.builder.Args = ptrArgs
+	db := fields[0].GetDb()
+	state = createInsertState[T](db.ConnPool, db.Config, ctx, db.Driver, err)
+	state.builder.Fields = fields
 	return state
 }
 
@@ -51,7 +50,7 @@ func (s *stateInsert[T]) One(value *T) error {
 
 	v := reflect.ValueOf(value).Elem()
 
-	s.builder.BuildInsert(s.addrMap)
+	s.builder.BuildInsert()
 	idName := s.builder.BuildValues(v)
 
 	sql := s.builder.Sql.String()
@@ -71,7 +70,7 @@ func (s *stateInsert[T]) All(value []T) error {
 
 	valueOf := reflect.ValueOf(value)
 
-	s.builder.BuildInsert(s.addrMap)
+	s.builder.BuildInsert()
 	idName := s.builder.BuildBatchValues(valueOf)
 
 	Sql := s.builder.Sql.String()
@@ -81,15 +80,15 @@ func (s *stateInsert[T]) All(value []T) error {
 	return handlerValuesReturningBatch(s.conn, Sql, valueOf, s.builder.ArgsAny, idName, s.ctx)
 }
 
-func createInsertState[T any](am map[uintptr]goe.Field, conn goe.Connection, c *goe.Config, ctx context.Context, d goe.Driver, e error) *stateInsert[T] {
-	return &stateInsert[T]{addrMap: am, conn: conn, builder: goe.CreateBuilder(d), config: c, ctx: ctx, err: e}
+func createInsertState[T any](conn goe.Connection, c *goe.Config, ctx context.Context, d goe.Driver, e error) *stateInsert[T] {
+	return &stateInsert[T]{conn: conn, builder: goe.CreateBuilder(d), config: c, ctx: ctx, err: e}
 }
 
-func getArgsTable[T any](AddrMap map[uintptr]goe.Field, table *T) ([]uintptr, error) {
+func getArgsTable[T any](AddrMap map[uintptr]goe.Field, table *T) ([]goe.Field, error) {
 	if table == nil {
 		return nil, goe.ErrInvalidArg
 	}
-	args := make([]uintptr, 0)
+	fields := make([]goe.Field, 0)
 
 	valueOf := reflect.ValueOf(table).Elem()
 	if valueOf.Kind() != reflect.Struct {
@@ -104,12 +103,12 @@ func getArgsTable[T any](AddrMap map[uintptr]goe.Field, table *T) ([]uintptr, er
 		}
 		addr := uintptr(fieldOf.Addr().UnsafePointer())
 		if AddrMap[addr] != nil {
-			args = append(args, addr)
+			fields = append(fields, AddrMap[addr])
 		}
 	}
 
-	if len(args) == 0 {
+	if len(fields) == 0 {
 		return nil, goe.ErrInvalidArg
 	}
-	return args, nil
+	return fields, nil
 }

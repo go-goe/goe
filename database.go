@@ -1,6 +1,7 @@
 package goe
 
 import (
+	"database/sql"
 	"errors"
 )
 
@@ -25,9 +26,11 @@ type Config struct {
 	LogQuery bool
 }
 
+var AddrMap map[uintptr]Field
+
 type DB struct {
 	Config   *Config
-	ConnPool ConnectionPool
+	ConnPool *sql.DB
 	AddrMap  map[uintptr]Field
 	Driver   Driver
 }

@@ -15,25 +15,24 @@ import (
 type stateSelect[T any] struct {
 	config  *goe.Config
 	conn    goe.Connection
-	addrMap map[uintptr]goe.Field
 	builder *goe.Builder
 	ctx     context.Context
 	err     error
 }
 
-func Find[T any](db *goe.DB, t *T, v T) (*T, error) {
-	return FindContext(context.Background(), db, t, v)
+func Find[T any](t *T, v T) (*T, error) {
+	return FindContext(context.Background(), t, v)
 }
 
-func FindContext[T any](ctx context.Context, db *goe.DB, t *T, v T) (*T, error) {
-	pks, pksValue, err := getArgsPks(db.AddrMap, t, v)
+func FindContext[T any](ctx context.Context, t *T, v T) (*T, error) {
+	pks, pksValue, err := getArgsPks(goe.AddrMap, t, v)
 
 	if err != nil {
 		return nil, err
 	}
 
-	s := SelectContext(ctx, db, t).From(t)
-	helperOperation(s.builder, s.addrMap, pks, pksValue)
+	s := SelectContext(ctx, t).From(t)
+	helperOperation(s.builder, pks, pksValue)
 
 	for row, err := range s.Rows() {
 		if err != nil {
@@ -49,23 +48,23 @@ func FindContext[T any](ctx context.Context, db *goe.DB, t *T, v T) (*T, error) 
 // to specify the context, use [query.SelectContext].
 //
 // # Example
-func Select[T any](db *goe.DB, t *T) *stateSelect[T] {
-	return SelectContext(context.Background(), db, t)
+func Select[T any](t *T) *stateSelect[T] {
+	return SelectContext(context.Background(), t)
 }
 
-func SelectContext[T any](ctx context.Context, db *goe.DB, t *T) *stateSelect[T] {
-	ts, err := getArgsSelect(db.AddrMap, t)
+func SelectContext[T any](ctx context.Context, t *T) *stateSelect[T] {
+	fields, err := getArgsSelect(goe.AddrMap, t)
 
 	var state *stateSelect[T]
 	if err != nil {
-		state = createSelectState[T](nil, db.Config, ctx, nil, err)
+		state = createSelectState[T](nil, nil, ctx, nil, err)
 		return state
 	}
 
+	db := fields[0].GetDb()
 	state = createSelectState[T](db.ConnPool, db.Config, ctx, db.Driver, err)
 
-	state.addrMap = db.AddrMap
-	state.builder.Args = ts
+	state.builder.Fields = fields
 	return state
 }
 
@@ -74,7 +73,7 @@ func (s *stateSelect[T]) Where(brs ...wh.Operator) *stateSelect[T] {
 	if s.err != nil {
 		return s
 	}
-	s.err = helperWhere(s.builder, s.addrMap, brs...)
+	s.err = helperWhere(s.builder, goe.AddrMap, brs...)
 	return s
 }
 
@@ -128,7 +127,7 @@ func (s *stateSelect[T]) Page(p uint, i uint) *stateSelect[T] {
 //	// same query
 //	db.Select(db.Habitat).OrderByAsc(&db.Habitat.Name).Page(1, 20).Scan(&h)
 func (s *stateSelect[T]) OrderByAsc(arg any) *stateSelect[T] {
-	Field := getArg(arg, s.addrMap)
+	Field := getArg(arg, goe.AddrMap)
 	if Field == nil {
 		s.err = goe.ErrInvalidOrderBy
 		return s
@@ -147,7 +146,7 @@ func (s *stateSelect[T]) OrderByAsc(arg any) *stateSelect[T] {
 //	// same query
 //	db.Select(db.Habitat).OrderByDesc(&db.Habitat.Id).Take(1).Scan(&h)
 func (s *stateSelect[T]) OrderByDesc(arg any) *stateSelect[T] {
-	Field := getArg(arg, s.addrMap)
+	Field := getArg(arg, goe.AddrMap)
 	if Field == nil {
 		s.err = goe.ErrInvalidOrderBy
 		return s
@@ -159,7 +158,7 @@ func (s *stateSelect[T]) OrderByDesc(arg any) *stateSelect[T] {
 // TODO: Add Doc
 func (s *stateSelect[T]) From(tables ...any) *stateSelect[T] {
 	s.builder.Tables = make([]string, len(tables))
-	args, err := getArgsTables(s.addrMap, s.builder.Tables, tables...)
+	args, err := getArgsTables(goe.AddrMap, s.builder.Tables, tables...)
 	if err != nil {
 		s.err = err
 		return s
@@ -175,12 +174,12 @@ func (s *stateSelect[T]) Joins(joins ...jn.Joins) *stateSelect[T] {
 	}
 
 	for _, j := range joins {
-		args, err := getArgsIn(s.addrMap, j.FirstArg(), j.SecondArg())
+		fields, err := getArgsJoin(goe.AddrMap, j.FirstArg(), j.SecondArg())
 		if err != nil {
 			s.err = err
 			return s
 		}
-		s.builder.BuildSelectJoins(s.addrMap, j.Join(), args)
+		s.builder.BuildSelectJoins(goe.AddrMap, j.Join(), fields)
 	}
 	return s
 }
@@ -205,7 +204,7 @@ func (s *stateSelect[T]) Rows() iter.Seq2[T, error] {
 		}
 	}
 
-	s.builder.BuildSelect(s.addrMap)
+	s.builder.BuildSelect()
 	s.err = s.builder.BuildSqlSelect()
 	if s.err != nil {
 		var v T
@@ -233,8 +232,8 @@ func createSelectState[T any](conn goe.Connection, c *goe.Config, ctx context.Co
 	return &stateSelect[T]{conn: conn, builder: goe.CreateBuilder(d), config: c, ctx: ctx, err: e}
 }
 
-func getArgsSelect(AddrMap map[uintptr]goe.Field, arg any) ([]uintptr, error) {
-	uintArgs := make([]uintptr, 0)
+func getArgsSelect(AddrMap map[uintptr]goe.Field, arg any) ([]goe.Field, error) {
+	fields := make([]goe.Field, 0)
 
 	if reflect.ValueOf(arg).Kind() != reflect.Pointer {
 		return nil, goe.ErrInvalidArg
@@ -254,61 +253,82 @@ func getArgsSelect(AddrMap map[uintptr]goe.Field, arg any) ([]uintptr, error) {
 		}
 		addr := uintptr(fieldOf.Addr().UnsafePointer())
 		if AddrMap[addr] != nil {
-			uintArgs = append(uintArgs, addr)
+			fields = append(fields, AddrMap[addr])
 			continue
 		}
 		//get args from anonymous struct
 		return getArgsSelectAno(AddrMap, valueOf)
 	}
 
-	return uintArgs, nil
+	return fields, nil
 }
 
-func getArgsSelectAno(AddrMap map[uintptr]goe.Field, valueOf reflect.Value) ([]uintptr, error) {
-	uintArgs := make([]uintptr, 0)
+func getArgsSelectAno(AddrMap map[uintptr]goe.Field, valueOf reflect.Value) ([]goe.Field, error) {
+	fields := make([]goe.Field, 0)
 	var fieldOf reflect.Value
 	for i := 0; i < valueOf.NumField(); i++ {
 		fieldOf = valueOf.Field(i).Elem()
 		addr := uintptr(fieldOf.Addr().UnsafePointer())
 		if AddrMap[addr] != nil {
-			uintArgs = append(uintArgs, addr)
+			fields = append(fields, AddrMap[addr])
 			continue
 		}
 		return nil, goe.ErrInvalidArg
 	}
-	if len(uintArgs) == 0 {
+	if len(fields) == 0 {
 		return nil, goe.ErrInvalidArg
 	}
-	return uintArgs, nil
+	return fields, nil
 }
 
-func getArgsIn(AddrMap map[uintptr]goe.Field, args ...any) ([]uintptr, error) {
-	stringArgs := make([]uintptr, 2)
+func getArgsJoin(AddrMap map[uintptr]goe.Field, args ...any) ([]goe.Field, error) {
+	fields := make([]goe.Field, 2)
 	var ptr uintptr
 	for i := range args {
 		if reflect.ValueOf(args[i]).Kind() == reflect.Ptr {
 			valueOf := reflect.ValueOf(args[i]).Elem()
 			ptr = uintptr(valueOf.Addr().UnsafePointer())
 			if AddrMap[ptr] != nil {
-				stringArgs[i] = ptr
+				fields[i] = AddrMap[ptr]
 			}
 		} else {
 			return nil, goe.ErrInvalidArg
 		}
 	}
 
-	if stringArgs[0] == 0 || stringArgs[1] == 0 {
+	if fields[0] == nil || fields[1] == nil {
 		return nil, goe.ErrInvalidArg
 	}
-	return stringArgs, nil
+	return fields, nil
 }
 
 func getArgsTables(AddrMap map[uintptr]goe.Field, tables []string, args ...any) ([]byte, error) {
+	if reflect.ValueOf(args[0]).Kind() != reflect.Pointer {
+		//TODO: add ErrInvalidTable
+		return nil, goe.ErrInvalidArg
+	}
+
 	from := make([]byte, 0)
 	var ptr uintptr
 	var i int
-	if reflect.ValueOf(args[0]).Kind() == reflect.Ptr {
-		valueOf := reflect.ValueOf(args[0]).Elem()
+
+	valueOf := reflect.ValueOf(args[0]).Elem()
+	ptr = uintptr(valueOf.Addr().UnsafePointer())
+	if AddrMap[ptr] == nil {
+		//TODO: add ErrInvalidTable
+		return nil, goe.ErrInvalidArg
+	}
+	tables[i] = string(AddrMap[ptr].Table())
+	i++
+	from = append(from, AddrMap[ptr].Table()...)
+
+	for _, a := range args[1:] {
+		if reflect.ValueOf(a).Kind() != reflect.Pointer {
+			//TODO: add ErrInvalidTable
+			return nil, goe.ErrInvalidArg
+		}
+
+		valueOf = reflect.ValueOf(a).Elem()
 		ptr = uintptr(valueOf.Addr().UnsafePointer())
 		if AddrMap[ptr] == nil {
 			//TODO: add ErrInvalidTable
@@ -316,25 +336,8 @@ func getArgsTables(AddrMap map[uintptr]goe.Field, tables []string, args ...any) 
 		}
 		tables[i] = string(AddrMap[ptr].Table())
 		i++
+		from = append(from, ',')
 		from = append(from, AddrMap[ptr].Table()...)
-	} else {
-		return nil, goe.ErrInvalidArg
-	}
-	for _, a := range args[1:] {
-		if reflect.ValueOf(a).Kind() == reflect.Ptr {
-			valueOf := reflect.ValueOf(a).Elem()
-			ptr = uintptr(valueOf.Addr().UnsafePointer())
-			if AddrMap[ptr] == nil {
-				//TODO: add ErrInvalidTable
-				return nil, goe.ErrInvalidArg
-			}
-			tables[i] = string(AddrMap[ptr].Table())
-			i++
-			from = append(from, ',')
-			from = append(from, AddrMap[ptr].Table()...)
-		} else {
-			return nil, goe.ErrInvalidArg
-		}
 	}
 
 	return from, nil

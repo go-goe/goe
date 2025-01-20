@@ -12,22 +12,21 @@ import (
 
 type save[T any] struct {
 	table    *T
-	pks      []uintptr
+	pks      []goe.Field
 	pksValue []any
-	includes []uintptr
+	includes []goe.Field
 	update   *stateUpdate[T]
 }
 
-func Save[T any](db *goe.DB, table *T) *save[T] {
-	return SaveContext(context.Background(), db, table)
+func Save[T any](table *T) *save[T] {
+	return SaveContext(context.Background(), table)
 }
 
-func SaveContext[T any](ctx context.Context, db *goe.DB, table *T) *save[T] {
+func SaveContext[T any](ctx context.Context, table *T) *save[T] {
 	save := &save[T]{}
-	save.update = UpdateContext(ctx, db, table)
+	save.update = UpdateContext(ctx, table)
 
-	if table == nil {
-		save.update.err = goe.ErrInvalidArg
+	if save.update.err != nil {
 		return save
 	}
 
@@ -37,7 +36,7 @@ func SaveContext[T any](ctx context.Context, db *goe.DB, table *T) *save[T] {
 }
 
 func (s *save[T]) Includes(args ...any) *save[T] {
-	ptrArgs, err := getArgsUpdate(s.update.addrMap, args...)
+	ptrArgs, err := getArgsUpdate(goe.AddrMap, args...)
 	if err != nil {
 		s.update.err = err
 		return s
@@ -52,7 +51,7 @@ func (s *save[T]) Replace(replace T) *save[T] {
 		return s
 	}
 
-	s.pks, s.pksValue, s.update.err = getArgsPks(s.update.addrMap, s.table, replace)
+	s.pks, s.pksValue, s.update.err = getArgsPks(goe.AddrMap, s.table, replace)
 	return s
 }
 
@@ -61,7 +60,7 @@ func (s *save[T]) Value(v T) error {
 		return s.update.err
 	}
 
-	includes, pks, pksValue, err := getArgsSave(s.update.addrMap, s.table, v)
+	includes, pks, pksValue, err := getArgsSave(goe.AddrMap, s.table, v)
 	if err != nil {
 		return err
 	}
@@ -81,22 +80,24 @@ func (s *save[T]) Value(v T) error {
 		return goe.ErrInvalidArg
 	}
 
-	helperOperation(s.update.builder, s.update.addrMap, pks, pksValue)
+	helperOperation(s.update.builder, pks, pksValue)
 
 	for i := range s.includes {
-		if !slices.Contains(includes, s.includes[i]) {
+		if !slices.ContainsFunc(includes, func(f goe.Field) bool {
+			//TODO: Add Id to compare
+			return f.GetSelect() == s.includes[i].GetSelect()
+		}) {
 			includes = append(includes, s.includes[i])
 		}
 	}
 
-	s.update.builder.Args = includes
+	s.update.builder.Fields = includes
 	return s.update.Value(v)
 }
 
 type stateUpdate[T any] struct {
 	config  *goe.Config
 	conn    goe.Connection
-	addrMap map[uintptr]goe.Field
 	builder *goe.Builder
 	ctx     context.Context
 	err     error
@@ -106,16 +107,22 @@ type stateUpdate[T any] struct {
 // to specify the context, use [DB.UpdateContext].
 //
 // # Example
-func Update[T any](db *goe.DB, table *T) *stateUpdate[T] {
-	return UpdateContext[T](context.Background(), db, table)
+func Update[T any](table *T) *stateUpdate[T] {
+	return UpdateContext[T](context.Background(), table)
 }
 
 // UpdateContext creates a update state for table
-func UpdateContext[T any](ctx context.Context, db *goe.DB, table *T) *stateUpdate[T] {
-	s := createUpdateState[T](db.AddrMap, db.ConnPool, db.Config, ctx, db.Driver, nil)
-	if table == nil {
+func UpdateContext[T any](ctx context.Context, table *T) *stateUpdate[T] {
+	f := getArg(table, goe.AddrMap)
+	var s *stateUpdate[T]
+	if f == nil {
+		s = new(stateUpdate[T])
 		s.err = goe.ErrInvalidArg
+		return s
 	}
+	db := f.GetDb()
+	s = createUpdateState[T](db.ConnPool, db.Config, ctx, db.Driver, nil)
+
 	return s
 }
 
@@ -124,14 +131,14 @@ func (s *stateUpdate[T]) Includes(args ...any) *stateUpdate[T] {
 		return s
 	}
 
-	ptrArgs, err := getArgsUpdate(s.addrMap, args...)
+	fields, err := getArgsUpdate(goe.AddrMap, args...)
 
 	if err != nil {
 		s.err = err
 		return s
 	}
 
-	s.builder.Args = append(s.builder.Args, ptrArgs...)
+	s.builder.Fields = append(s.builder.Fields, fields...)
 	return s
 }
 
@@ -139,7 +146,7 @@ func (s *stateUpdate[T]) Where(brs ...wh.Operator) *stateUpdate[T] {
 	if s.err != nil {
 		return s
 	}
-	s.err = helperWhere(s.builder, s.addrMap, brs...)
+	s.err = helperWhere(s.builder, goe.AddrMap, brs...)
 	return s
 }
 
@@ -148,14 +155,14 @@ func (s *stateUpdate[T]) Value(value T) error {
 		return s.err
 	}
 
-	if s.builder.Args == nil {
+	if s.conn == nil {
 		//TODO: Includes error
 		return goe.ErrInvalidArg
 	}
 
 	v := reflect.ValueOf(value)
 
-	s.builder.BuildUpdate(s.addrMap)
+	s.builder.BuildUpdate()
 	s.builder.BuildSet(v)
 	s.err = s.builder.BuildSqlUpdate()
 	if s.err != nil {
@@ -169,8 +176,8 @@ func (s *stateUpdate[T]) Value(value T) error {
 	return handlerValues(s.conn, sql, s.builder.ArgsAny, s.ctx)
 }
 
-func getArgsUpdate(AddrMap map[uintptr]goe.Field, args ...any) ([]uintptr, error) {
-	ptrArgs := make([]uintptr, 0)
+func getArgsUpdate(AddrMap map[uintptr]goe.Field, args ...any) ([]goe.Field, error) {
+	fields := make([]goe.Field, 0)
 	var valueOf reflect.Value
 	for i := range args {
 		valueOf = reflect.ValueOf(args[i])
@@ -182,23 +189,23 @@ func getArgsUpdate(AddrMap map[uintptr]goe.Field, args ...any) ([]uintptr, error
 		valueOf = valueOf.Elem()
 		addr := uintptr(valueOf.Addr().UnsafePointer())
 		if AddrMap[addr] != nil {
-			ptrArgs = append(ptrArgs, addr)
+			fields = append(fields, AddrMap[addr])
 		}
 	}
-	if len(ptrArgs) == 0 {
+	if len(fields) == 0 {
 		return nil, goe.ErrInvalidArg
 	}
-	return ptrArgs, nil
+	return fields, nil
 }
 
-func getArgsSave[T any](AddrMap map[uintptr]goe.Field, table *T, value T) ([]uintptr, []uintptr, []any, error) {
+func getArgsSave[T any](AddrMap map[uintptr]goe.Field, table *T, value T) ([]goe.Field, []goe.Field, []any, error) {
 	if table == nil {
 		return nil, nil, nil, goe.ErrInvalidArg
 	}
 
 	tableOf := reflect.ValueOf(table).Elem()
 
-	args, pks, pksValue := make([]uintptr, 0), make([]uintptr, 0), make([]any, 0)
+	args, pks, pksValue := make([]goe.Field, 0), make([]goe.Field, 0), make([]any, 0)
 
 	if tableOf.Kind() != reflect.Struct {
 		return nil, nil, nil, goe.ErrInvalidArg
@@ -209,14 +216,13 @@ func getArgsSave[T any](AddrMap map[uintptr]goe.Field, table *T, value T) ([]uin
 	for i := 0; i < valueOf.NumField(); i++ {
 		if !valueOf.Field(i).IsZero() {
 			addr = uintptr(tableOf.Field(i).Addr().UnsafePointer())
-			//TODO: Update to Field
 			if AddrMap[addr] != nil {
 				if AddrMap[addr].IsPrimaryKey() {
-					pks = append(pks, addr)
+					pks = append(pks, AddrMap[addr])
 					pksValue = append(pksValue, valueOf.Field(i).Interface())
 					continue
 				}
-				args = append(args, addr)
+				args = append(args, AddrMap[addr])
 			}
 		}
 	}
@@ -227,8 +233,8 @@ func getArgsSave[T any](AddrMap map[uintptr]goe.Field, table *T, value T) ([]uin
 	return args, pks, pksValue, nil
 }
 
-func getArgsPks[T any](AddrMap map[uintptr]goe.Field, table *T, value T) ([]uintptr, []any, error) {
-	pks, pksValue := make([]uintptr, 0), make([]any, 0)
+func getArgsPks[T any](AddrMap map[uintptr]goe.Field, table *T, value T) ([]goe.Field, []any, error) {
+	pks, pksValue := make([]goe.Field, 0), make([]any, 0)
 
 	tableOf := reflect.ValueOf(table).Elem()
 	if tableOf.Kind() != reflect.Struct {
@@ -243,7 +249,7 @@ func getArgsPks[T any](AddrMap map[uintptr]goe.Field, table *T, value T) ([]uint
 			//TODO: Update to Field
 			if AddrMap[addr] != nil {
 				if AddrMap[addr].IsPrimaryKey() {
-					pks = append(pks, addr)
+					pks = append(pks, AddrMap[addr])
 					pksValue = append(pksValue, valueOf.Field(i).Interface())
 					continue
 				}
@@ -257,16 +263,16 @@ func getArgsPks[T any](AddrMap map[uintptr]goe.Field, table *T, value T) ([]uint
 	return pks, pksValue, nil
 }
 
-func helperOperation(builder *goe.Builder, addrMap map[uintptr]goe.Field, pks []uintptr, pksValue []any) {
+func helperOperation(builder *goe.Builder, pks []goe.Field, pksValue []any) {
 	builder.Brs = append(builder.Brs, wh.Operation{
-		Arg:      addrMap[pks[0]].GetSelect(),
+		Arg:      pks[0].GetSelect(),
 		Operator: "=",
 		Value:    pksValue[0]})
 	pkCount := 1
 	for _, pk := range pks[1:] {
 		builder.Brs = append(builder.Brs, wh.Logical{Operator: "AND"})
 		builder.Brs = append(builder.Brs, wh.Operation{
-			Arg:      addrMap[pk].GetSelect(),
+			Arg:      pk.GetSelect(),
 			Operator: "=",
 			Value:    pksValue[pkCount]})
 		pkCount++
@@ -274,10 +280,9 @@ func helperOperation(builder *goe.Builder, addrMap map[uintptr]goe.Field, pks []
 }
 
 func createUpdateState[T any](
-	am map[uintptr]goe.Field,
 	conn goe.Connection, c *goe.Config,
 	ctx context.Context,
 	d goe.Driver,
 	e error) *stateUpdate[T] {
-	return &stateUpdate[T]{addrMap: am, conn: conn, builder: goe.CreateBuilder(d), config: c, ctx: ctx, err: e}
+	return &stateUpdate[T]{conn: conn, builder: goe.CreateBuilder(d), config: c, ctx: ctx, err: e}
 }
