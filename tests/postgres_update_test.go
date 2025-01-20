@@ -44,7 +44,7 @@ func TestPostgresUpdate(t *testing.T) {
 					Bool:    true,
 					Byte:    []byte{1, 2, 3},
 				}
-				err = query.Insert(db.DB, db.Flag).One(&f)
+				err = query.Insert(db.Flag).One(&f)
 				if err != nil {
 					t.Errorf("Expected a insert, got error: %v", err)
 				}
@@ -56,7 +56,7 @@ func TestPostgresUpdate(t *testing.T) {
 					Bool:    false,
 					Byte:    []byte{1},
 				}
-				u := query.Update(db.DB, db.Flag).
+				u := query.Update(db.Flag).
 					Includes(&db.Flag.Name, &db.Flag.Bool).
 					Where(wh.Equals(&db.Flag.Id, f.Id))
 				err = u.Includes(&db.Flag.Float64, &db.Flag.Float32, &db.Flag.Byte).Value(ff)
@@ -65,7 +65,7 @@ func TestPostgresUpdate(t *testing.T) {
 				}
 
 				var fselect *Flag
-				fselect, err = query.Find(db.DB, db.Flag, Flag{Id: f.Id})
+				fselect, err = query.Find(db.Flag, Flag{Id: f.Id})
 				if err != nil {
 					t.Fatalf("Expected a select, got error: %v", err)
 				}
@@ -93,7 +93,7 @@ func TestPostgresUpdate(t *testing.T) {
 				a := Animal{
 					Name: "Cat",
 				}
-				err = query.Insert(db.DB, db.Animal).One(&a)
+				err = query.Insert(db.Animal).One(&a)
 				if err != nil {
 					t.Fatalf("Expected a insert animal, got error: %v", err)
 				}
@@ -101,7 +101,7 @@ func TestPostgresUpdate(t *testing.T) {
 				w := Weather{
 					Name: "Warm",
 				}
-				err = query.Insert(db.DB, db.Weather).One(&w)
+				err = query.Insert(db.Weather).One(&w)
 				if err != nil {
 					t.Fatalf("Expected a insert weather, got error: %v", err)
 				}
@@ -111,20 +111,20 @@ func TestPostgresUpdate(t *testing.T) {
 					Name:      "City",
 					IdWeather: w.Id,
 				}
-				err = query.Insert(db.DB, db.Habitat).One(&h)
+				err = query.Insert(db.Habitat).One(&h)
 				if err != nil {
 					t.Fatalf("Expected a insert habitat, got error: %v", err)
 				}
 
 				a.IdHabitat = &h.Id
 				a.Name = "Update Cat"
-				err = query.Save(db.DB, db.Animal).Includes(&db.Animal.IdHabitat).Value(a)
+				err = query.Save(db.Animal).Includes(&db.Animal.IdHabitat).Value(a)
 				if err != nil {
-					t.Errorf("Expected a update, got error: %v", err)
+					t.Fatalf("Expected a update, got error: %v", err)
 				}
 
 				var aselect *Animal
-				aselect, err = query.Find(db.DB, db.Animal, Animal{Id: a.Id})
+				aselect, err = query.Find(db.Animal, Animal{Id: a.Id})
 				if err != nil {
 					t.Fatalf("Expected a select, got error: %v", err)
 				}
@@ -145,7 +145,7 @@ func TestPostgresUpdate(t *testing.T) {
 					{Name: "Laura"},
 					{Name: "Luana"},
 				}
-				err = query.Insert(db.DB, db.Person).All(persons)
+				err = query.Insert(db.Person).All(persons)
 				if err != nil {
 					t.Fatalf("Expected insert persons, got error: %v", err)
 				}
@@ -154,7 +154,7 @@ func TestPostgresUpdate(t *testing.T) {
 					{Name: "Developer"},
 					{Name: "Designer"},
 				}
-				err = query.Insert(db.DB, db.JobTitle).All(jobs)
+				err = query.Insert(db.JobTitle).All(jobs)
 				if err != nil {
 					t.Fatalf("Expected insert jobs, got error: %v", err)
 				}
@@ -164,7 +164,7 @@ func TestPostgresUpdate(t *testing.T) {
 					{IdPerson: persons[1].Id, IdJobTitle: jobs[0].Id, CreatedAt: time.Now()},
 					{IdPerson: persons[2].Id, IdJobTitle: jobs[1].Id, CreatedAt: time.Now()},
 				}
-				err = query.Insert(db.DB, db.PersonJobTitle).All(personJobs)
+				err = query.Insert(db.PersonJobTitle).All(personJobs)
 				if err != nil {
 					t.Fatalf("Expected insert personJobs, got error: %v", err)
 				}
@@ -173,7 +173,7 @@ func TestPostgresUpdate(t *testing.T) {
 					JobTitle string
 					Person   string
 				}{}
-				for row, err := range query.Select(db.DB, &struct {
+				for row, err := range query.Select(&struct {
 					JobTitle *string
 					Person   *string
 				}{
@@ -202,17 +202,17 @@ func TestPostgresUpdate(t *testing.T) {
 					t.Errorf("Expected %v, got : %v", 2, len(pj))
 				}
 
-				err = query.Update(db.DB, db.PersonJobTitle).Includes(&db.PersonJobTitle.IdJobTitle).Where(
+				err = query.Update(db.PersonJobTitle).Includes(&db.PersonJobTitle.IdJobTitle).Where(
 					wh.Equals(&db.PersonJobTitle.IdPerson, persons[2].Id),
 					wh.And(),
 					wh.Equals(&db.PersonJobTitle.IdJobTitle, jobs[1].Id),
 				).Value(PersonJobTitle{IdJobTitle: jobs[0].Id})
 				if err != nil {
-					t.Errorf("Expected a update, got error: %v", err)
+					t.Fatalf("Expected a update, got error: %v", err)
 				}
 
 				pj = nil
-				for row, err := range query.Select(db.DB, &struct {
+				for row, err := range query.Select(&struct {
 					JobTitle *string
 					Person   *string
 				}{
@@ -250,7 +250,7 @@ func TestPostgresUpdate(t *testing.T) {
 					{Name: "Laura"},
 					{Name: "Luana"},
 				}
-				err = query.Insert(db.DB, db.Person).All(persons)
+				err = query.Insert(db.Person).All(persons)
 				if err != nil {
 					t.Fatalf("Expected insert persons, got error: %v", err)
 				}
@@ -259,7 +259,7 @@ func TestPostgresUpdate(t *testing.T) {
 					{Name: "Developer"},
 					{Name: "Designer"},
 				}
-				err = query.Insert(db.DB, db.JobTitle).All(jobs)
+				err = query.Insert(db.JobTitle).All(jobs)
 				if err != nil {
 					t.Fatalf("Expected insert jobs, got error: %v", err)
 				}
@@ -269,7 +269,7 @@ func TestPostgresUpdate(t *testing.T) {
 					{IdPerson: persons[1].Id, IdJobTitle: jobs[0].Id},
 					{IdPerson: persons[2].Id, IdJobTitle: jobs[1].Id},
 				}
-				err = query.Insert(db.DB, db.PersonJobTitle).All(personJobs)
+				err = query.Insert(db.PersonJobTitle).All(personJobs)
 				if err != nil {
 					t.Fatalf("Expected insert personJobs, got error: %v", err)
 				}
@@ -279,7 +279,7 @@ func TestPostgresUpdate(t *testing.T) {
 					Person    string
 					CreatedAt time.Time
 				}{}
-				for row, err := range query.Select(db.DB, &struct {
+				for row, err := range query.Select(&struct {
 					JobTitle *string
 					Person   *string
 				}{
@@ -309,16 +309,16 @@ func TestPostgresUpdate(t *testing.T) {
 					t.Errorf("Expected %v, got : %v", 2, len(pj))
 				}
 
-				err = query.Save(db.DB, db.PersonJobTitle).Replace(PersonJobTitle{
+				err = query.Save(db.PersonJobTitle).Replace(PersonJobTitle{
 					IdPerson:   persons[2].Id,
 					IdJobTitle: jobs[1].Id}).Value(PersonJobTitle{
 					IdJobTitle: jobs[0].Id, CreatedAt: time.Now()})
 				if err != nil {
-					t.Errorf("Expected a update, got error: %v", err)
+					t.Fatalf("Expected a update, got error: %v", err)
 				}
 
 				pj = nil
-				for row, err := range query.Select(db.DB, &struct {
+				for row, err := range query.Select(&struct {
 					JobTitle  *string
 					Person    *string
 					CreatedAt *time.Time
@@ -365,7 +365,7 @@ func TestPostgresUpdate(t *testing.T) {
 				}
 
 				a.Name = "Update Cat"
-				err = query.Update(db.DB, db.DB).Includes(db.DB).Where(wh.Equals(&db.Animal.Id, a.Id)).Value(goe.DB{})
+				err = query.Update(db.DB).Includes(db.DB).Where(wh.Equals(&db.Animal.Id, a.Id)).Value(goe.DB{})
 				if !errors.Is(err, goe.ErrInvalidArg) {
 					t.Errorf("Expected a goe.ErrInvalidArg, got error: %v", err)
 				}
@@ -379,7 +379,7 @@ func TestPostgresUpdate(t *testing.T) {
 				}
 
 				a.Name = "Update Cat"
-				err = query.Update(db.DB, db.DB).Where(wh.Equals(&db.Animal.Id, a.Id)).Value(goe.DB{})
+				err = query.Update(db.DB).Where(wh.Equals(&db.Animal.Id, a.Id)).Value(goe.DB{})
 				if !errors.Is(err, goe.ErrInvalidArg) {
 					t.Errorf("Expected a goe.ErrInvalidArg, got error: %v", err)
 				}
@@ -393,7 +393,7 @@ func TestPostgresUpdate(t *testing.T) {
 				}
 
 				a.Name = "Update Cat"
-				err = query.Update(db.DB, db.Animal).Where(wh.Equals(&a.Id, a.Id)).Value(a)
+				err = query.Update(db.Animal).Where(wh.Equals(&a.Id, a.Id)).Value(a)
 				if !errors.Is(err, goe.ErrInvalidWhere) {
 					t.Errorf("Expected a goe.ErrInvalidWhere, got error: %v", err)
 				}
@@ -407,7 +407,7 @@ func TestPostgresUpdate(t *testing.T) {
 				}
 				ctx, cancel := context.WithCancel(context.Background())
 				cancel()
-				err = query.UpdateContext(ctx, db.DB, db.Animal).Includes(&db.Animal.Name).Where(wh.Equals(&db.Animal.Id, a.Id)).Value(a)
+				err = query.UpdateContext(ctx, db.Animal).Includes(&db.Animal.Name).Where(wh.Equals(&db.Animal.Id, a.Id)).Value(a)
 				if !errors.Is(err, context.Canceled) {
 					t.Errorf("Expected a context.Canceled, got error: %v", err)
 				}
@@ -421,7 +421,7 @@ func TestPostgresUpdate(t *testing.T) {
 				}
 				ctx, cancel := context.WithTimeout(context.Background(), time.Nanosecond*1)
 				defer cancel()
-				err = query.UpdateContext(ctx, db.DB, db.Animal).Includes(&db.Animal.Name).Where(wh.Equals(&db.Animal.Id, a.Id)).Value(a)
+				err = query.UpdateContext(ctx, db.Animal).Includes(&db.Animal.Name).Where(wh.Equals(&db.Animal.Id, a.Id)).Value(a)
 				if !errors.Is(err, context.DeadlineExceeded) {
 					t.Errorf("Expected a context.DeadlineExceeded, got error: %v", err)
 				}
