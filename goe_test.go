@@ -66,11 +66,9 @@ func TestMapDatabase(t *testing.T) {
 	type Database struct {
 		User    *User
 		UserLog *UserLog
-		*goe.DB
 	}
 
-	db := &Database{DB: &goe.DB{}}
-	err := goe.Open(db, &MockDriver{}, goe.Config{})
+	_, err := goe.Open[Database](&MockDriver{}, goe.Config{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -84,11 +82,9 @@ func TestMapDatabaseErrorPrimaryKey(t *testing.T) {
 
 	type Database struct {
 		User *User
-		*goe.DB
 	}
 
-	db := &Database{DB: &goe.DB{}}
-	err := goe.Open(db, &MockDriver{}, goe.Config{})
+	_, err := goe.Open[Database](&MockDriver{}, goe.Config{})
 	if !errors.Is(err, goe.ErrStructWithoutPrimaryKey) {
 		t.Fatal("Was expected a goe.ErrStructWithoutPrimaryKey but get:", err)
 	}

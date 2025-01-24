@@ -8,7 +8,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/olauro/goe"
-	"github.com/olauro/goe/migrate"
 	"github.com/olauro/postgres"
 )
 
@@ -143,7 +142,6 @@ type Database struct {
 	JobTitle       *JobTitle
 	Exam           *Exam
 	Select         *Select
-	*goe.DB
 }
 
 var db *Database
@@ -152,12 +150,12 @@ func SetupPostgres() (*Database, error) {
 	if db != nil {
 		return db, nil
 	}
-	db = &Database{DB: &goe.DB{}}
-	err := goe.Open(db, postgres.Open("user=postgres password=postgres host=localhost port=5432 database=postgres"), goe.Config{})
+	var err error
+	db, err = goe.Open[Database](postgres.Open("user=postgres password=postgres host=localhost port=5432 database=postgres"), goe.Config{})
 	if err != nil {
 		return nil, err
 	}
-	err = migrate.AutoMigrate(db.DB, goe.MigrateFrom(db))
+	err = goe.AutoMigrate(db)
 	if err != nil {
 		return nil, err
 	}
@@ -177,24 +175,24 @@ func TestPostgresMigrate(t *testing.T) {
 		t.Fatalf("Expected Postgres Connection, got error %v", err)
 	}
 
-	err = migrate.RenameColumn(db.DB, "Select", "Name", "NewName")
+	err = goe.RenameColumn(db, "Select", "Name", "NewName")
 	if err != nil {
 		t.Fatalf("Expected rename column, got error %v", err)
 	}
 
-	err = migrate.DropColumn(db.DB, "Select", "NewName")
+	err = goe.DropColumn(db, "Select", "NewName")
 	if err != nil {
 		t.Fatalf("Expected drop column, got error %v", err)
 	}
 
-	err = migrate.DropTable(db.DB, "Select")
+	err = goe.DropTable(db, "Select")
 	if err != nil {
 		t.Fatalf("Expected drop table Select, got error %v", err)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	err = migrate.AutoMigrateContext(ctx, db.DB, goe.MigrateFrom(db))
+	err = goe.AutoMigrateContext(ctx, db)
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("Expected context.Canceled, got %v", err)
 	}
