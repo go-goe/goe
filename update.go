@@ -1,4 +1,4 @@
-package query
+package goe
 
 import (
 	"context"
@@ -6,15 +6,14 @@ import (
 	"reflect"
 	"slices"
 
-	"github.com/olauro/goe"
 	"github.com/olauro/goe/wh"
 )
 
 type save[T any] struct {
 	table    *T
-	pks      []goe.Field
+	pks      []Field
 	pksValue []any
-	includes []goe.Field
+	includes []Field
 	update   *stateUpdate[T]
 }
 
@@ -36,7 +35,7 @@ func SaveContext[T any](ctx context.Context, table *T) *save[T] {
 }
 
 func (s *save[T]) Includes(args ...any) *save[T] {
-	ptrArgs, err := getArgsUpdate(goe.AddrMap, args...)
+	ptrArgs, err := getArgsUpdate(AddrMap, args...)
 	if err != nil {
 		s.update.err = err
 		return s
@@ -51,7 +50,7 @@ func (s *save[T]) Replace(replace T) *save[T] {
 		return s
 	}
 
-	s.pks, s.pksValue, s.update.err = getArgsPks(goe.AddrMap, s.table, replace)
+	s.pks, s.pksValue, s.update.err = getArgsPks(AddrMap, s.table, replace)
 	return s
 }
 
@@ -60,7 +59,7 @@ func (s *save[T]) Value(v T) error {
 		return s.update.err
 	}
 
-	includes, pks, pksValue, err := getArgsSave(goe.AddrMap, s.table, v)
+	includes, pks, pksValue, err := getArgsSave(AddrMap, s.table, v)
 	if err != nil {
 		return err
 	}
@@ -77,13 +76,13 @@ func (s *save[T]) Value(v T) error {
 
 	if len(includes) == 0 {
 		//TODO: error inclues empty
-		return goe.ErrInvalidArg
+		return ErrInvalidArg
 	}
 
 	helperOperation(s.update.builder, pks, pksValue)
 
 	for i := range s.includes {
-		if !slices.ContainsFunc(includes, func(f goe.Field) bool {
+		if !slices.ContainsFunc(includes, func(f Field) bool {
 			//TODO: Add Id to compare
 			return f.GetSelect() == s.includes[i].GetSelect()
 		}) {
@@ -96,9 +95,9 @@ func (s *save[T]) Value(v T) error {
 }
 
 type stateUpdate[T any] struct {
-	config  *goe.Config
-	conn    goe.Connection
-	builder *goe.Builder
+	config  *Config
+	conn    Connection
+	builder *Builder
 	ctx     context.Context
 	err     error
 }
@@ -113,11 +112,11 @@ func Update[T any](table *T) *stateUpdate[T] {
 
 // UpdateContext creates a update state for table
 func UpdateContext[T any](ctx context.Context, table *T) *stateUpdate[T] {
-	f := getArg(table, goe.AddrMap)
+	f := getArg(table, AddrMap)
 	var s *stateUpdate[T]
 	if f == nil {
 		s = new(stateUpdate[T])
-		s.err = goe.ErrInvalidArg
+		s.err = ErrInvalidArg
 		return s
 	}
 	db := f.GetDb()
@@ -131,7 +130,7 @@ func (s *stateUpdate[T]) Includes(args ...any) *stateUpdate[T] {
 		return s
 	}
 
-	fields, err := getArgsUpdate(goe.AddrMap, args...)
+	fields, err := getArgsUpdate(AddrMap, args...)
 
 	if err != nil {
 		s.err = err
@@ -146,7 +145,7 @@ func (s *stateUpdate[T]) Where(brs ...wh.Operator) *stateUpdate[T] {
 	if s.err != nil {
 		return s
 	}
-	s.err = helperWhere(s.builder, goe.AddrMap, brs...)
+	s.err = helperWhere(s.builder, AddrMap, brs...)
 	return s
 }
 
@@ -157,7 +156,7 @@ func (s *stateUpdate[T]) Value(value T) error {
 
 	if s.conn == nil {
 		//TODO: Includes error
-		return goe.ErrInvalidArg
+		return ErrInvalidArg
 	}
 
 	v := reflect.ValueOf(value)
@@ -176,14 +175,14 @@ func (s *stateUpdate[T]) Value(value T) error {
 	return handlerValues(s.conn, sql, s.builder.ArgsAny, s.ctx)
 }
 
-func getArgsUpdate(AddrMap map[uintptr]goe.Field, args ...any) ([]goe.Field, error) {
-	fields := make([]goe.Field, 0)
+func getArgsUpdate(AddrMap map[uintptr]Field, args ...any) ([]Field, error) {
+	fields := make([]Field, 0)
 	var valueOf reflect.Value
 	for i := range args {
 		valueOf = reflect.ValueOf(args[i])
 
 		if valueOf.Kind() != reflect.Pointer {
-			return nil, goe.ErrInvalidArg
+			return nil, ErrInvalidArg
 		}
 
 		valueOf = valueOf.Elem()
@@ -193,22 +192,22 @@ func getArgsUpdate(AddrMap map[uintptr]goe.Field, args ...any) ([]goe.Field, err
 		}
 	}
 	if len(fields) == 0 {
-		return nil, goe.ErrInvalidArg
+		return nil, ErrInvalidArg
 	}
 	return fields, nil
 }
 
-func getArgsSave[T any](AddrMap map[uintptr]goe.Field, table *T, value T) ([]goe.Field, []goe.Field, []any, error) {
+func getArgsSave[T any](AddrMap map[uintptr]Field, table *T, value T) ([]Field, []Field, []any, error) {
 	if table == nil {
-		return nil, nil, nil, goe.ErrInvalidArg
+		return nil, nil, nil, ErrInvalidArg
 	}
 
 	tableOf := reflect.ValueOf(table).Elem()
 
-	args, pks, pksValue := make([]goe.Field, 0), make([]goe.Field, 0), make([]any, 0)
+	args, pks, pksValue := make([]Field, 0), make([]Field, 0), make([]any, 0)
 
 	if tableOf.Kind() != reflect.Struct {
-		return nil, nil, nil, goe.ErrInvalidArg
+		return nil, nil, nil, ErrInvalidArg
 	}
 
 	valueOf := reflect.ValueOf(value)
@@ -228,17 +227,17 @@ func getArgsSave[T any](AddrMap map[uintptr]goe.Field, table *T, value T) ([]goe
 	}
 
 	if len(args) == 0 && len(pks) == 0 {
-		return nil, nil, nil, goe.ErrInvalidArg
+		return nil, nil, nil, ErrInvalidArg
 	}
 	return args, pks, pksValue, nil
 }
 
-func getArgsPks[T any](AddrMap map[uintptr]goe.Field, table *T, value T) ([]goe.Field, []any, error) {
-	pks, pksValue := make([]goe.Field, 0), make([]any, 0)
+func getArgsPks[T any](AddrMap map[uintptr]Field, table *T, value T) ([]Field, []any, error) {
+	pks, pksValue := make([]Field, 0), make([]any, 0)
 
 	tableOf := reflect.ValueOf(table).Elem()
 	if tableOf.Kind() != reflect.Struct {
-		return nil, nil, goe.ErrInvalidArg
+		return nil, nil, ErrInvalidArg
 	}
 
 	valueOf := reflect.ValueOf(value)
@@ -258,12 +257,12 @@ func getArgsPks[T any](AddrMap map[uintptr]goe.Field, table *T, value T) ([]goe.
 	}
 
 	if len(pks) == 0 {
-		return nil, nil, goe.ErrInvalidArg
+		return nil, nil, ErrInvalidArg
 	}
 	return pks, pksValue, nil
 }
 
-func helperOperation(builder *goe.Builder, pks []goe.Field, pksValue []any) {
+func helperOperation(builder *Builder, pks []Field, pksValue []any) {
 	builder.Brs = append(builder.Brs, wh.Operation{
 		Arg:      pks[0].GetSelect(),
 		Operator: "=",
@@ -280,9 +279,9 @@ func helperOperation(builder *goe.Builder, pks []goe.Field, pksValue []any) {
 }
 
 func createUpdateState[T any](
-	conn goe.Connection, c *goe.Config,
+	conn Connection, c *Config,
 	ctx context.Context,
-	d goe.Driver,
+	d Driver,
 	e error) *stateUpdate[T] {
-	return &stateUpdate[T]{conn: conn, builder: goe.CreateBuilder(d), config: c, ctx: ctx, err: e}
+	return &stateUpdate[T]{conn: conn, builder: CreateBuilder(d), config: c, ctx: ctx, err: e}
 }

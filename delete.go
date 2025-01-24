@@ -1,23 +1,22 @@
-package query
+package goe
 
 import (
 	"context"
 	"log"
 
-	"github.com/olauro/goe"
 	"github.com/olauro/goe/wh"
 )
 
 type stateDelete struct {
-	config  *goe.Config
-	conn    goe.Connection
-	builder *goe.Builder
+	config  *Config
+	conn    Connection
+	builder *Builder
 	ctx     context.Context
 	err     error
 }
 
-func createDeleteState(conn goe.Connection, c *goe.Config, ctx context.Context, d goe.Driver, e error) *stateDelete {
-	return &stateDelete{conn: conn, builder: goe.CreateBuilder(d), config: c, ctx: ctx, err: e}
+func createDeleteState(conn Connection, c *Config, ctx context.Context, d Driver, e error) *stateDelete {
+	return &stateDelete{conn: conn, builder: CreateBuilder(d), config: c, ctx: ctx, err: e}
 }
 
 func Remove[T any](table *T, value T) error {
@@ -25,7 +24,7 @@ func Remove[T any](table *T, value T) error {
 }
 
 func RemoveContext[T any](ctx context.Context, table *T, value T) error {
-	pks, pksValue, err := getArgsPks(goe.AddrMap, table, value)
+	pks, pksValue, err := getArgsPks(AddrMap, table, value)
 	if err != nil {
 		return err
 	}
@@ -45,7 +44,7 @@ func Delete[T any](table *T) *stateDelete {
 
 // DeleteContext creates a delete state for table
 func DeleteContext[T any](ctx context.Context, table *T) *stateDelete {
-	fields, err := getArgsTable(goe.AddrMap, table)
+	fields, err := getArgsTable(AddrMap, table)
 
 	var state *stateDelete
 	if err != nil {
@@ -64,7 +63,7 @@ func (s *stateDelete) Where(Brs ...wh.Operator) error {
 		return s.err
 	}
 
-	s.err = helperWhere(s.builder, goe.AddrMap, Brs...)
+	s.err = helperWhere(s.builder, AddrMap, Brs...)
 	if s.err != nil {
 		return s.err
 	}

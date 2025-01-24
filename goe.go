@@ -10,10 +10,11 @@ import (
 
 var ErrStructWithoutPrimaryKey = errors.New("goe")
 
-func Open(db any, driver Driver, config Config) error {
+func Open[T any](driver Driver, config Config) (*T, error) {
+	db := new(T)
 	valueOf := reflect.ValueOf(db)
 	if valueOf.Kind() != reflect.Ptr {
-		return errors.New("goe: the target value needs to be pass as a pointer")
+		return nil, errors.New("goe: the target value needs to be pass as a pointer")
 	}
 	dbTarget := new(DB)
 	valueOf = valueOf.Elem()
@@ -21,7 +22,6 @@ func Open(db any, driver Driver, config Config) error {
 	if AddrMap == nil {
 		AddrMap = make(map[uintptr]Field)
 	}
-	dbTarget.AddrMap = make(map[uintptr]Field)
 
 	// set value for Fields
 	for i := 0; i < valueOf.NumField(); i++ {
@@ -33,19 +33,16 @@ func Open(db any, driver Driver, config Config) error {
 	var err error
 	// init Fields
 	for i := 0; i < valueOf.NumField(); i++ {
-		if valueOf.Field(i).Elem().Type().Name() != "DB" {
-			err = initField(valueOf, valueOf.Field(i).Elem(), dbTarget, driver)
-			if err != nil {
-				return err
-			}
+		err = initField(valueOf, valueOf.Field(i).Elem(), dbTarget, driver)
+		if err != nil {
+			return nil, err
 		}
 	}
 
 	dbTarget.Driver = driver
 	dbTarget.Driver.Init(dbTarget)
 	dbTarget.Config = &config
-	valueOf.FieldByName("DB").Set(reflect.ValueOf(dbTarget))
-	return nil
+	return db, nil
 }
 
 func initField(tables reflect.Value, valueOf reflect.Value, db *DB, driver Driver) error {
@@ -55,7 +52,6 @@ func initField(tables reflect.Value, valueOf reflect.Value, db *DB, driver Drive
 	}
 
 	for i := range pks {
-		db.AddrMap[uintptr(valueOf.FieldByName(FieldNames[i]).Addr().UnsafePointer())] = pks[i]
 		AddrMap[uintptr(valueOf.FieldByName(FieldNames[i]).Addr().UnsafePointer())] = pks[i]
 	}
 	var Field reflect.StructField
@@ -109,7 +105,6 @@ func newAttr(valueOf reflect.Value, i int, tableBytes []byte, addr uintptr, db *
 		tableBytes,
 		d,
 	)
-	db.AddrMap[addr] = at
 	AddrMap[addr] = at
 }
 
@@ -239,7 +234,6 @@ func helperAttribute(tables reflect.Value, valueOf reflect.Value, i int, db *DB,
 					newAttr(valueOf, i, pks[0].tableBytes, uintptr(valueOf.Field(i).Addr().UnsafePointer()), db, driver)
 					break
 				}
-				db.AddrMap[uintptr(valueOf.Field(i).Addr().UnsafePointer())] = v
 				AddrMap[uintptr(valueOf.Field(i).Addr().UnsafePointer())] = v
 				for _, pk := range pks {
 					if !nullable && pk.structAttributeName == v.structAttributeName {
@@ -252,7 +246,6 @@ func helperAttribute(tables reflect.Value, valueOf reflect.Value, i int, db *DB,
 					newAttr(valueOf, i, pks[0].tableBytes, uintptr(valueOf.Field(i).Addr().UnsafePointer()), db, driver)
 					break
 				}
-				db.AddrMap[uintptr(valueOf.Field(i).Addr().UnsafePointer())] = v
 				AddrMap[uintptr(valueOf.Field(i).Addr().UnsafePointer())] = v
 				for _, pk := range pks {
 					//TODO: Check this

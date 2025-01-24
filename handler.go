@@ -1,15 +1,13 @@
-package query
+package goe
 
 import (
 	"context"
 	"database/sql"
 	"iter"
 	"reflect"
-
-	"github.com/olauro/goe"
 )
 
-func handlerValues(conn goe.Connection, sqlQuery string, args []any, ctx context.Context) error {
+func handlerValues(conn Connection, sqlQuery string, args []any, ctx context.Context) error {
 	_, err := conn.ExecContext(ctx, sqlQuery, args...)
 	if err != nil {
 		return err
@@ -17,7 +15,7 @@ func handlerValues(conn goe.Connection, sqlQuery string, args []any, ctx context
 	return nil
 }
 
-func handlerValuesReturning(conn goe.Connection, sqlQuery string, value reflect.Value, args []any, idName string, ctx context.Context) error {
+func handlerValuesReturning(conn Connection, sqlQuery string, value reflect.Value, args []any, idName string, ctx context.Context) error {
 	row := conn.QueryRowContext(ctx, sqlQuery, args...)
 
 	err := row.Scan(value.FieldByName(idName).Addr().Interface())
@@ -27,7 +25,7 @@ func handlerValuesReturning(conn goe.Connection, sqlQuery string, value reflect.
 	return nil
 }
 
-func handlerValuesReturningBatch(conn goe.Connection, sqlQuery string, value reflect.Value, args []any, idName string, ctx context.Context) error {
+func handlerValuesReturningBatch(conn Connection, sqlQuery string, value reflect.Value, args []any, idName string, ctx context.Context) error {
 	rows, err := conn.QueryContext(ctx, sqlQuery, args...)
 	if err != nil {
 		return err
@@ -45,7 +43,7 @@ func handlerValuesReturningBatch(conn goe.Connection, sqlQuery string, value ref
 	return nil
 }
 
-func handlerResult[T any](conn goe.Connection, sqlQuery string, args []any, structColumns []string, ctx context.Context) iter.Seq2[T, error] {
+func handlerResult[T any](conn Connection, sqlQuery string, args []any, structColumns []string, ctx context.Context) iter.Seq2[T, error] {
 	rows, err := conn.QueryContext(ctx, sqlQuery, args...)
 
 	var v T

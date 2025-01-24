@@ -1,17 +1,15 @@
-package query
+package goe
 
 import (
 	"context"
 	"log"
 	"reflect"
-
-	"github.com/olauro/goe"
 )
 
 type stateInsert[T any] struct {
-	config  *goe.Config
-	conn    goe.Connection
-	builder *goe.Builder
+	config  *Config
+	conn    Connection
+	builder *Builder
 	ctx     context.Context
 	err     error
 }
@@ -26,7 +24,7 @@ func Insert[T any](table *T) *stateInsert[T] {
 
 // InsertContext creates a insert state for table
 func InsertContext[T any](ctx context.Context, table *T) *stateInsert[T] {
-	fields, err := getArgsTable(goe.AddrMap, table)
+	fields, err := getArgsTable(AddrMap, table)
 
 	var state *stateInsert[T]
 	if err != nil {
@@ -45,7 +43,7 @@ func (s *stateInsert[T]) One(value *T) error {
 	}
 
 	if value == nil {
-		return goe.ErrInvalidInsertValue
+		return ErrInvalidInsertValue
 	}
 
 	v := reflect.ValueOf(value).Elem()
@@ -65,7 +63,7 @@ func (s *stateInsert[T]) One(value *T) error {
 
 func (s *stateInsert[T]) All(value []T) error {
 	if len(value) == 0 {
-		return goe.ErrEmptyBatchValue
+		return ErrEmptyBatchValue
 	}
 
 	valueOf := reflect.ValueOf(value)
@@ -80,19 +78,19 @@ func (s *stateInsert[T]) All(value []T) error {
 	return handlerValuesReturningBatch(s.conn, Sql, valueOf, s.builder.ArgsAny, idName, s.ctx)
 }
 
-func createInsertState[T any](conn goe.Connection, c *goe.Config, ctx context.Context, d goe.Driver, e error) *stateInsert[T] {
-	return &stateInsert[T]{conn: conn, builder: goe.CreateBuilder(d), config: c, ctx: ctx, err: e}
+func createInsertState[T any](conn Connection, c *Config, ctx context.Context, d Driver, e error) *stateInsert[T] {
+	return &stateInsert[T]{conn: conn, builder: CreateBuilder(d), config: c, ctx: ctx, err: e}
 }
 
-func getArgsTable[T any](AddrMap map[uintptr]goe.Field, table *T) ([]goe.Field, error) {
+func getArgsTable[T any](AddrMap map[uintptr]Field, table *T) ([]Field, error) {
 	if table == nil {
-		return nil, goe.ErrInvalidArg
+		return nil, ErrInvalidArg
 	}
-	fields := make([]goe.Field, 0)
+	fields := make([]Field, 0)
 
 	valueOf := reflect.ValueOf(table).Elem()
 	if valueOf.Kind() != reflect.Struct {
-		return nil, goe.ErrInvalidArg
+		return nil, ErrInvalidArg
 	}
 
 	var fieldOf reflect.Value
@@ -108,7 +106,7 @@ func getArgsTable[T any](AddrMap map[uintptr]goe.Field, table *T) ([]goe.Field, 
 	}
 
 	if len(fields) == 0 {
-		return nil, goe.ErrInvalidArg
+		return nil, ErrInvalidArg
 	}
 	return fields, nil
 }

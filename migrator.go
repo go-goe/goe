@@ -62,19 +62,15 @@ type ManyToOneMigrate struct {
 	EscapingTargetColumn string
 }
 
-func MigrateFrom(db any) *Migrator {
+func migrateFrom(db any, driver Driver) *Migrator {
 	valueOf := reflect.ValueOf(db).Elem()
-
-	driver := valueOf.FieldByName("DB").Elem().FieldByName("Driver").Interface().(Driver)
 
 	migrator := new(Migrator)
 	migrator.Tables = make(map[string]*TableMigrate)
 	for i := 0; i < valueOf.NumField(); i++ {
-		if valueOf.Field(i).Type().Elem().Name() != "DB" {
-			migrator.Error = typeField(valueOf, valueOf.Field(i).Elem(), migrator, driver)
-			if migrator.Error != nil {
-				return migrator
-			}
+		migrator.Error = typeField(valueOf, valueOf.Field(i).Elem(), migrator, driver)
+		if migrator.Error != nil {
+			return migrator
 		}
 	}
 
