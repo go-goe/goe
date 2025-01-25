@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/olauro/goe"
-	"github.com/olauro/goe/wh"
+	"github.com/olauro/goe/query"
 )
 
 func TestPostgresDelete(t *testing.T) {
@@ -125,7 +125,7 @@ func TestPostgresDelete(t *testing.T) {
 				}
 
 				animals = nil
-				animals, err = goe.Select(db.Animal).From(db.Animal).Where(wh.Like(&db.Animal.Name, "%Cat%")).RowsAsSlice()
+				animals, err = goe.Select(db.Animal).From(db.Animal).Where(query.Like(&db.Animal.Name, "%Cat%")).RowsAsSlice()
 				if err != nil {
 					t.Fatalf("Expected a select, got error: %v", err)
 				}
@@ -134,13 +134,13 @@ func TestPostgresDelete(t *testing.T) {
 					t.Errorf("Expected 3, got %v", len(animals))
 				}
 
-				err = goe.Delete(db.Animal).Where(wh.Like(&db.Animal.Name, "%Cat%"))
+				err = goe.Delete(db.Animal).Where(query.Like(&db.Animal.Name, "%Cat%"))
 				if err != nil {
 					t.Fatalf("Expected a delete, got error: %v", err)
 				}
 
 				animals = nil
-				animals, err = goe.Select(db.Animal).From(db.Animal).Where(wh.Like(&db.Animal.Name, "%Cat%")).RowsAsSlice()
+				animals, err = goe.Select(db.Animal).From(db.Animal).Where(query.Like(&db.Animal.Name, "%Cat%")).RowsAsSlice()
 				if err != nil {
 					t.Fatalf("Expected a select, got error: %v", err)
 				}
@@ -153,7 +153,7 @@ func TestPostgresDelete(t *testing.T) {
 		{
 			desc: "Delete_Invalid_Arg",
 			testCase: func(t *testing.T) {
-				err = goe.Delete(&struct{}{}).Where(wh.Equals(&db.Animal.Id, 1))
+				err = goe.Delete(&struct{}{}).Where(query.Equals(&db.Animal.Id, 1))
 				if !errors.Is(err, goe.ErrInvalidArg) {
 					t.Errorf("Expected a goe.ErrInvalidArg, got error: %v", err)
 				}
@@ -163,7 +163,7 @@ func TestPostgresDelete(t *testing.T) {
 			desc: "Delete_Invalid_Where",
 			testCase: func(t *testing.T) {
 				b := 2
-				err = goe.Delete(db.Animal).Where(wh.Equals(&b, b))
+				err = goe.Delete(db.Animal).Where(query.Equals(&b, b))
 				if !errors.Is(err, goe.ErrInvalidWhere) {
 					t.Errorf("Expected a goe.ErrInvalidWhere, got error: %v", err)
 				}
