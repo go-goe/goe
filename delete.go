@@ -4,7 +4,7 @@ import (
 	"context"
 	"log"
 
-	"github.com/olauro/goe/wh"
+	"github.com/olauro/goe/query"
 )
 
 type stateDelete struct {
@@ -58,7 +58,7 @@ func DeleteContext[T any](ctx context.Context, table *T) *stateDelete {
 	return state
 }
 
-func (s *stateDelete) Where(Brs ...wh.Operator) error {
+func (s *stateDelete) Where(Brs ...query.Operator) error {
 	if s.err != nil {
 		return s.err
 	}

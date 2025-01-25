@@ -7,7 +7,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/olauro/goe/wh"
+	"github.com/olauro/goe/query"
 )
 
 var ErrInvalidWhere = errors.New("goe: invalid where operation. try sending a pointer as parameter")
@@ -32,7 +32,7 @@ type Builder struct {
 	Joins         []string //select
 	JoinsArgs     []Field  //select
 	Tables        []string //select TODO: update all table names to a int ID
-	Brs           []wh.Operator
+	Brs           []query.Operator
 }
 
 func CreateBuilder(d Driver) *Builder {
@@ -123,7 +123,7 @@ func (b *Builder) buildWhere() error {
 	ArgsCount := len(b.ArgsAny) + 1
 	for _, op := range b.Brs {
 		switch v := op.(type) {
-		case wh.Operation:
+		case query.Operation:
 			v.ValueFlag = fmt.Sprintf("$%v", ArgsCount)
 			b.Sql.WriteString(v.Operation())
 			b.ArgsAny = append(b.ArgsAny, v.Value)

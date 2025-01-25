@@ -1,4 +1,4 @@
-package jn
+package query
 
 type Joins interface {
 	FirstArg() any
@@ -29,7 +29,7 @@ func (j join) SecondArg() any {
 // # Example
 //
 //	db.Select(db.Food).From(db.Food).
-//	Joins(jn.Join(&db.Animal.Id, &db.Food.IdAnimal)).Scan(&a)
+//	Joins(query.Join(&db.Animal.Id, &db.Food.IdAnimal)).Scan(&a)
 func Join[T any, U, V *T | **T](t1 U, t2 V) Joins {
 	return join{t1: t1, join: "JOIN", t2: t2}
 }
@@ -39,7 +39,7 @@ func Join[T any, U, V *T | **T](t1 U, t2 V) Joins {
 // # Example
 //
 //	db.Select(db.Food).From(db.Food).
-//	Joins(jn.LeftJoin(&db.Animal.Id, &db.Food.IdAnimal)).Scan(&a)
+//	Joins(query.LeftJoin(&db.Animal.Id, &db.Food.IdAnimal)).Scan(&a)
 func LeftJoin[T any, U, V *T | **T](t1 U, t2 V) Joins {
 	return join{t1: t1, join: "LEFT JOIN", t2: t2}
 }
@@ -49,7 +49,7 @@ func LeftJoin[T any, U, V *T | **T](t1 U, t2 V) Joins {
 // # Example
 //
 //	db.Select(db.Food).From(db.Food).
-//	Joins(jn.RightJoin(&db.Animal.Id, &db.Food.IdAnimal)).Scan(&a)
+//	Joins(query.RightJoin(&db.Animal.Id, &db.Food.IdAnimal)).Scan(&a)
 func RightJoin[T any, U, V *T | **T](t1 U, t2 V) Joins {
 	return join{t1: t1, join: "RIGHT JOIN", t2: t2}
 }

@@ -7,8 +7,7 @@ import (
 	"log"
 	"reflect"
 
-	"github.com/olauro/goe/jn"
-	"github.com/olauro/goe/wh"
+	"github.com/olauro/goe/query"
 )
 
 type stateSelect[T any] struct {
@@ -68,7 +67,7 @@ func SelectContext[T any](ctx context.Context, t *T) *stateSelect[T] {
 }
 
 // Where creates a where SQL using the operations
-func (s *stateSelect[T]) Where(brs ...wh.Operator) *stateSelect[T] {
+func (s *stateSelect[T]) Where(brs ...query.Operator) *stateSelect[T] {
 	if s.err != nil {
 		return s
 	}
@@ -167,7 +166,7 @@ func (s *stateSelect[T]) From(tables ...any) *stateSelect[T] {
 }
 
 // TODO: Add Doc
-func (s *stateSelect[T]) Joins(joins ...jn.Joins) *stateSelect[T] {
+func (s *stateSelect[T]) Joins(joins ...query.Joins) *stateSelect[T] {
 	if s.err != nil {
 		return s
 	}
@@ -359,17 +358,17 @@ func getArg(arg any, AddrMap map[uintptr]Field) Field {
 	return nil
 }
 
-func helperWhere(builder *Builder, addrMap map[uintptr]Field, brs ...wh.Operator) error {
+func helperWhere(builder *Builder, addrMap map[uintptr]Field, brs ...query.Operator) error {
 	for i := range brs {
 		switch br := brs[i].(type) {
-		case wh.Operation:
+		case query.Operation:
 			if a := getArg(br.Arg, addrMap); a != nil {
 				br.Arg = a.GetSelect()
 				builder.Brs = append(builder.Brs, br)
 				continue
 			}
 			return ErrInvalidWhere
-		case wh.OperationArg:
+		case query.OperationArg:
 			if a, b := getArg(br.Op.Arg, addrMap), getArg(br.Op.Value, addrMap); a != nil && b != nil {
 				br.Op.Arg = a.GetSelect()
 				br.Op.ValueFlag = b.GetSelect()
@@ -377,7 +376,7 @@ func helperWhere(builder *Builder, addrMap map[uintptr]Field, brs ...wh.Operator
 				continue
 			}
 			return ErrInvalidWhere
-		case wh.OperationIs:
+		case query.OperationIs:
 			if a := getArg(br.Arg, addrMap); a != nil {
 				br.Arg = a.GetSelect()
 				builder.Brs = append(builder.Brs, br)

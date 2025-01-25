@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"slices"
 
-	"github.com/olauro/goe/wh"
+	"github.com/olauro/goe/query"
 )
 
 type save[T any] struct {
@@ -141,7 +141,7 @@ func (s *stateUpdate[T]) Includes(args ...any) *stateUpdate[T] {
 	return s
 }
 
-func (s *stateUpdate[T]) Where(brs ...wh.Operator) *stateUpdate[T] {
+func (s *stateUpdate[T]) Where(brs ...query.Operator) *stateUpdate[T] {
 	if s.err != nil {
 		return s
 	}
@@ -263,14 +263,14 @@ func getArgsPks[T any](AddrMap map[uintptr]Field, table *T, value T) ([]Field, [
 }
 
 func helperOperation(builder *Builder, pks []Field, pksValue []any) {
-	builder.Brs = append(builder.Brs, wh.Operation{
+	builder.Brs = append(builder.Brs, query.Operation{
 		Arg:      pks[0].GetSelect(),
 		Operator: "=",
 		Value:    pksValue[0]})
 	pkCount := 1
 	for _, pk := range pks[1:] {
-		builder.Brs = append(builder.Brs, wh.Logical{Operator: "AND"})
-		builder.Brs = append(builder.Brs, wh.Operation{
+		builder.Brs = append(builder.Brs, query.Logical{Operator: "AND"})
+		builder.Brs = append(builder.Brs, query.Operation{
 			Arg:      pk.GetSelect(),
 			Operator: "=",
 			Value:    pksValue[pkCount]})
