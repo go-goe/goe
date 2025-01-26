@@ -23,7 +23,7 @@ type builder struct {
 	froms         []byte
 	fields        []Field
 	argsAny       []any
-	structColumns []string //select and update
+	structColumns []string //update
 	attrNames     []string //insert and update
 	orderBy       string
 	limit         uint     //select
@@ -48,8 +48,6 @@ func (b *builder) buildSelect() {
 	if len == 0 {
 		return
 	}
-
-	b.structColumns = make([]string, len)
 
 	for i := range b.fields[:len-1] {
 		b.fields[i].BuildAttributeSelect(b, i)

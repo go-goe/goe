@@ -216,7 +216,7 @@ func (s *stateSelect[T]) Rows() iter.Seq2[T, error] {
 		log.Println("\n" + Sql)
 	}
 
-	return handlerResult[T](s.conn, Sql, s.builder.argsAny, s.builder.structColumns, s.ctx)
+	return handlerResult[T](s.conn, Sql, s.builder.argsAny, len(s.builder.fields), s.ctx)
 }
 
 func SafeGet[T any](v *T) T {

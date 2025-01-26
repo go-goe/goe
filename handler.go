@@ -43,7 +43,7 @@ func handlerValuesReturningBatch(conn Connection, sqlQuery string, value reflect
 	return nil
 }
 
-func handlerResult[T any](conn Connection, sqlQuery string, args []any, structColumns []string, ctx context.Context) iter.Seq2[T, error] {
+func handlerResult[T any](conn Connection, sqlQuery string, args []any, numFields int, ctx context.Context) iter.Seq2[T, error] {
 	rows, err := conn.QueryContext(ctx, sqlQuery, args...)
 
 	var v T
@@ -54,7 +54,7 @@ func handlerResult[T any](conn Connection, sqlQuery string, args []any, structCo
 	}
 
 	value := reflect.TypeOf(v)
-	dest := make([]any, len(structColumns))
+	dest := make([]any, numFields)
 	for i := range dest {
 		dest[i] = reflect.New(value.Field(i).Type).Interface()
 	}

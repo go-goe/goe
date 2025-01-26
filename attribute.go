@@ -153,22 +153,18 @@ func createAtt(db *DB, attributeName string, tableBytes []byte, d Driver) *att {
 
 func (p *pk) BuildAttributeSelect(b *builder, i int) {
 	b.sql.WriteString(p.selectName)
-	b.structColumns[i] = p.structAttributeName
 }
 
 func (a *att) BuildAttributeSelect(b *builder, i int) {
 	b.sql.WriteString(a.selectName)
-	b.structColumns[i] = a.structAttributeName
 }
 
 func (m *manyToOne) BuildAttributeSelect(b *builder, i int) {
 	b.sql.WriteString(m.selectName)
-	b.structColumns[i] = m.structAttributeName
 }
 
 func (o *oneToOne) BuildAttributeSelect(b *builder, i int) {
 	b.sql.WriteString(o.selectName)
-	b.structColumns[i] = o.structAttributeName
 }
 
 func (p *pk) BuildAttributeInsert(b *builder) {
