@@ -13,7 +13,7 @@ import (
 type stateSelect[T any] struct {
 	config  *Config
 	conn    Connection
-	builder *Builder
+	builder *builder
 	ctx     context.Context
 	err     error
 }
@@ -62,7 +62,7 @@ func SelectContext[T any](ctx context.Context, t *T) *stateSelect[T] {
 	db := fields[0].GetDb()
 	state = createSelectState[T](db.ConnPool, db.Config, ctx, db.Driver, err)
 
-	state.builder.Fields = fields
+	state.builder.fields = fields
 	return state
 }
 
@@ -85,7 +85,7 @@ func (s *stateSelect[T]) Where(brs ...query.Operator) *stateSelect[T] {
 //	// skips 20 and takes next 20 elements
 //	db.Select(db.Habitat).Skip(20).Take(20).Scan(&h)
 func (s *stateSelect[T]) Take(i uint) *stateSelect[T] {
-	s.builder.Limit = i
+	s.builder.limit = i
 	return s
 }
 
@@ -99,7 +99,7 @@ func (s *stateSelect[T]) Take(i uint) *stateSelect[T] {
 //	// skips 20 and takes next 20 elements
 //	db.Select(db.Habitat).Skip(20).Take(20).Scan(&h)
 func (s *stateSelect[T]) Skip(i uint) *stateSelect[T] {
-	s.builder.Offset = i
+	s.builder.offset = i
 	return s
 }
 
@@ -110,8 +110,8 @@ func (s *stateSelect[T]) Skip(i uint) *stateSelect[T] {
 //	// returns first 20 elements
 //	db.Select(db.Habitat).Page(1, 20).Scan(&h)
 func (s *stateSelect[T]) Page(p uint, i uint) *stateSelect[T] {
-	s.builder.Offset = i * (p - 1)
-	s.builder.Limit = i
+	s.builder.offset = i * (p - 1)
+	s.builder.limit = i
 	return s
 }
 
@@ -130,7 +130,7 @@ func (s *stateSelect[T]) OrderByAsc(arg any) *stateSelect[T] {
 		s.err = ErrInvalidOrderBy
 		return s
 	}
-	s.builder.OrderBy = fmt.Sprintf("\nORDER BY %v ASC", Field.GetSelect())
+	s.builder.orderBy = fmt.Sprintf("\nORDER BY %v ASC", Field.GetSelect())
 	return s
 }
 
@@ -149,19 +149,19 @@ func (s *stateSelect[T]) OrderByDesc(arg any) *stateSelect[T] {
 		s.err = ErrInvalidOrderBy
 		return s
 	}
-	s.builder.OrderBy = fmt.Sprintf("\nORDER BY %v DESC", Field.GetSelect())
+	s.builder.orderBy = fmt.Sprintf("\nORDER BY %v DESC", Field.GetSelect())
 	return s
 }
 
 // TODO: Add Doc
 func (s *stateSelect[T]) From(tables ...any) *stateSelect[T] {
-	s.builder.Tables = make([]string, len(tables))
-	args, err := getArgsTables(AddrMap, s.builder.Tables, tables...)
+	s.builder.tables = make([]string, len(tables))
+	args, err := getArgsTables(AddrMap, s.builder.tables, tables...)
 	if err != nil {
 		s.err = err
 		return s
 	}
-	s.builder.Froms = args
+	s.builder.froms = args
 	return s
 }
 
@@ -177,7 +177,7 @@ func (s *stateSelect[T]) Joins(joins ...query.Joins) *stateSelect[T] {
 			s.err = err
 			return s
 		}
-		s.builder.BuildSelectJoins(AddrMap, j.Join(), fields)
+		s.builder.buildSelectJoins(j.Join(), fields)
 	}
 	return s
 }
@@ -202,8 +202,8 @@ func (s *stateSelect[T]) Rows() iter.Seq2[T, error] {
 		}
 	}
 
-	s.builder.BuildSelect()
-	s.err = s.builder.BuildSqlSelect()
+	s.builder.buildSelect()
+	s.err = s.builder.buildSqlSelect()
 	if s.err != nil {
 		var v T
 		return func(yield func(T, error) bool) {
@@ -211,12 +211,12 @@ func (s *stateSelect[T]) Rows() iter.Seq2[T, error] {
 		}
 	}
 
-	Sql := s.builder.Sql.String()
+	Sql := s.builder.sql.String()
 	if s.config.LogQuery {
 		log.Println("\n" + Sql)
 	}
 
-	return handlerResult[T](s.conn, Sql, s.builder.ArgsAny, s.builder.StructColumns, s.ctx)
+	return handlerResult[T](s.conn, Sql, s.builder.argsAny, s.builder.structColumns, s.ctx)
 }
 
 func SafeGet[T any](v *T) T {
@@ -227,7 +227,7 @@ func SafeGet[T any](v *T) T {
 }
 
 func createSelectState[T any](conn Connection, c *Config, ctx context.Context, d Driver, e error) *stateSelect[T] {
-	return &stateSelect[T]{conn: conn, builder: CreateBuilder(d), config: c, ctx: ctx, err: e}
+	return &stateSelect[T]{conn: conn, builder: createBuilder(d), config: c, ctx: ctx, err: e}
 }
 
 func getArgsSelect(AddrMap map[uintptr]Field, arg any) ([]Field, error) {
@@ -358,13 +358,13 @@ func getArg(arg any, AddrMap map[uintptr]Field) Field {
 	return nil
 }
 
-func helperWhere(builder *Builder, addrMap map[uintptr]Field, brs ...query.Operator) error {
+func helperWhere(builder *builder, addrMap map[uintptr]Field, brs ...query.Operator) error {
 	for i := range brs {
 		switch br := brs[i].(type) {
 		case query.Operation:
 			if a := getArg(br.Arg, addrMap); a != nil {
 				br.Arg = a.GetSelect()
-				builder.Brs = append(builder.Brs, br)
+				builder.brs = append(builder.brs, br)
 				continue
 			}
 			return ErrInvalidWhere
@@ -372,19 +372,19 @@ func helperWhere(builder *Builder, addrMap map[uintptr]Field, brs ...query.Opera
 			if a, b := getArg(br.Op.Arg, addrMap), getArg(br.Op.Value, addrMap); a != nil && b != nil {
 				br.Op.Arg = a.GetSelect()
 				br.Op.ValueFlag = b.GetSelect()
-				builder.Brs = append(builder.Brs, br)
+				builder.brs = append(builder.brs, br)
 				continue
 			}
 			return ErrInvalidWhere
 		case query.OperationIs:
 			if a := getArg(br.Arg, addrMap); a != nil {
 				br.Arg = a.GetSelect()
-				builder.Brs = append(builder.Brs, br)
+				builder.brs = append(builder.brs, br)
 				continue
 			}
 			return ErrInvalidWhere
 		default:
-			builder.Brs = append(builder.Brs, br)
+			builder.brs = append(builder.brs, br)
 		}
 	}
 	return nil

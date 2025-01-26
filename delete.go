@@ -10,13 +10,13 @@ import (
 type stateDelete struct {
 	config  *Config
 	conn    Connection
-	builder *Builder
+	builder *builder
 	ctx     context.Context
 	err     error
 }
 
 func createDeleteState(conn Connection, c *Config, ctx context.Context, d Driver, e error) *stateDelete {
-	return &stateDelete{conn: conn, builder: CreateBuilder(d), config: c, ctx: ctx, err: e}
+	return &stateDelete{conn: conn, builder: createBuilder(d), config: c, ctx: ctx, err: e}
 }
 
 func Remove[T any](table *T, value T) error {
@@ -54,7 +54,7 @@ func DeleteContext[T any](ctx context.Context, table *T) *stateDelete {
 
 	db := fields[0].GetDb()
 	state = createDeleteState(db.ConnPool, db.Config, ctx, db.Driver, err)
-	state.builder.Fields = fields
+	state.builder.fields = fields
 	return state
 }
 
@@ -68,15 +68,15 @@ func (s *stateDelete) Where(Brs ...query.Operator) error {
 		return s.err
 	}
 
-	s.builder.BuildDelete()
-	s.err = s.builder.BuildSqlDelete()
+	s.builder.buildDelete()
+	s.err = s.builder.buildSqlDelete()
 	if s.err != nil {
 		return s.err
 	}
 
-	Sql := s.builder.Sql.String()
+	Sql := s.builder.sql.String()
 	if s.config.LogQuery {
 		log.Println("\n" + Sql)
 	}
-	return handlerValues(s.conn, Sql, s.builder.ArgsAny, s.ctx)
+	return handlerValues(s.conn, Sql, s.builder.argsAny, s.ctx)
 }

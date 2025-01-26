@@ -151,86 +151,86 @@ func createAtt(db *DB, attributeName string, tableBytes []byte, d Driver) *att {
 		attributeStrings: createAttributeStrings(db, tableBytes, attributeName, d)}
 }
 
-func (p *pk) BuildAttributeSelect(b *Builder, i int) {
-	b.Sql.WriteString(p.selectName)
-	b.StructColumns[i] = p.structAttributeName
+func (p *pk) BuildAttributeSelect(b *builder, i int) {
+	b.sql.WriteString(p.selectName)
+	b.structColumns[i] = p.structAttributeName
 }
 
-func (a *att) BuildAttributeSelect(b *Builder, i int) {
-	b.Sql.WriteString(a.selectName)
-	b.StructColumns[i] = a.structAttributeName
+func (a *att) BuildAttributeSelect(b *builder, i int) {
+	b.sql.WriteString(a.selectName)
+	b.structColumns[i] = a.structAttributeName
 }
 
-func (m *manyToOne) BuildAttributeSelect(b *Builder, i int) {
-	b.Sql.WriteString(m.selectName)
-	b.StructColumns[i] = m.structAttributeName
+func (m *manyToOne) BuildAttributeSelect(b *builder, i int) {
+	b.sql.WriteString(m.selectName)
+	b.structColumns[i] = m.structAttributeName
 }
 
-func (o *oneToOne) BuildAttributeSelect(b *Builder, i int) {
-	b.Sql.WriteString(o.selectName)
-	b.StructColumns[i] = o.structAttributeName
+func (o *oneToOne) BuildAttributeSelect(b *builder, i int) {
+	b.sql.WriteString(o.selectName)
+	b.structColumns[i] = o.structAttributeName
 }
 
-func (p *pk) BuildAttributeInsert(b *Builder) {
+func (p *pk) BuildAttributeInsert(b *builder) {
 	if !p.autoIncrement {
-		b.Inserts = append(b.Inserts, p)
+		b.inserts = append(b.inserts, p)
 	}
-	b.Returning = b.Driver.Returning([]byte(p.attributeName))
-	b.StructPkName = p.structAttributeName
+	b.returning = b.driver.Returning([]byte(p.attributeName))
+	b.structPkName = p.structAttributeName
 }
 
-func (p *pk) WriteAttributeInsert(b *Builder) {
-	b.Sql.WriteString(p.attributeName)
-	b.AttrNames = append(b.AttrNames, p.structAttributeName)
+func (p *pk) WriteAttributeInsert(b *builder) {
+	b.sql.WriteString(p.attributeName)
+	b.attrNames = append(b.attrNames, p.structAttributeName)
 }
 
-func (a *att) BuildAttributeInsert(b *Builder) {
-	b.Inserts = append(b.Inserts, a)
+func (a *att) BuildAttributeInsert(b *builder) {
+	b.inserts = append(b.inserts, a)
 }
 
-func (a *att) WriteAttributeInsert(b *Builder) {
-	b.Sql.WriteString(a.attributeName)
-	b.AttrNames = append(b.AttrNames, a.structAttributeName)
+func (a *att) WriteAttributeInsert(b *builder) {
+	b.sql.WriteString(a.attributeName)
+	b.attrNames = append(b.attrNames, a.structAttributeName)
 }
 
-func (m *manyToOne) BuildAttributeInsert(b *Builder) {
-	b.Inserts = append(b.Inserts, m)
+func (m *manyToOne) BuildAttributeInsert(b *builder) {
+	b.inserts = append(b.inserts, m)
 }
 
-func (m *manyToOne) WriteAttributeInsert(b *Builder) {
-	b.Sql.WriteString(m.attributeName)
-	b.AttrNames = append(b.AttrNames, m.structAttributeName)
+func (m *manyToOne) WriteAttributeInsert(b *builder) {
+	b.sql.WriteString(m.attributeName)
+	b.attrNames = append(b.attrNames, m.structAttributeName)
 }
 
-func (o *oneToOne) BuildAttributeInsert(b *Builder) {
-	b.Inserts = append(b.Inserts, o)
+func (o *oneToOne) BuildAttributeInsert(b *builder) {
+	b.inserts = append(b.inserts, o)
 }
 
-func (o *oneToOne) WriteAttributeInsert(b *Builder) {
-	b.Sql.WriteString(o.attributeName)
-	b.AttrNames = append(b.AttrNames, o.structAttributeName)
+func (o *oneToOne) WriteAttributeInsert(b *builder) {
+	b.sql.WriteString(o.attributeName)
+	b.attrNames = append(b.attrNames, o.structAttributeName)
 }
 
-func (p *pk) BuildAttributeUpdate(b *Builder) {
+func (p *pk) BuildAttributeUpdate(b *builder) {
 	if !p.autoIncrement {
-		b.AttrNames = append(b.AttrNames, p.attributeName)
-		b.StructColumns = append(b.StructColumns, p.structAttributeName)
+		b.attrNames = append(b.attrNames, p.attributeName)
+		b.structColumns = append(b.structColumns, p.structAttributeName)
 	}
 }
 
-func (a *att) BuildAttributeUpdate(b *Builder) {
-	b.AttrNames = append(b.AttrNames, a.attributeName)
-	b.StructColumns = append(b.StructColumns, a.structAttributeName)
+func (a *att) BuildAttributeUpdate(b *builder) {
+	b.attrNames = append(b.attrNames, a.attributeName)
+	b.structColumns = append(b.structColumns, a.structAttributeName)
 }
 
-func (m *manyToOne) BuildAttributeUpdate(b *Builder) {
-	b.AttrNames = append(b.AttrNames, m.attributeName)
-	b.StructColumns = append(b.StructColumns, m.structAttributeName)
+func (m *manyToOne) BuildAttributeUpdate(b *builder) {
+	b.attrNames = append(b.attrNames, m.attributeName)
+	b.structColumns = append(b.structColumns, m.structAttributeName)
 }
 
-func (o *oneToOne) BuildAttributeUpdate(b *Builder) {
-	b.AttrNames = append(b.AttrNames, o.attributeName)
-	b.StructColumns = append(b.StructColumns, o.structAttributeName)
+func (o *oneToOne) BuildAttributeUpdate(b *builder) {
+	b.attrNames = append(b.attrNames, o.attributeName)
+	b.structColumns = append(b.structColumns, o.structAttributeName)
 }
 
 func (p *pk) GetSelect() string {
@@ -247,17 +247,4 @@ func (m *manyToOne) GetSelect() string {
 
 func (o *oneToOne) GetSelect() string {
 	return o.selectName
-}
-
-type aggregate struct {
-	function string
-	field    Field
-}
-
-func createAggregate(function string, f Field) aggregate {
-	return aggregate{function: function, field: f}
-}
-
-func (a aggregate) String() string {
-	return fmt.Sprintf("%v(%v)", a.function, a.field.GetSelect())
 }

@@ -14,133 +14,120 @@ var ErrInvalidWhere = errors.New("goe: invalid where operation. try sending a po
 var ErrNoMatchesTables = errors.New("don't have any relationship")
 var ErrNotManyToMany = errors.New("don't have a many to many relationship")
 
-type Builder struct {
-	Sql           *strings.Builder
-	Driver        Driver
-	StructPkName  string //insert
-	Returning     []byte //insert
-	Inserts       []Field
-	Froms         []byte
-	Fields        []Field
-	Aggregates    []aggregate
-	ArgsAny       []any
-	StructColumns []string //select and update
-	AttrNames     []string //insert and update
-	OrderBy       string
-	Limit         uint     //select
-	Offset        uint     //select
-	Joins         []string //select
-	JoinsArgs     []Field  //select
-	Tables        []string //select TODO: update all table names to a int ID
-	Brs           []query.Operator
+type builder struct {
+	sql           *strings.Builder
+	driver        Driver
+	structPkName  string //insert
+	returning     []byte //insert
+	inserts       []Field
+	froms         []byte
+	fields        []Field
+	argsAny       []any
+	structColumns []string //select and update
+	attrNames     []string //insert and update
+	orderBy       string
+	limit         uint     //select
+	offset        uint     //select
+	joins         []string //select
+	joinsArgs     []Field  //select
+	tables        []string //select TODO: update all table names to a int ID
+	brs           []query.Operator
 }
 
-func CreateBuilder(d Driver) *Builder {
-	return &Builder{
-		Sql:    &strings.Builder{},
-		Driver: d,
+func createBuilder(d Driver) *builder {
+	return &builder{
+		sql:    &strings.Builder{},
+		driver: d,
 	}
 }
 
-func (b *Builder) BuildSelect() {
-	b.Sql.Write(b.Driver.Select())
+func (b *builder) buildSelect() {
+	b.sql.Write(b.driver.Select())
 
-	if len(b.Aggregates) > 0 {
-		b.buildAggregates()
-	}
-
-	len := len(b.Fields)
+	len := len(b.fields)
 	if len == 0 {
 		return
 	}
 
-	b.StructColumns = make([]string, len)
+	b.structColumns = make([]string, len)
 
-	for i := range b.Fields[:len-1] {
-		b.Fields[i].BuildAttributeSelect(b, i)
-		b.Sql.WriteByte(',')
+	for i := range b.fields[:len-1] {
+		b.fields[i].BuildAttributeSelect(b, i)
+		b.sql.WriteByte(',')
 	}
 
-	b.Fields[len-1].BuildAttributeSelect(b, len-1)
+	b.fields[len-1].BuildAttributeSelect(b, len-1)
 }
 
-func (b *Builder) buildAggregates() {
-	for i := range b.Aggregates[:len(b.Aggregates)-1] {
-		b.Sql.WriteString(b.Aggregates[i].String())
-		b.Sql.WriteByte(',')
+func (b *builder) buildSelectJoins(join string, fields []Field) {
+	j := len(b.joinsArgs)
+	b.joinsArgs = append(b.joinsArgs, make([]Field, 2)...)
+	b.tables = append(b.tables, make([]string, 1)...)
+	b.joins = append(b.joins, join)
+	b.joinsArgs[j] = fields[0]
+	b.joinsArgs[j+1] = fields[1]
+}
+
+func (b *builder) buildPage() {
+	if b.limit != 0 {
+		b.sql.WriteString(fmt.Sprintf(" LIMIT %v", b.limit))
 	}
-	b.Sql.WriteString(b.Aggregates[len(b.Aggregates)-1].String())
-}
-
-func (b *Builder) BuildSelectJoins(addrMap map[uintptr]Field, join string, fields []Field) {
-	j := len(b.JoinsArgs)
-	b.JoinsArgs = append(b.JoinsArgs, make([]Field, 2)...)
-	b.Tables = append(b.Tables, make([]string, 1)...)
-	b.Joins = append(b.Joins, join)
-	b.JoinsArgs[j] = fields[0]
-	b.JoinsArgs[j+1] = fields[1]
-}
-
-func (b *Builder) buildPage() {
-	if b.Limit != 0 {
-		b.Sql.WriteString(fmt.Sprintf(" LIMIT %v", b.Limit))
-	}
-	if b.Offset != 0 {
-		b.Sql.WriteString(fmt.Sprintf(" OFFSET %v", b.Offset))
+	if b.offset != 0 {
+		b.sql.WriteString(fmt.Sprintf(" OFFSET %v", b.offset))
 	}
 }
 
-func (b *Builder) BuildSqlSelect() (err error) {
+func (b *builder) buildSqlSelect() (err error) {
 	err = b.buildTables()
 	if err != nil {
 		return err
 	}
 	err = b.buildWhere()
-	b.Sql.WriteString(b.OrderBy)
+	b.sql.WriteString(b.orderBy)
 	b.buildPage()
-	b.Sql.WriteByte(';')
+	b.sql.WriteByte(';')
 	return err
 }
 
-func (b *Builder) BuildSqlUpdate() (err error) {
+func (b *builder) buildSqlUpdate() (err error) {
 	err = b.buildWhere()
-	b.Sql.WriteByte(';')
+	b.sql.WriteByte(';')
 	return err
 }
 
-func (b *Builder) BuildSqlDelete() (err error) {
+func (b *builder) buildSqlDelete() (err error) {
 	err = b.buildWhere()
-	b.Sql.WriteByte(';')
+	b.sql.WriteByte(';')
 	return err
 }
 
-func (b *Builder) buildWhere() error {
-	if len(b.Brs) == 0 {
+func (b *builder) buildWhere() error {
+	if len(b.brs) == 0 {
 		return nil
 	}
-	b.Sql.WriteByte('\n')
-	b.Sql.WriteString("WHERE ")
-	ArgsCount := len(b.ArgsAny) + 1
-	for _, op := range b.Brs {
+	b.sql.WriteByte('\n')
+	b.sql.WriteString("WHERE ")
+	argsCount := len(b.argsAny) + 1
+	for _, op := range b.brs {
 		switch v := op.(type) {
 		case query.Operation:
-			v.ValueFlag = fmt.Sprintf("$%v", ArgsCount)
-			b.Sql.WriteString(v.Operation())
-			b.ArgsAny = append(b.ArgsAny, v.Value)
-			ArgsCount++
+			v.ValueFlag = fmt.Sprintf("$%v", argsCount)
+			b.sql.WriteString(v.Operation())
+			b.argsAny = append(b.argsAny, v.Value)
+			argsCount++
 		default:
-			b.Sql.WriteString(v.Operation())
+			b.sql.WriteString(v.Operation())
 		}
 	}
 	return nil
 }
 
-func (b *Builder) buildTables() (err error) {
-	b.Sql.Write(b.Driver.From())
-	b.Sql.Write(b.Froms)
+func (b *builder) buildTables() (err error) {
+	b.sql.Write(b.driver.From())
+	b.sql.Write(b.froms)
 	c := 1
-	for i := range b.Joins {
-		err = buildJoins(b.Joins[i], b.Sql, b.JoinsArgs[i+c-1], b.JoinsArgs[i+c-1+1], b.Tables, i+1)
+	for i := range b.joins {
+		err = buildJoins(b.joins[i], b.sql, b.joinsArgs[i+c-1], b.joinsArgs[i+c-1+1], b.tables, i+1)
 		if err != nil {
 			return err
 		}
@@ -149,140 +136,140 @@ func (b *Builder) buildTables() (err error) {
 	return nil
 }
 
-func buildJoins(join string, Sql *strings.Builder, f1, f2 Field, Tables []string, tableIndice int) error {
-	Sql.WriteByte('\n')
-	if !slices.Contains(Tables, string(f2.Table())) {
-		Sql.WriteString(fmt.Sprintf("%v %v on (%v = %v)", join, string(f2.Table()), f1.GetSelect(), f2.GetSelect()))
-		Tables[tableIndice] = string(f2.Table())
+func buildJoins(join string, sql *strings.Builder, f1, f2 Field, tables []string, tableIndice int) error {
+	sql.WriteByte('\n')
+	if !slices.Contains(tables, string(f2.Table())) {
+		sql.WriteString(fmt.Sprintf("%v %v on (%v = %v)", join, string(f2.Table()), f1.GetSelect(), f2.GetSelect()))
+		tables[tableIndice] = string(f2.Table())
 		return nil
 	}
 	//TODO: update this to write
-	Sql.WriteString(fmt.Sprintf("%v %v on (%v = %v)", join, string(f1.Table()), f1.GetSelect(), f2.GetSelect()))
-	Tables[tableIndice] = string(f1.Table())
+	sql.WriteString(fmt.Sprintf("%v %v on (%v = %v)", join, string(f1.Table()), f1.GetSelect(), f2.GetSelect()))
+	tables[tableIndice] = string(f1.Table())
 	return nil
 }
 
-func (b *Builder) BuildInsert() {
+func (b *builder) buildInsert() {
 	//TODO: Set a drive type to share stm
-	b.Sql.WriteString("INSERT ")
-	b.Sql.WriteString("INTO ")
+	b.sql.WriteString("INSERT ")
+	b.sql.WriteString("INTO ")
 
-	b.AttrNames = make([]string, 0, len(b.Fields))
+	b.attrNames = make([]string, 0, len(b.fields))
 
-	f := b.Fields[0]
-	b.Sql.Write(f.Table())
-	b.Sql.WriteString(" (")
-	for i := range b.Fields {
-		b.Fields[i].BuildAttributeInsert(b)
+	f := b.fields[0]
+	b.sql.Write(f.Table())
+	b.sql.WriteString(" (")
+	for i := range b.fields {
+		b.fields[i].BuildAttributeInsert(b)
 	}
 
-	b.Inserts[0].WriteAttributeInsert(b)
-	for _, f := range b.Inserts[1:] {
-		b.Sql.WriteByte(',')
+	b.inserts[0].WriteAttributeInsert(b)
+	for _, f := range b.inserts[1:] {
+		b.sql.WriteByte(',')
 		f.WriteAttributeInsert(b)
 	}
 
-	b.Sql.WriteString(") ")
-	b.Sql.WriteString("VALUES ")
+	b.sql.WriteString(") ")
+	b.sql.WriteString("VALUES ")
 }
 
-func (b *Builder) BuildValues(value reflect.Value) string {
-	b.Sql.WriteByte(40)
-	b.ArgsAny = make([]any, 0, len(b.AttrNames))
+func (b *builder) buildValues(value reflect.Value) string {
+	b.sql.WriteByte(40)
+	b.argsAny = make([]any, 0, len(b.attrNames))
 
 	c := 2
-	b.Sql.WriteString("$1")
-	buildValueField(value.FieldByName(b.AttrNames[0]), b)
-	a := b.AttrNames[1:]
+	b.sql.WriteString("$1")
+	buildValueField(value.FieldByName(b.attrNames[0]), b)
+	a := b.attrNames[1:]
 	for i := range a {
-		b.Sql.WriteByte(',')
-		b.Sql.WriteString(fmt.Sprintf("$%v", c))
+		b.sql.WriteByte(',')
+		b.sql.WriteString(fmt.Sprintf("$%v", c))
 		buildValueField(value.FieldByName(a[i]), b)
 		c++
 	}
-	b.Sql.WriteByte(')')
-	if b.Returning != nil {
-		b.Sql.Write(b.Returning)
+	b.sql.WriteByte(')')
+	if b.returning != nil {
+		b.sql.Write(b.returning)
 	}
-	return b.StructPkName
+	return b.structPkName
 
 }
 
-func (b *Builder) BuildBatchValues(value reflect.Value) string {
-	b.ArgsAny = make([]any, 0, len(b.AttrNames))
+func (b *builder) buildBatchValues(value reflect.Value) string {
+	b.argsAny = make([]any, 0, len(b.attrNames))
 
 	c := 1
 	buildBatchValues(value.Index(0), b, &c)
 	c++
 	for j := 1; j < value.Len(); j++ {
-		b.Sql.WriteByte(',')
+		b.sql.WriteByte(',')
 		buildBatchValues(value.Index(j), b, &c)
 		c++
 	}
-	if b.Returning != nil {
-		b.Sql.Write(b.Returning)
+	if b.returning != nil {
+		b.sql.Write(b.returning)
 	}
-	return b.StructPkName
+	return b.structPkName
 
 }
 
-func buildBatchValues(value reflect.Value, b *Builder, c *int) {
-	b.Sql.WriteByte(40)
-	b.Sql.WriteString(fmt.Sprintf("$%v", *c))
-	buildValueField(value.FieldByName(b.AttrNames[0]), b)
-	a := b.AttrNames[1:]
+func buildBatchValues(value reflect.Value, b *builder, c *int) {
+	b.sql.WriteByte(40)
+	b.sql.WriteString(fmt.Sprintf("$%v", *c))
+	buildValueField(value.FieldByName(b.attrNames[0]), b)
+	a := b.attrNames[1:]
 	for i := range a {
-		b.Sql.WriteByte(',')
-		b.Sql.WriteString(fmt.Sprintf("$%v", *c+1))
+		b.sql.WriteByte(',')
+		b.sql.WriteString(fmt.Sprintf("$%v", *c+1))
 		buildValueField(value.FieldByName(a[i]), b)
 		*c++
 	}
-	b.Sql.WriteByte(')')
+	b.sql.WriteByte(')')
 }
 
-func buildValueField(valueField reflect.Value, b *Builder) {
-	b.ArgsAny = append(b.ArgsAny, valueField.Interface())
+func buildValueField(valueField reflect.Value, b *builder) {
+	b.argsAny = append(b.argsAny, valueField.Interface())
 }
 
-func (b *Builder) BuildUpdate() {
+func (b *builder) buildUpdate() {
 	//TODO: Set a drive type to share stm
-	b.Sql.WriteString("UPDATE ")
+	b.sql.WriteString("UPDATE ")
 
-	b.StructColumns = make([]string, 0, len(b.Fields))
-	b.AttrNames = make([]string, 0, len(b.Fields))
+	b.structColumns = make([]string, 0, len(b.fields))
+	b.attrNames = make([]string, 0, len(b.fields))
 
-	b.Sql.Write(b.Fields[0].Table())
-	b.Sql.WriteString(" SET ")
-	b.Fields[0].BuildAttributeUpdate(b)
+	b.sql.Write(b.fields[0].Table())
+	b.sql.WriteString(" SET ")
+	b.fields[0].BuildAttributeUpdate(b)
 
-	a := b.Fields[1:]
+	a := b.fields[1:]
 	for i := range a {
 		a[i].BuildAttributeUpdate(b)
 	}
 }
 
-func (b *Builder) BuildSet(value reflect.Value) {
-	b.ArgsAny = make([]any, 0, len(b.AttrNames))
+func (b *builder) buildSet(value reflect.Value) {
+	b.argsAny = make([]any, 0, len(b.attrNames))
 	var c uint16 = 1
-	buildSetField(value.FieldByName(b.StructColumns[0]), b.AttrNames[0], b, c)
+	buildSetField(value.FieldByName(b.structColumns[0]), b.attrNames[0], b, c)
 
-	a := b.AttrNames[1:]
-	s := b.StructColumns[1:]
+	a := b.attrNames[1:]
+	s := b.structColumns[1:]
 	for i := range a {
-		b.Sql.WriteByte(',')
+		b.sql.WriteByte(',')
 		c++
 		buildSetField(value.FieldByName(s[i]), a[i], b, c)
 	}
 }
 
-func buildSetField(valueField reflect.Value, FieldName string, b *Builder, c uint16) {
-	b.Sql.WriteString(fmt.Sprintf("%v = $%v", FieldName, c))
-	b.ArgsAny = append(b.ArgsAny, valueField.Interface())
+func buildSetField(valueField reflect.Value, FieldName string, b *builder, c uint16) {
+	b.sql.WriteString(fmt.Sprintf("%v = $%v", FieldName, c))
+	b.argsAny = append(b.argsAny, valueField.Interface())
 	c++
 }
 
-func (b *Builder) BuildDelete() {
+func (b *builder) buildDelete() {
 	//TODO: Set a drive type to share stm
-	b.Sql.WriteString("DELETE FROM ")
-	b.Sql.Write(b.Fields[0].Table())
+	b.sql.WriteString("DELETE FROM ")
+	b.sql.Write(b.fields[0].Table())
 }

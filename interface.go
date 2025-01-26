@@ -10,10 +10,10 @@ type Field interface {
 	GetSelect() string
 	GetDb() *DB
 	Table() []byte
-	BuildAttributeSelect(*Builder, int)
-	BuildAttributeInsert(*Builder)
-	WriteAttributeInsert(*Builder)
-	BuildAttributeUpdate(*Builder)
+	BuildAttributeSelect(*builder, int)
+	BuildAttributeInsert(*builder)
+	WriteAttributeInsert(*builder)
+	BuildAttributeUpdate(*builder)
 }
 
 type Driver interface {

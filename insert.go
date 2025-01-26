@@ -9,7 +9,7 @@ import (
 type stateInsert[T any] struct {
 	config  *Config
 	conn    Connection
-	builder *Builder
+	builder *builder
 	ctx     context.Context
 	err     error
 }
@@ -33,7 +33,7 @@ func InsertContext[T any](ctx context.Context, table *T) *stateInsert[T] {
 	}
 	db := fields[0].GetDb()
 	state = createInsertState[T](db.ConnPool, db.Config, ctx, db.Driver, err)
-	state.builder.Fields = fields
+	state.builder.fields = fields
 	return state
 }
 
@@ -48,17 +48,17 @@ func (s *stateInsert[T]) One(value *T) error {
 
 	v := reflect.ValueOf(value).Elem()
 
-	s.builder.BuildInsert()
-	idName := s.builder.BuildValues(v)
+	s.builder.buildInsert()
+	idName := s.builder.buildValues(v)
 
-	sql := s.builder.Sql.String()
+	sql := s.builder.sql.String()
 	if s.config.LogQuery {
 		log.Println("\n" + sql)
 	}
-	if s.builder.Returning != nil {
-		return handlerValuesReturning(s.conn, sql, v, s.builder.ArgsAny, idName, s.ctx)
+	if s.builder.returning != nil {
+		return handlerValuesReturning(s.conn, sql, v, s.builder.argsAny, idName, s.ctx)
 	}
-	return handlerValues(s.conn, sql, s.builder.ArgsAny, s.ctx)
+	return handlerValues(s.conn, sql, s.builder.argsAny, s.ctx)
 }
 
 func (s *stateInsert[T]) All(value []T) error {
@@ -68,18 +68,18 @@ func (s *stateInsert[T]) All(value []T) error {
 
 	valueOf := reflect.ValueOf(value)
 
-	s.builder.BuildInsert()
-	idName := s.builder.BuildBatchValues(valueOf)
+	s.builder.buildInsert()
+	idName := s.builder.buildBatchValues(valueOf)
 
-	Sql := s.builder.Sql.String()
+	Sql := s.builder.sql.String()
 	if s.config.LogQuery {
 		log.Println("\n" + Sql)
 	}
-	return handlerValuesReturningBatch(s.conn, Sql, valueOf, s.builder.ArgsAny, idName, s.ctx)
+	return handlerValuesReturningBatch(s.conn, Sql, valueOf, s.builder.argsAny, idName, s.ctx)
 }
 
 func createInsertState[T any](conn Connection, c *Config, ctx context.Context, d Driver, e error) *stateInsert[T] {
-	return &stateInsert[T]{conn: conn, builder: CreateBuilder(d), config: c, ctx: ctx, err: e}
+	return &stateInsert[T]{conn: conn, builder: createBuilder(d), config: c, ctx: ctx, err: e}
 }
 
 func getArgsTable[T any](AddrMap map[uintptr]Field, table *T) ([]Field, error) {

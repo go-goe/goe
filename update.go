@@ -90,14 +90,14 @@ func (s *save[T]) Value(v T) error {
 		}
 	}
 
-	s.update.builder.Fields = includes
+	s.update.builder.fields = includes
 	return s.update.Value(v)
 }
 
 type stateUpdate[T any] struct {
 	config  *Config
 	conn    Connection
-	builder *Builder
+	builder *builder
 	ctx     context.Context
 	err     error
 }
@@ -137,7 +137,7 @@ func (s *stateUpdate[T]) Includes(args ...any) *stateUpdate[T] {
 		return s
 	}
 
-	s.builder.Fields = append(s.builder.Fields, fields...)
+	s.builder.fields = append(s.builder.fields, fields...)
 	return s
 }
 
@@ -161,18 +161,18 @@ func (s *stateUpdate[T]) Value(value T) error {
 
 	v := reflect.ValueOf(value)
 
-	s.builder.BuildUpdate()
-	s.builder.BuildSet(v)
-	s.err = s.builder.BuildSqlUpdate()
+	s.builder.buildUpdate()
+	s.builder.buildSet(v)
+	s.err = s.builder.buildSqlUpdate()
 	if s.err != nil {
 		return s.err
 	}
 
-	sql := s.builder.Sql.String()
+	sql := s.builder.sql.String()
 	if s.config.LogQuery {
 		log.Println("\n" + sql)
 	}
-	return handlerValues(s.conn, sql, s.builder.ArgsAny, s.ctx)
+	return handlerValues(s.conn, sql, s.builder.argsAny, s.ctx)
 }
 
 func getArgsUpdate(AddrMap map[uintptr]Field, args ...any) ([]Field, error) {
@@ -262,15 +262,15 @@ func getArgsPks[T any](AddrMap map[uintptr]Field, table *T, value T) ([]Field, [
 	return pks, pksValue, nil
 }
 
-func helperOperation(builder *Builder, pks []Field, pksValue []any) {
-	builder.Brs = append(builder.Brs, query.Operation{
+func helperOperation(builder *builder, pks []Field, pksValue []any) {
+	builder.brs = append(builder.brs, query.Operation{
 		Arg:      pks[0].GetSelect(),
 		Operator: "=",
 		Value:    pksValue[0]})
 	pkCount := 1
 	for _, pk := range pks[1:] {
-		builder.Brs = append(builder.Brs, query.Logical{Operator: "AND"})
-		builder.Brs = append(builder.Brs, query.Operation{
+		builder.brs = append(builder.brs, query.Logical{Operator: "AND"})
+		builder.brs = append(builder.brs, query.Operation{
 			Arg:      pk.GetSelect(),
 			Operator: "=",
 			Value:    pksValue[pkCount]})
@@ -283,5 +283,5 @@ func createUpdateState[T any](
 	ctx context.Context,
 	d Driver,
 	e error) *stateUpdate[T] {
-	return &stateUpdate[T]{conn: conn, builder: CreateBuilder(d), config: c, ctx: ctx, err: e}
+	return &stateUpdate[T]{conn: conn, builder: createBuilder(d), config: c, ctx: ctx, err: e}
 }
