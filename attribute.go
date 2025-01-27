@@ -8,19 +8,19 @@ import (
 )
 
 type oneToOne struct {
-	isPrimaryKey bool
+	primaryKey bool
 	attributeStrings
 }
 
-func (o *oneToOne) GetDb() *DB {
+func (o *oneToOne) getDb() *DB {
 	return o.db
 }
 
-func (o *oneToOne) IsPrimaryKey() bool {
-	return o.isPrimaryKey
+func (o *oneToOne) isPrimaryKey() bool {
+	return o.primaryKey
 }
 
-func (o *oneToOne) Table() []byte {
+func (o *oneToOne) table() []byte {
 	return o.tableBytes
 }
 
@@ -48,19 +48,19 @@ func createOneToOne(db *DB, typeOf reflect.Type, targetTypeOf reflect.Type, Driv
 }
 
 type manyToOne struct {
-	isPrimaryKey bool
+	primaryKey bool
 	attributeStrings
 }
 
-func (m *manyToOne) GetDb() *DB {
+func (m *manyToOne) getDb() *DB {
 	return m.db
 }
 
-func (m *manyToOne) IsPrimaryKey() bool {
-	return m.isPrimaryKey
+func (m *manyToOne) isPrimaryKey() bool {
+	return m.primaryKey
 }
 
-func (m *manyToOne) Table() []byte {
+func (m *manyToOne) table() []byte {
 	return m.tableBytes
 }
 
@@ -110,15 +110,15 @@ type pk struct {
 	attributeStrings
 }
 
-func (p *pk) GetDb() *DB {
+func (p *pk) getDb() *DB {
 	return p.db
 }
 
-func (p *pk) IsPrimaryKey() bool {
+func (p *pk) isPrimaryKey() bool {
 	return true
 }
 
-func (p *pk) Table() []byte {
+func (p *pk) table() []byte {
 	return p.tableBytes
 }
 
@@ -134,15 +134,15 @@ type att struct {
 	attributeStrings
 }
 
-func (a *att) GetDb() *DB {
+func (a *att) getDb() *DB {
 	return a.db
 }
 
-func (a *att) IsPrimaryKey() bool {
+func (a *att) isPrimaryKey() bool {
 	return false
 }
 
-func (a *att) Table() []byte {
+func (a *att) table() []byte {
 	return a.tableBytes
 }
 
@@ -151,23 +151,23 @@ func createAtt(db *DB, attributeName string, tableBytes []byte, d Driver) *att {
 		attributeStrings: createAttributeStrings(db, tableBytes, attributeName, d)}
 }
 
-func (p *pk) BuildAttributeSelect(b *builder, i int) {
+func (p *pk) buildAttributeSelect(b *builder, i int) {
 	b.sql.WriteString(p.selectName)
 }
 
-func (a *att) BuildAttributeSelect(b *builder, i int) {
+func (a *att) buildAttributeSelect(b *builder, i int) {
 	b.sql.WriteString(a.selectName)
 }
 
-func (m *manyToOne) BuildAttributeSelect(b *builder, i int) {
+func (m *manyToOne) buildAttributeSelect(b *builder, i int) {
 	b.sql.WriteString(m.selectName)
 }
 
-func (o *oneToOne) BuildAttributeSelect(b *builder, i int) {
+func (o *oneToOne) buildAttributeSelect(b *builder, i int) {
 	b.sql.WriteString(o.selectName)
 }
 
-func (p *pk) BuildAttributeInsert(b *builder) {
+func (p *pk) buildAttributeInsert(b *builder) {
 	if !p.autoIncrement {
 		b.inserts = append(b.inserts, p)
 	}
@@ -175,72 +175,72 @@ func (p *pk) BuildAttributeInsert(b *builder) {
 	b.structPkName = p.structAttributeName
 }
 
-func (p *pk) WriteAttributeInsert(b *builder) {
+func (p *pk) writeAttributeInsert(b *builder) {
 	b.sql.WriteString(p.attributeName)
 	b.attrNames = append(b.attrNames, p.structAttributeName)
 }
 
-func (a *att) BuildAttributeInsert(b *builder) {
+func (a *att) buildAttributeInsert(b *builder) {
 	b.inserts = append(b.inserts, a)
 }
 
-func (a *att) WriteAttributeInsert(b *builder) {
+func (a *att) writeAttributeInsert(b *builder) {
 	b.sql.WriteString(a.attributeName)
 	b.attrNames = append(b.attrNames, a.structAttributeName)
 }
 
-func (m *manyToOne) BuildAttributeInsert(b *builder) {
+func (m *manyToOne) buildAttributeInsert(b *builder) {
 	b.inserts = append(b.inserts, m)
 }
 
-func (m *manyToOne) WriteAttributeInsert(b *builder) {
+func (m *manyToOne) writeAttributeInsert(b *builder) {
 	b.sql.WriteString(m.attributeName)
 	b.attrNames = append(b.attrNames, m.structAttributeName)
 }
 
-func (o *oneToOne) BuildAttributeInsert(b *builder) {
+func (o *oneToOne) buildAttributeInsert(b *builder) {
 	b.inserts = append(b.inserts, o)
 }
 
-func (o *oneToOne) WriteAttributeInsert(b *builder) {
+func (o *oneToOne) writeAttributeInsert(b *builder) {
 	b.sql.WriteString(o.attributeName)
 	b.attrNames = append(b.attrNames, o.structAttributeName)
 }
 
-func (p *pk) BuildAttributeUpdate(b *builder) {
+func (p *pk) buildAttributeUpdate(b *builder) {
 	if !p.autoIncrement {
 		b.attrNames = append(b.attrNames, p.attributeName)
 		b.structColumns = append(b.structColumns, p.structAttributeName)
 	}
 }
 
-func (a *att) BuildAttributeUpdate(b *builder) {
+func (a *att) buildAttributeUpdate(b *builder) {
 	b.attrNames = append(b.attrNames, a.attributeName)
 	b.structColumns = append(b.structColumns, a.structAttributeName)
 }
 
-func (m *manyToOne) BuildAttributeUpdate(b *builder) {
+func (m *manyToOne) buildAttributeUpdate(b *builder) {
 	b.attrNames = append(b.attrNames, m.attributeName)
 	b.structColumns = append(b.structColumns, m.structAttributeName)
 }
 
-func (o *oneToOne) BuildAttributeUpdate(b *builder) {
+func (o *oneToOne) buildAttributeUpdate(b *builder) {
 	b.attrNames = append(b.attrNames, o.attributeName)
 	b.structColumns = append(b.structColumns, o.structAttributeName)
 }
 
-func (p *pk) GetSelect() string {
+func (p *pk) getSelect() string {
 	return p.selectName
 }
 
-func (a *att) GetSelect() string {
+func (a *att) getSelect() string {
 	return a.selectName
 }
 
-func (m *manyToOne) GetSelect() string {
+func (m *manyToOne) getSelect() string {
 	return m.selectName
 }
 
-func (o *oneToOne) GetSelect() string {
+func (o *oneToOne) getSelect() string {
 	return o.selectName
 }

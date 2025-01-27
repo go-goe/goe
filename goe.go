@@ -20,7 +20,7 @@ func Open[T any](driver Driver, config Config) (*T, error) {
 	valueOf = valueOf.Elem()
 
 	if AddrMap == nil {
-		AddrMap = make(map[uintptr]Field)
+		AddrMap = make(map[uintptr]field)
 	}
 
 	// set value for Fields
@@ -140,7 +140,7 @@ func isAutoIncrement(id reflect.StructField) bool {
 	return strings.Contains(id.Type.Kind().String(), "int")
 }
 
-func isManyToOne(db *DB, tables reflect.Value, typeOf reflect.Type, driver Driver, table, prefix string) Field {
+func isManyToOne(db *DB, tables reflect.Value, typeOf reflect.Type, driver Driver, table, prefix string) field {
 	for c := 0; c < tables.NumField(); c++ {
 		if tables.Field(c).Elem().Type().Name() == table {
 			for i := 0; i < tables.Field(c).Elem().NumField(); i++ {
@@ -238,7 +238,7 @@ func helperAttribute(tables reflect.Value, valueOf reflect.Value, i int, db *DB,
 				for _, pk := range pks {
 					if !nullable && pk.structAttributeName == v.structAttributeName {
 						pk.autoIncrement = false
-						v.isPrimaryKey = true
+						v.primaryKey = true
 					}
 				}
 			case *oneToOne:
@@ -251,7 +251,7 @@ func helperAttribute(tables reflect.Value, valueOf reflect.Value, i int, db *DB,
 					//TODO: Check this
 					if !nullable && pk.structAttributeName == v.structAttributeName {
 						pk.autoIncrement = false
-						v.isPrimaryKey = true
+						v.primaryKey = true
 					}
 				}
 			}

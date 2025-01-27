@@ -1,6 +1,7 @@
 package goe
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 )
@@ -26,10 +27,41 @@ type Config struct {
 	LogQuery bool
 }
 
-var AddrMap map[uintptr]Field
+var AddrMap map[uintptr]field
 
 type DB struct {
-	Config   *Config
-	ConnPool *sql.DB
-	Driver   Driver
+	Config *Config
+	SqlDB  *sql.DB
+	Driver Driver
+}
+
+func BeginTx(dbTarget any) (*Tx, error) {
+	return BeginTxContext(context.Background(), dbTarget, sql.LevelSerializable)
+}
+
+func BeginTxContext(ctx context.Context, dbTarget any, isolation sql.IsolationLevel) (*Tx, error) {
+	goeDb, err := GetGoeDatabase(dbTarget)
+	if err != nil {
+		return nil, err
+	}
+
+	var sqlTx *sql.Tx
+	sqlTx, err = goeDb.SqlDB.BeginTx(ctx, &sql.TxOptions{Isolation: isolation})
+	if err != nil {
+		return nil, err
+	}
+
+	return &Tx{SqlTx: sqlTx}, nil
+}
+
+type Tx struct {
+	SqlTx *sql.Tx
+}
+
+func (tx *Tx) Commit() error {
+	return tx.SqlTx.Commit()
+}
+
+func (tx *Tx) Rollback() error {
+	return tx.SqlTx.Rollback()
 }

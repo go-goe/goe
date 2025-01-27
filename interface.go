@@ -5,15 +5,15 @@ import (
 	"database/sql"
 )
 
-type Field interface {
-	IsPrimaryKey() bool
-	GetSelect() string
-	GetDb() *DB
-	Table() []byte
-	BuildAttributeSelect(*builder, int)
-	BuildAttributeInsert(*builder)
-	WriteAttributeInsert(*builder)
-	BuildAttributeUpdate(*builder)
+type field interface {
+	isPrimaryKey() bool
+	getSelect() string
+	getDb() *DB
+	table() []byte
+	buildAttributeSelect(*builder, int)
+	buildAttributeInsert(*builder)
+	writeAttributeInsert(*builder)
+	buildAttributeUpdate(*builder)
 }
 
 type Driver interface {

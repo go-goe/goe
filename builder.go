@@ -19,9 +19,9 @@ type builder struct {
 	driver        Driver
 	structPkName  string //insert
 	returning     []byte //insert
-	inserts       []Field
+	inserts       []field
 	froms         []byte
-	fields        []Field
+	fields        []field
 	argsAny       []any
 	structColumns []string //update
 	attrNames     []string //insert and update
@@ -29,7 +29,7 @@ type builder struct {
 	limit         uint     //select
 	offset        uint     //select
 	joins         []string //select
-	joinsArgs     []Field  //select
+	joinsArgs     []field  //select
 	tables        []string //select TODO: update all table names to a int ID
 	brs           []query.Operator
 }
@@ -50,16 +50,16 @@ func (b *builder) buildSelect() {
 	}
 
 	for i := range b.fields[:len-1] {
-		b.fields[i].BuildAttributeSelect(b, i)
+		b.fields[i].buildAttributeSelect(b, i)
 		b.sql.WriteByte(',')
 	}
 
-	b.fields[len-1].BuildAttributeSelect(b, len-1)
+	b.fields[len-1].buildAttributeSelect(b, len-1)
 }
 
-func (b *builder) buildSelectJoins(join string, fields []Field) {
+func (b *builder) buildSelectJoins(join string, fields []field) {
 	j := len(b.joinsArgs)
-	b.joinsArgs = append(b.joinsArgs, make([]Field, 2)...)
+	b.joinsArgs = append(b.joinsArgs, make([]field, 2)...)
 	b.tables = append(b.tables, make([]string, 1)...)
 	b.joins = append(b.joins, join)
 	b.joinsArgs[j] = fields[0]
@@ -134,16 +134,16 @@ func (b *builder) buildTables() (err error) {
 	return nil
 }
 
-func buildJoins(join string, sql *strings.Builder, f1, f2 Field, tables []string, tableIndice int) error {
+func buildJoins(join string, sql *strings.Builder, f1, f2 field, tables []string, tableIndice int) error {
 	sql.WriteByte('\n')
-	if !slices.Contains(tables, string(f2.Table())) {
-		sql.WriteString(fmt.Sprintf("%v %v on (%v = %v)", join, string(f2.Table()), f1.GetSelect(), f2.GetSelect()))
-		tables[tableIndice] = string(f2.Table())
+	if !slices.Contains(tables, string(f2.table())) {
+		sql.WriteString(fmt.Sprintf("%v %v on (%v = %v)", join, string(f2.table()), f1.getSelect(), f2.getSelect()))
+		tables[tableIndice] = string(f2.table())
 		return nil
 	}
 	//TODO: update this to write
-	sql.WriteString(fmt.Sprintf("%v %v on (%v = %v)", join, string(f1.Table()), f1.GetSelect(), f2.GetSelect()))
-	tables[tableIndice] = string(f1.Table())
+	sql.WriteString(fmt.Sprintf("%v %v on (%v = %v)", join, string(f1.table()), f1.getSelect(), f2.getSelect()))
+	tables[tableIndice] = string(f1.table())
 	return nil
 }
 
@@ -155,16 +155,16 @@ func (b *builder) buildInsert() {
 	b.attrNames = make([]string, 0, len(b.fields))
 
 	f := b.fields[0]
-	b.sql.Write(f.Table())
+	b.sql.Write(f.table())
 	b.sql.WriteString(" (")
 	for i := range b.fields {
-		b.fields[i].BuildAttributeInsert(b)
+		b.fields[i].buildAttributeInsert(b)
 	}
 
-	b.inserts[0].WriteAttributeInsert(b)
+	b.inserts[0].writeAttributeInsert(b)
 	for _, f := range b.inserts[1:] {
 		b.sql.WriteByte(',')
-		f.WriteAttributeInsert(b)
+		f.writeAttributeInsert(b)
 	}
 
 	b.sql.WriteString(") ")
@@ -236,13 +236,13 @@ func (b *builder) buildUpdate() {
 	b.structColumns = make([]string, 0, len(b.fields))
 	b.attrNames = make([]string, 0, len(b.fields))
 
-	b.sql.Write(b.fields[0].Table())
+	b.sql.Write(b.fields[0].table())
 	b.sql.WriteString(" SET ")
-	b.fields[0].BuildAttributeUpdate(b)
+	b.fields[0].buildAttributeUpdate(b)
 
 	a := b.fields[1:]
 	for i := range a {
-		a[i].BuildAttributeUpdate(b)
+		a[i].buildAttributeUpdate(b)
 	}
 }
 
@@ -269,5 +269,5 @@ func buildSetField(valueField reflect.Value, FieldName string, b *builder, c uin
 func (b *builder) buildDelete() {
 	//TODO: Set a drive type to share stm
 	b.sql.WriteString("DELETE FROM ")
-	b.sql.Write(b.fields[0].Table())
+	b.sql.Write(b.fields[0].table())
 }

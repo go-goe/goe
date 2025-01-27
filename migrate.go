@@ -24,7 +24,7 @@ func AutoMigrateContext(ctx context.Context, dbTarget any) error {
 		return m.Error
 	}
 
-	sql, err := db.Driver.MigrateContext(ctx, m, db.ConnPool)
+	sql, err := db.Driver.MigrateContext(ctx, m, db.SqlDB)
 	if db.Config.LogQuery {
 		log.Println("\n" + sql)
 	}
@@ -37,7 +37,7 @@ func DropTable(dbTarget any, table string) error {
 		return err
 	}
 
-	sql, err := db.Driver.DropTable(db.Driver.KeywordHandler(utils.TableNamePattern(table)), db.ConnPool)
+	sql, err := db.Driver.DropTable(db.Driver.KeywordHandler(utils.TableNamePattern(table)), db.SqlDB)
 	if db.Config.LogQuery {
 		log.Println("\n" + sql)
 	}
@@ -53,7 +53,7 @@ func DropColumn(dbTarget any, table, column string) error {
 	table = db.Driver.KeywordHandler(utils.TableNamePattern(table))
 	column = db.Driver.KeywordHandler(utils.ColumnNamePattern(column))
 
-	sql, err := db.Driver.DropColumn(table, column, db.ConnPool)
+	sql, err := db.Driver.DropColumn(table, column, db.SqlDB)
 	if db.Config.LogQuery {
 		log.Println("\n" + sql)
 	}
@@ -70,7 +70,7 @@ func RenameColumn(dbTarget any, table, oldColumn, newColumn string) error {
 	oldColumn = db.Driver.KeywordHandler(utils.ColumnNamePattern(oldColumn))
 	newColumn = db.Driver.KeywordHandler(utils.ColumnNamePattern(newColumn))
 
-	sql, err := db.Driver.RenameColumn(table, oldColumn, newColumn, db.ConnPool)
+	sql, err := db.Driver.RenameColumn(table, oldColumn, newColumn, db.SqlDB)
 	if db.Config.LogQuery {
 		log.Println("\n" + sql)
 	}
@@ -88,5 +88,5 @@ func GetGoeDatabase(dbTarget any) (db *DB, err error) {
 		return nil, fmt.Errorf("goe: Database %v with no structs", dbValueOf.Type().Name())
 	}
 
-	return goeDb.GetDb(), nil
+	return goeDb.getDb(), nil
 }
