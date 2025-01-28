@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
+	"reflect"
 )
 
 var ErrInvalidArg = errors.New("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
@@ -27,12 +29,26 @@ type Config struct {
 	LogQuery bool
 }
 
-var AddrMap map[uintptr]field
+var addrMap map[uintptr]field
 
 type DB struct {
 	Config *Config
 	SqlDB  *sql.DB
 	Driver Driver
+}
+
+func GetGoeDatabase(dbTarget any) (db *DB, err error) {
+	dbValueOf := reflect.ValueOf(dbTarget).Elem()
+	if dbValueOf.NumField() == 0 {
+		return nil, fmt.Errorf("goe: Database %v with no structs", dbValueOf.Type().Name())
+	}
+	goeDb := addrMap[uintptr(dbValueOf.Field(0).UnsafePointer())]
+
+	if goeDb == nil {
+		return nil, fmt.Errorf("goe: Database %v with no structs", dbValueOf.Type().Name())
+	}
+
+	return goeDb.getDb(), nil
 }
 
 func BeginTx(dbTarget any) (*Tx, error) {

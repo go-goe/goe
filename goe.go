@@ -19,8 +19,8 @@ func Open[T any](driver Driver, config Config) (*T, error) {
 	dbTarget := new(DB)
 	valueOf = valueOf.Elem()
 
-	if AddrMap == nil {
-		AddrMap = make(map[uintptr]field)
+	if addrMap == nil {
+		addrMap = make(map[uintptr]field)
 	}
 
 	// set value for Fields
@@ -52,7 +52,7 @@ func initField(tables reflect.Value, valueOf reflect.Value, db *DB, driver Drive
 	}
 
 	for i := range pks {
-		AddrMap[uintptr(valueOf.FieldByName(FieldNames[i]).Addr().UnsafePointer())] = pks[i]
+		addrMap[uintptr(valueOf.FieldByName(FieldNames[i]).Addr().UnsafePointer())] = pks[i]
 	}
 	var Field reflect.StructField
 
@@ -105,7 +105,7 @@ func newAttr(valueOf reflect.Value, i int, tableBytes []byte, addr uintptr, db *
 		tableBytes,
 		d,
 	)
-	AddrMap[addr] = at
+	addrMap[addr] = at
 }
 
 func getPk(db *DB, typeOf reflect.Type, driver Driver) ([]*pk, []string, error) {
@@ -234,7 +234,7 @@ func helperAttribute(tables reflect.Value, valueOf reflect.Value, i int, db *DB,
 					newAttr(valueOf, i, pks[0].tableBytes, uintptr(valueOf.Field(i).Addr().UnsafePointer()), db, driver)
 					break
 				}
-				AddrMap[uintptr(valueOf.Field(i).Addr().UnsafePointer())] = v
+				addrMap[uintptr(valueOf.Field(i).Addr().UnsafePointer())] = v
 				for _, pk := range pks {
 					if !nullable && pk.structAttributeName == v.structAttributeName {
 						pk.autoIncrement = false
@@ -246,7 +246,7 @@ func helperAttribute(tables reflect.Value, valueOf reflect.Value, i int, db *DB,
 					newAttr(valueOf, i, pks[0].tableBytes, uintptr(valueOf.Field(i).Addr().UnsafePointer()), db, driver)
 					break
 				}
-				AddrMap[uintptr(valueOf.Field(i).Addr().UnsafePointer())] = v
+				addrMap[uintptr(valueOf.Field(i).Addr().UnsafePointer())] = v
 				for _, pk := range pks {
 					//TODO: Check this
 					if !nullable && pk.structAttributeName == v.structAttributeName {

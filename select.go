@@ -6,6 +6,7 @@ import (
 	"iter"
 	"log"
 	"reflect"
+	"strings"
 
 	"github.com/olauro/goe/query"
 )
@@ -23,7 +24,7 @@ func Find[T any](t *T, v T, tx ...*Tx) (*T, error) {
 }
 
 func FindContext[T any](ctx context.Context, t *T, v T, tx ...*Tx) (*T, error) {
-	pks, pksValue, err := getArgsPks(AddrMap, t, v)
+	pks, pksValue, err := getPksField(addrMap, t, v)
 
 	if err != nil {
 		return nil, err
@@ -51,7 +52,7 @@ func Select[T any](t *T, tx ...*Tx) *stateSelect[T] {
 }
 
 func SelectContext[T any](ctx context.Context, t *T, tx ...*Tx) *stateSelect[T] {
-	fields, err := getArgsSelect(AddrMap, t)
+	fields, err := getArgsSelect(addrMap, t)
 
 	var state *stateSelect[T]
 	if err != nil {
@@ -77,7 +78,7 @@ func (s *stateSelect[T]) Where(brs ...query.Operator) *stateSelect[T] {
 	if s.err != nil {
 		return s
 	}
-	s.err = helperWhere(s.builder, AddrMap, brs...)
+	s.err = helperWhere(s.builder, addrMap, brs...)
 	return s
 }
 
@@ -131,7 +132,7 @@ func (s *stateSelect[T]) Page(p uint, i uint) *stateSelect[T] {
 //	// same query
 //	db.Select(db.Habitat).OrderByAsc(&db.Habitat.Name).Page(1, 20).Scan(&h)
 func (s *stateSelect[T]) OrderByAsc(arg any) *stateSelect[T] {
-	Field := getArg(arg, AddrMap)
+	Field := getArg(arg, addrMap)
 	if Field == nil {
 		s.err = ErrInvalidOrderBy
 		return s
@@ -150,7 +151,7 @@ func (s *stateSelect[T]) OrderByAsc(arg any) *stateSelect[T] {
 //	// same query
 //	db.Select(db.Habitat).OrderByDesc(&db.Habitat.Id).Take(1).Scan(&h)
 func (s *stateSelect[T]) OrderByDesc(arg any) *stateSelect[T] {
-	Field := getArg(arg, AddrMap)
+	Field := getArg(arg, addrMap)
 	if Field == nil {
 		s.err = ErrInvalidOrderBy
 		return s
@@ -162,7 +163,7 @@ func (s *stateSelect[T]) OrderByDesc(arg any) *stateSelect[T] {
 // TODO: Add Doc
 func (s *stateSelect[T]) From(tables ...any) *stateSelect[T] {
 	s.builder.tables = make([]string, len(tables))
-	args, err := getArgsTables(AddrMap, s.builder.tables, tables...)
+	args, err := getArgsTables(addrMap, s.builder.tables, tables...)
 	if err != nil {
 		s.err = err
 		return s
@@ -178,7 +179,7 @@ func (s *stateSelect[T]) Joins(joins ...query.Joins) *stateSelect[T] {
 	}
 
 	for _, j := range joins {
-		fields, err := getArgsJoin(AddrMap, j.FirstArg(), j.SecondArg())
+		fields, err := getArgsJoin(addrMap, j.FirstArg(), j.SecondArg())
 		if err != nil {
 			s.err = err
 			return s
@@ -236,7 +237,111 @@ func createSelectState[T any](conn Connection, c *Config, ctx context.Context, d
 	return &stateSelect[T]{conn: conn, builder: createBuilder(d), config: c, ctx: ctx, err: e}
 }
 
-func getArgsSelect(AddrMap map[uintptr]field, arg any) ([]field, error) {
+type list[T any] struct {
+	table   *T
+	sSelect *stateSelect[T]
+	err     error
+}
+
+func List[T any](t *T, tx ...*Tx) *list[T] {
+	return ListContext(context.Background(), t, tx...)
+}
+
+func ListContext[T any](ctx context.Context, t *T, tx ...*Tx) *list[T] {
+	return &list[T]{sSelect: SelectContext(ctx, t, tx...).From(t), table: t}
+}
+
+func (l *list[T]) Page(page, size uint) *list[T] {
+	l.sSelect.Page(page, size)
+	return l
+}
+
+func (l *list[T]) OrderByAsc(a any) *list[T] {
+	l.sSelect.OrderByAsc(a)
+	return l
+}
+
+func (l *list[T]) OrderByDesc(a any) *list[T] {
+	l.sSelect.OrderByDesc(a)
+	return l
+}
+
+func (l *list[T]) Filter(v T) *list[T] {
+	fields, fieldsValue, err := getNonZeroFields(addrMap, l.table, v)
+
+	if err != nil {
+		l.err = err
+		return l
+	}
+	helperNonZeroOperation(l.sSelect.builder, fields, fieldsValue)
+	return l
+}
+
+func (l *list[T]) AsSlice() ([]T, error) {
+	if l.err != nil {
+		return nil, l.err
+	}
+	return l.sSelect.RowsAsSlice()
+}
+
+func getNonZeroFields[T any](addrMap map[uintptr]field, table *T, value T) ([]field, []any, error) {
+	fields, fieldsValue := make([]field, 0), make([]any, 0)
+
+	tableOf := reflect.ValueOf(table).Elem()
+	if tableOf.Kind() != reflect.Struct {
+		return nil, nil, ErrInvalidArg
+	}
+
+	valueOf := reflect.ValueOf(value)
+	var addr uintptr
+	for i := 0; i < valueOf.NumField(); i++ {
+		if !valueOf.Field(i).IsZero() {
+			addr = uintptr(tableOf.Field(i).Addr().UnsafePointer())
+			if addrMap[addr] != nil {
+				fields = append(fields, addrMap[addr])
+				fieldsValue = append(fieldsValue, valueOf.Field(i).Interface())
+			}
+		}
+	}
+
+	if len(fields) == 0 {
+		return nil, nil, ErrInvalidArg
+	}
+	return fields, fieldsValue, nil
+}
+
+func helperNonZeroOperation(builder *builder, fields []field, fieldsValue []any) {
+	builder.brs = append(builder.brs, equalsOrLike(fields[0].getSelect(), fieldsValue[0]))
+	for i := 1; i < len(fields); i++ {
+		builder.brs = append(builder.brs, query.Or())
+		builder.brs = append(builder.brs, equalsOrLike(fields[i].getSelect(), fieldsValue[i]))
+	}
+}
+
+func equalsOrLike(s string, a any) query.Operation {
+	v, ok := a.(string)
+
+	if !ok {
+		return query.Operation{
+			Arg:      s,
+			Operator: "=",
+			Value:    a}
+	}
+
+	if strings.Contains(v, "%") {
+		return query.Operation{
+			Arg:      fmt.Sprintf("UPPER(%v)", s),
+			Operator: "LIKE",
+			Value:    strings.ToUpper(v)}
+	}
+
+	return query.Operation{
+		Arg:      fmt.Sprintf("UPPER(%v)", s),
+		Operator: "=",
+		Value:    strings.ToUpper(v)}
+}
+
+func getArgsSelect(addrMap map[uintptr]field, arg any) ([]field, error) {
 	fields := make([]field, 0)
 
 	if reflect.ValueOf(arg).Kind() != reflect.Pointer {
@@ -256,12 +361,12 @@ func getArgsSelect(AddrMap map[uintptr]field, arg any) ([]field, error) {
 			continue
 		}
 		addr := uintptr(fieldOf.Addr().UnsafePointer())
-		if AddrMap[addr] != nil {
-			fields = append(fields, AddrMap[addr])
+		if addrMap[addr] != nil {
+			fields = append(fields, addrMap[addr])
 			continue
 		}
 		//get args from anonymous struct
-		return getArgsSelectAno(AddrMap, valueOf)
+		return getArgsSelectAno(addrMap, valueOf)
 	}
 
 	if len(fields) == 0 {
@@ -271,14 +376,14 @@ func getArgsSelect(AddrMap map[uintptr]field, arg any) ([]field, error) {
 	return fields, nil
 }
 
-func getArgsSelectAno(AddrMap map[uintptr]field, valueOf reflect.Value) ([]field, error) {
+func getArgsSelectAno(addrMap map[uintptr]field, valueOf reflect.Value) ([]field, error) {
 	fields := make([]field, 0)
 	var fieldOf reflect.Value
 	for i := 0; i < valueOf.NumField(); i++ {
 		fieldOf = valueOf.Field(i).Elem()
 		addr := uintptr(fieldOf.Addr().UnsafePointer())
-		if AddrMap[addr] != nil {
-			fields = append(fields, AddrMap[addr])
+		if addrMap[addr] != nil {
+			fields = append(fields, addrMap[addr])
 			continue
 		}
 		return nil, ErrInvalidArg
@@ -289,15 +394,15 @@ func getArgsSelectAno(AddrMap map[uintptr]field, valueOf reflect.Value) ([]field
 	return fields, nil
 }
 
-func getArgsJoin(AddrMap map[uintptr]field, args ...any) ([]field, error) {
+func getArgsJoin(addrMap map[uintptr]field, args ...any) ([]field, error) {
 	fields := make([]field, 2)
 	var ptr uintptr
 	for i := range args {
 		if reflect.ValueOf(args[i]).Kind() == reflect.Ptr {
 			valueOf := reflect.ValueOf(args[i]).Elem()
 			ptr = uintptr(valueOf.Addr().UnsafePointer())
-			if AddrMap[ptr] != nil {
-				fields[i] = AddrMap[ptr]
+			if addrMap[ptr] != nil {
+				fields[i] = addrMap[ptr]
 			}
 		} else {
 			return nil, ErrInvalidArg
@@ -310,7 +415,7 @@ func getArgsJoin(AddrMap map[uintptr]field, args ...any) ([]field, error) {
 	return fields, nil
 }
 
-func getArgsTables(AddrMap map[uintptr]field, tables []string, args ...any) ([]byte, error) {
+func getArgsTables(addrMap map[uintptr]field, tables []string, args ...any) ([]byte, error) {
 	if reflect.ValueOf(args[0]).Kind() != reflect.Pointer {
 		//TODO: add ErrInvalidTable
 		return nil, ErrInvalidArg
@@ -322,13 +427,13 @@ func getArgsTables(AddrMap map[uintptr]field, tables []string, args ...any) ([]b
 
 	valueOf := reflect.ValueOf(args[0]).Elem()
 	ptr = uintptr(valueOf.Addr().UnsafePointer())
-	if AddrMap[ptr] == nil {
+	if addrMap[ptr] == nil {
 		//TODO: add ErrInvalidTable
 		return nil, ErrInvalidArg
 	}
-	tables[i] = string(AddrMap[ptr].table())
+	tables[i] = string(addrMap[ptr].table())
 	i++
-	from = append(from, AddrMap[ptr].table()...)
+	from = append(from, addrMap[ptr].table()...)
 
 	for _, a := range args[1:] {
 		if reflect.ValueOf(a).Kind() != reflect.Pointer {
@@ -338,28 +443,28 @@ func getArgsTables(AddrMap map[uintptr]field, tables []string, args ...any) ([]b
 
 		valueOf = reflect.ValueOf(a).Elem()
 		ptr = uintptr(valueOf.Addr().UnsafePointer())
-		if AddrMap[ptr] == nil {
+		if addrMap[ptr] == nil {
 			//TODO: add ErrInvalidTable
 			return nil, ErrInvalidArg
 		}
-		tables[i] = string(AddrMap[ptr].table())
+		tables[i] = string(addrMap[ptr].table())
 		i++
 		from = append(from, ',')
-		from = append(from, AddrMap[ptr].table()...)
+		from = append(from, addrMap[ptr].table()...)
 	}
 
 	return from, nil
 }
 
-func getArg(arg any, AddrMap map[uintptr]field) field {
+func getArg(arg any, addrMap map[uintptr]field) field {
 	v := reflect.ValueOf(arg)
 	if v.Kind() != reflect.Pointer {
 		return nil
 	}
 
 	addr := uintptr(v.UnsafePointer())
-	if AddrMap[addr] != nil {
-		return AddrMap[addr]
+	if addrMap[addr] != nil {
+		return addrMap[addr]
 	}
 	return nil
 }

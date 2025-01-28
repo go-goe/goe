@@ -2,9 +2,7 @@ package goe
 
 import (
 	"context"
-	"fmt"
 	"log"
-	"reflect"
 
 	"github.com/olauro/goe/utils"
 )
@@ -75,18 +73,4 @@ func RenameColumn(dbTarget any, table, oldColumn, newColumn string) error {
 		log.Println("\n" + sql)
 	}
 	return err
-}
-
-func GetGoeDatabase(dbTarget any) (db *DB, err error) {
-	dbValueOf := reflect.ValueOf(dbTarget).Elem()
-	if dbValueOf.NumField() == 0 {
-		return nil, fmt.Errorf("goe: Database %v with no structs", dbValueOf.Type().Name())
-	}
-	goeDb := AddrMap[uintptr(dbValueOf.Field(0).UnsafePointer())]
-
-	if goeDb == nil {
-		return nil, fmt.Errorf("goe: Database %v with no structs", dbValueOf.Type().Name())
-	}
-
-	return goeDb.getDb(), nil
 }

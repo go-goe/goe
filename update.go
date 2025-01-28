@@ -35,7 +35,7 @@ func SaveContext[T any](ctx context.Context, table *T, tx ...*Tx) *save[T] {
 }
 
 func (s *save[T]) Includes(args ...any) *save[T] {
-	ptrArgs, err := getArgsUpdate(AddrMap, args...)
+	ptrArgs, err := getArgsUpdate(addrMap, args...)
 	if err != nil {
 		s.update.err = err
 		return s
@@ -50,7 +50,7 @@ func (s *save[T]) Replace(replace T) *save[T] {
 		return s
 	}
 
-	s.pks, s.pksValue, s.update.err = getArgsPks(AddrMap, s.table, replace)
+	s.pks, s.pksValue, s.update.err = getPksField(addrMap, s.table, replace)
 	return s
 }
 
@@ -59,7 +59,7 @@ func (s *save[T]) Value(v T) error {
 		return s.update.err
 	}
 
-	includes, pks, pksValue, err := getArgsSave(AddrMap, s.table, v)
+	includes, pks, pksValue, err := getArgsSave(addrMap, s.table, v)
 	if err != nil {
 		return err
 	}
@@ -112,7 +112,7 @@ func Update[T any](table *T, tx ...*Tx) *stateUpdate[T] {
 
 // UpdateContext creates a update state for table
 func UpdateContext[T any](ctx context.Context, table *T, tx ...*Tx) *stateUpdate[T] {
-	f := getArg(table, AddrMap)
+	f := getArg(table, addrMap)
 
 	var state *stateUpdate[T]
 	if f == nil {
@@ -137,7 +137,7 @@ func (s *stateUpdate[T]) Includes(args ...any) *stateUpdate[T] {
 		return s
 	}
 
-	fields, err := getArgsUpdate(AddrMap, args...)
+	fields, err := getArgsUpdate(addrMap, args...)
 
 	if err != nil {
 		s.err = err
@@ -152,7 +152,7 @@ func (s *stateUpdate[T]) Where(brs ...query.Operator) *stateUpdate[T] {
 	if s.err != nil {
 		return s
 	}
-	s.err = helperWhere(s.builder, AddrMap, brs...)
+	s.err = helperWhere(s.builder, addrMap, brs...)
 	return s
 }
 
@@ -182,7 +182,7 @@ func (s *stateUpdate[T]) Value(value T) error {
 	return handlerValues(s.conn, sql, s.builder.argsAny, s.ctx)
 }
 
-func getArgsUpdate(AddrMap map[uintptr]field, args ...any) ([]field, error) {
+func getArgsUpdate(addrMap map[uintptr]field, args ...any) ([]field, error) {
 	fields := make([]field, 0)
 	var valueOf reflect.Value
 	for i := range args {
@@ -199,8 +199,8 @@ func getArgsUpdate(AddrMap map[uintptr]field, args ...any) ([]field, error) {
 		}
 
 		addr := uintptr(valueOf.Addr().UnsafePointer())
-		if AddrMap[addr] != nil {
-			fields = append(fields, AddrMap[addr])
+		if addrMap[addr] != nil {
+			fields = append(fields, addrMap[addr])
 		}
 	}
 	if len(fields) == 0 {
@@ -209,7 +209,7 @@ func getArgsUpdate(AddrMap map[uintptr]field, args ...any) ([]field, error) {
 	return fields, nil
 }
 
-func getArgsSave[T any](AddrMap map[uintptr]field, table *T, value T) ([]field, []field, []any, error) {
+func getArgsSave[T any](addrMap map[uintptr]field, table *T, value T) ([]field, []field, []any, error) {
 	if table == nil {
 		return nil, nil, nil, ErrInvalidArg
 	}
@@ -227,13 +227,13 @@ func getArgsSave[T any](AddrMap map[uintptr]field, table *T, value T) ([]field, 
 	for i := 0; i < valueOf.NumField(); i++ {
 		if !valueOf.Field(i).IsZero() {
 			addr = uintptr(tableOf.Field(i).Addr().UnsafePointer())
-			if AddrMap[addr] != nil {
-				if AddrMap[addr].isPrimaryKey() {
-					pks = append(pks, AddrMap[addr])
+			if addrMap[addr] != nil {
+				if addrMap[addr].isPrimaryKey() {
+					pks = append(pks, addrMap[addr])
 					pksValue = append(pksValue, valueOf.Field(i).Interface())
 					continue
 				}
-				args = append(args, AddrMap[addr])
+				args = append(args, addrMap[addr])
 			}
 		}
 	}
@@ -244,7 +244,7 @@ func getArgsSave[T any](AddrMap map[uintptr]field, table *T, value T) ([]field, 
 	return args, pks, pksValue, nil
 }
 
-func getArgsPks[T any](AddrMap map[uintptr]field, table *T, value T) ([]field, []any, error) {
+func getPksField[T any](addrMap map[uintptr]field, table *T, value T) ([]field, []any, error) {
 	pks, pksValue := make([]field, 0), make([]any, 0)
 
 	tableOf := reflect.ValueOf(table).Elem()
@@ -257,12 +257,10 @@ func getArgsPks[T any](AddrMap map[uintptr]field, table *T, value T) ([]field, [
 	for i := 0; i < valueOf.NumField(); i++ {
 		if !valueOf.Field(i).IsZero() {
 			addr = uintptr(tableOf.Field(i).Addr().UnsafePointer())
-			//TODO: Update to Field
-			if AddrMap[addr] != nil {
-				if AddrMap[addr].isPrimaryKey() {
-					pks = append(pks, AddrMap[addr])
+			if addrMap[addr] != nil {
+				if addrMap[addr].isPrimaryKey() {
+					pks = append(pks, addrMap[addr])
 					pksValue = append(pksValue, valueOf.Field(i).Interface())
-					continue
 				}
 			}
 		}
@@ -281,7 +279,7 @@ func helperOperation(builder *builder, pks []field, pksValue []any) {
 		Value:    pksValue[0]})
 	pkCount := 1
 	for _, pk := range pks[1:] {
-		builder.brs = append(builder.brs, query.Logical{Operator: "AND"})
+		builder.brs = append(builder.brs, query.And())
 		builder.brs = append(builder.brs, query.Operation{
 			Arg:      pk.getSelect(),
 			Operator: "=",
