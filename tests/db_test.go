@@ -2,6 +2,7 @@ package tests_test
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"testing"
 	"time"
@@ -162,14 +163,49 @@ func SetupPostgres() (*Database, error) {
 	return db, nil
 }
 
-func TestPostgresConnection(t *testing.T) {
+func TestConnection(t *testing.T) {
 	_, err := SetupPostgres()
 	if err != nil {
 		t.Fatalf("Expected Postgres Connection, got error %v", err)
 	}
 }
 
-func TestPostgresMigrate(t *testing.T) {
+func TestTx(t *testing.T) {
+	testCases := []struct {
+		desc     string
+		testCase func(t *testing.T)
+	}{
+		{
+			desc: "Tx_Context_Cancel",
+			testCase: func(t *testing.T) {
+				ctx, cancel := context.WithCancel(context.Background())
+				cancel()
+
+				_, err := goe.BeginTxContext(ctx, db, sql.LevelSerializable)
+				if !errors.Is(err, context.Canceled) {
+					t.Errorf("Expected context.Canceled, got : %v", err)
+				}
+			},
+		},
+		{
+			desc: "Tx_Context_Timeout",
+			testCase: func(t *testing.T) {
+				ctx, cancel := context.WithTimeout(context.Background(), time.Nanosecond)
+				defer cancel()
+
+				_, err := goe.BeginTxContext(ctx, db, sql.LevelSerializable)
+				if !errors.Is(err, context.DeadlineExceeded) {
+					t.Errorf("Expected context.DeadlineExceeded, got : %v", err)
+				}
+			},
+		},
+	}
+	for _, tC := range testCases {
+		t.Run(tC.desc, tC.testCase)
+	}
+}
+
+func TestMigrate(t *testing.T) {
 	_, err := SetupPostgres()
 	if err != nil {
 		t.Fatalf("Expected Postgres Connection, got error %v", err)

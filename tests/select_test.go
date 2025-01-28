@@ -12,7 +12,7 @@ import (
 	"github.com/olauro/goe/query"
 )
 
-func TestPostgresSelect(t *testing.T) {
+func TestSelect(t *testing.T) {
 	db, err := SetupPostgres()
 	if err != nil {
 		t.Fatalf("Expected database, got error: %v", err)

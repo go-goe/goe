@@ -10,7 +10,7 @@ import (
 	"github.com/olauro/goe/query"
 )
 
-func TestPostgresDelete(t *testing.T) {
+func TestDelete(t *testing.T) {
 	db, err := SetupPostgres()
 	if err != nil {
 		t.Fatalf("Expected database, got error: %v", err)
@@ -21,8 +21,8 @@ func TestPostgresDelete(t *testing.T) {
 		t.Fatalf("Expected goe database, got error: %v", err)
 	}
 
-	if goeDb.ConnPool.Stats().InUse != 0 {
-		t.Errorf("Expected closed connection, got: %v", goeDb.ConnPool.Stats().InUse)
+	if goeDb.SqlDB.Stats().InUse != 0 {
+		t.Errorf("Expected closed connection, got: %v", goeDb.SqlDB.Stats().InUse)
 	}
 	err = goe.Delete(db.AnimalFood).Where()
 	if err != nil {
@@ -72,8 +72,8 @@ func TestPostgresDelete(t *testing.T) {
 		{
 			desc: "Delete_One_Record",
 			testCase: func(t *testing.T) {
-				if goeDb.ConnPool.Stats().InUse != 0 {
-					t.Errorf("Expected closed connection, got: %v", goeDb.ConnPool.Stats().InUse)
+				if goeDb.SqlDB.Stats().InUse != 0 {
+					t.Errorf("Expected closed connection, got: %v", goeDb.SqlDB.Stats().InUse)
 				}
 
 				a := Animal{Name: "Dog"}
@@ -82,8 +82,8 @@ func TestPostgresDelete(t *testing.T) {
 					t.Fatalf("Expected a insert animal, got error: %v", err)
 				}
 
-				if goeDb.ConnPool.Stats().InUse != 0 {
-					t.Errorf("Expected closed connection, got: %v", goeDb.ConnPool.Stats().InUse)
+				if goeDb.SqlDB.Stats().InUse != 0 {
+					t.Errorf("Expected closed connection, got: %v", goeDb.SqlDB.Stats().InUse)
 				}
 
 				var as *Animal
@@ -92,8 +92,8 @@ func TestPostgresDelete(t *testing.T) {
 					t.Fatalf("Expected a select, got error: %v", err)
 				}
 
-				if goeDb.ConnPool.Stats().InUse != 0 {
-					t.Errorf("Expected closed connection, got: %v", goeDb.ConnPool.Stats().InUse)
+				if goeDb.SqlDB.Stats().InUse != 0 {
+					t.Errorf("Expected closed connection, got: %v", goeDb.SqlDB.Stats().InUse)
 				}
 
 				err = goe.Remove(db.Animal, Animal{Id: as.Id})
@@ -101,13 +101,57 @@ func TestPostgresDelete(t *testing.T) {
 					t.Errorf("Expected a delete animal, got error: %v", err)
 				}
 
-				if goeDb.ConnPool.Stats().InUse != 0 {
-					t.Errorf("Expected closed connection, got: %v", goeDb.ConnPool.Stats().InUse)
+				if goeDb.SqlDB.Stats().InUse != 0 {
+					t.Errorf("Expected closed connection, got: %v", goeDb.SqlDB.Stats().InUse)
 				}
 
 				_, err = goe.Find(db.Animal, Animal{Id: as.Id})
 				if !errors.Is(err, goe.ErrNotFound) {
 					t.Errorf("Expected a select, got error: %v", err)
+				}
+			},
+		},
+		{
+			desc: "Delete_One_Record_Tx_Rollback",
+			testCase: func(t *testing.T) {
+				a := Animal{Name: "Dog"}
+				err = goe.Insert(db.Animal).One(&a)
+				if err != nil {
+					t.Fatalf("Expected a insert animal, got error: %v", err)
+				}
+
+				var as *Animal
+				as, err = goe.Find(db.Animal, Animal{Id: a.Id})
+				if err != nil {
+					t.Fatalf("Expected a select, got error: %v", err)
+				}
+
+				var tx *goe.Tx
+				tx, err = goe.BeginTx(db)
+				if err != nil {
+					t.Fatalf("Expected tx, got error: %v", err)
+				}
+				defer tx.Rollback()
+
+				err = goe.Remove(db.Animal, Animal{Id: as.Id}, tx)
+				if err != nil {
+					t.Errorf("Expected a delete animal, got error: %v", err)
+				}
+
+				_, err = goe.Find(db.Animal, Animal{Id: as.Id}, tx)
+				if !errors.Is(err, goe.ErrNotFound) {
+					tx.Rollback()
+					t.Fatalf("Expected a select, got error: %v", err)
+				}
+
+				err = tx.Rollback()
+				if err != nil {
+					t.Fatalf("Expected Rollback, got error: %v", err)
+				}
+
+				_, err = goe.Find(db.Animal, Animal{Id: a.Id})
+				if err != nil {
+					t.Fatalf("Expected a select, got error: %v", err)
 				}
 			},
 		},
@@ -147,6 +191,60 @@ func TestPostgresDelete(t *testing.T) {
 
 				if len(animals) != 0 {
 					t.Errorf(`Expected to delete all "Cat" animals, got: %v`, len(animals))
+				}
+			},
+		},
+		{
+			desc: "Delete_All_Records_Tx_Commit",
+			testCase: func(t *testing.T) {
+				animals := []Animal{
+					{Name: "Cat"},
+					{Name: "Forest Cat"},
+					{Name: "Catt"},
+				}
+				err = goe.Insert(db.Animal).All(animals)
+				if err != nil {
+					t.Fatalf("Expected a insert, got error: %v", err)
+				}
+
+				var tx *goe.Tx
+
+				tx, err = goe.BeginTx(db)
+				if err != nil {
+					t.Fatalf("Expected tx, got error: %v", err)
+				}
+				defer tx.Rollback()
+
+				err = goe.Delete(db.Animal, tx).Where(query.Like(&db.Animal.Name, "%Cat%"))
+				if err != nil {
+					tx.Rollback()
+					t.Fatalf("Expected a delete, got error: %v", err)
+				}
+
+				animals = nil
+				animals, err = goe.Select(db.Animal).From(db.Animal).Where(query.Like(&db.Animal.Name, "%Cat%")).RowsAsSlice()
+				if err != nil {
+					tx.Rollback()
+					t.Fatalf("Expected a select, got error: %v", err)
+				}
+
+				if len(animals) != 3 {
+					t.Fatalf(`Expected 3 "Cat" animals, got: %v`, len(animals))
+				}
+
+				err = tx.Commit()
+				if err != nil {
+					t.Fatalf("Expected a Commit, got error: %v", err)
+				}
+
+				animals = nil
+				animals, err = goe.Select(db.Animal).From(db.Animal).Where(query.Like(&db.Animal.Name, "%Cat%")).RowsAsSlice()
+				if err != nil {
+					t.Fatalf("Expected a select, got error: %v", err)
+				}
+
+				if len(animals) != 0 {
+					t.Fatalf(`Expected delete all "Cat" animals, got: %v`, len(animals))
 				}
 			},
 		},

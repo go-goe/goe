@@ -10,7 +10,7 @@ import (
 	"github.com/olauro/goe"
 )
 
-func TestPostgresInsert(t *testing.T) {
+func TestInsert(t *testing.T) {
 	db, err := SetupPostgres()
 	if err != nil {
 		t.Fatalf("Expected database, got error: %v", err)
@@ -122,6 +122,88 @@ func TestPostgresInsert(t *testing.T) {
 			},
 		},
 		{
+			desc: "Insert_Animal_Tx_Commit",
+			testCase: func(t *testing.T) {
+				a := &Animal{Name: "Cat"}
+
+				var tx *goe.Tx
+				// defult level of isolation is sql.LevelSerializable
+				tx, err = goe.BeginTx(db)
+				if err != nil {
+					t.Fatalf("Expected a tx, got error: %v", err)
+				}
+				defer tx.Rollback()
+
+				err = goe.Insert(db.Animal, tx).One(a)
+				if err != nil {
+					tx.Rollback()
+					t.Fatalf("Expected a insert, got error: %v", err)
+				}
+				if a.Id == 0 {
+					tx.Rollback()
+					t.Fatalf("Expected a Id value, got : %v", a.Id)
+				}
+
+				// get record before commit or not using tx, will result in a goe.ErrNotFound
+				_, err = goe.Find(db.Animal, Animal{Id: a.Id})
+				if !errors.Is(err, goe.ErrNotFound) {
+					tx.Rollback()
+					t.Fatalf("Expected a Id value, got : %v", a.Id)
+				}
+
+				// get using same tx
+				_, err = goe.Find(db.Animal, Animal{Id: a.Id}, tx)
+				if err != nil {
+					t.Fatalf("Expected Find, got : %v", err)
+				}
+
+				err = tx.Commit()
+				if err != nil {
+					t.Fatalf("Expected Commit Tx, got : %v", err)
+				}
+
+				_, err = goe.Find(db.Animal, Animal{Id: a.Id})
+				if err != nil {
+					t.Fatalf("Expected Find, got : %v", err)
+				}
+			},
+		},
+		{
+			desc: "Insert_Animal_Tx_RollBack",
+			testCase: func(t *testing.T) {
+				a := &Animal{Name: "Cat"}
+
+				var tx *goe.Tx
+				// defult level of isolation is sql.LevelSerializable
+				tx, err = goe.BeginTx(db)
+				if err != nil {
+					t.Fatalf("Expected a tx, got error: %v", err)
+				}
+				defer tx.Rollback()
+
+				err = goe.Insert(db.Animal, tx).One(a)
+				if err != nil {
+					tx.Rollback()
+					t.Fatalf("Expected a insert, got error: %v", err)
+				}
+				if a.Id == 0 {
+					tx.Rollback()
+					t.Fatalf("Expected a Id value, got : %v", a.Id)
+				}
+
+				err = tx.Rollback()
+				if err != nil {
+					t.Fatalf("Expected a tx Rollback, got error: %v", err)
+				}
+
+				// get record after rollback will result in a goe.ErrNotFound
+				_, err = goe.Find(db.Animal, Animal{Id: a.Id})
+				if !errors.Is(err, goe.ErrNotFound) {
+					t.Fatalf("Expected a Id value, got : %v", a.Id)
+				}
+			},
+		},
+		{
 			desc: "Insert_Composed_Pk",
 			testCase: func(t *testing.T) {
 				p := Person{Name: "Jhon"}
@@ -214,7 +296,7 @@ func TestPostgresInsert(t *testing.T) {
 			desc: "Insert_Context_Timeout",
 			testCase: func(t *testing.T) {
 				a := Animal{}
-				ctx, cancel := context.WithTimeout(context.Background(), time.Nanosecond*1)
+				ctx, cancel := context.WithTimeout(context.Background(), time.Nanosecond)
 				defer cancel()
 				err = goe.InsertContext(ctx, db.Animal).One(&a)
 				if !errors.Is(err, context.DeadlineExceeded) {
