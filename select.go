@@ -18,18 +18,18 @@ type stateSelect[T any] struct {
 	err     error
 }
 
-func Find[T any](t *T, v T) (*T, error) {
-	return FindContext(context.Background(), t, v)
+func Find[T any](t *T, v T, tx ...*Tx) (*T, error) {
+	return FindContext(context.Background(), t, v, tx...)
 }
 
-func FindContext[T any](ctx context.Context, t *T, v T) (*T, error) {
+func FindContext[T any](ctx context.Context, t *T, v T, tx ...*Tx) (*T, error) {
 	pks, pksValue, err := getArgsPks(AddrMap, t, v)
 
 	if err != nil {
 		return nil, err
 	}
 
-	s := SelectContext(ctx, t).From(t)
+	s := SelectContext(ctx, t, tx...).From(t)
 	helperOperation(s.builder, pks, pksValue)
 
 	for row, err := range s.Rows() {
@@ -46,21 +46,27 @@ func FindContext[T any](ctx context.Context, t *T, v T) (*T, error) {
 // to specify the context, use [query.SelectContext].
 //
 // # Example
-func Select[T any](t *T) *stateSelect[T] {
-	return SelectContext(context.Background(), t)
+func Select[T any](t *T, tx ...*Tx) *stateSelect[T] {
+	return SelectContext(context.Background(), t, tx...)
 }
 
-func SelectContext[T any](ctx context.Context, t *T) *stateSelect[T] {
+func SelectContext[T any](ctx context.Context, t *T, tx ...*Tx) *stateSelect[T] {
 	fields, err := getArgsSelect(AddrMap, t)
 
 	var state *stateSelect[T]
 	if err != nil {
-		state = createSelectState[T](nil, nil, ctx, nil, err)
+		state = new(stateSelect[T])
+		state.err = err
 		return state
 	}
 
-	db := fields[0].GetDb()
-	state = createSelectState[T](db.ConnPool, db.Config, ctx, db.Driver, err)
+	db := fields[0].getDb()
+
+	if tx != nil {
+		state = createSelectState[T](tx[0].SqlTx, db.Config, ctx, db.Driver, nil)
+	} else {
+		state = createSelectState[T](db.SqlDB, db.Config, ctx, db.Driver, nil)
+	}
 
 	state.builder.fields = fields
 	return state
@@ -130,7 +136,7 @@ func (s *stateSelect[T]) OrderByAsc(arg any) *stateSelect[T] {
 		s.err = ErrInvalidOrderBy
 		return s
 	}
-	s.builder.orderBy = fmt.Sprintf("\nORDER BY %v ASC", Field.GetSelect())
+	s.builder.orderBy = fmt.Sprintf("\nORDER BY %v ASC", Field.getSelect())
 	return s
 }
 
@@ -149,7 +155,7 @@ func (s *stateSelect[T]) OrderByDesc(arg any) *stateSelect[T] {
 		s.err = ErrInvalidOrderBy
 		return s
 	}
-	s.builder.orderBy = fmt.Sprintf("\nORDER BY %v DESC", Field.GetSelect())
+	s.builder.orderBy = fmt.Sprintf("\nORDER BY %v DESC", Field.getSelect())
 	return s
 }
 
@@ -230,8 +236,8 @@ func createSelectState[T any](conn Connection, c *Config, ctx context.Context, d
 	return &stateSelect[T]{conn: conn, builder: createBuilder(d), config: c, ctx: ctx, err: e}
 }
 
-func getArgsSelect(AddrMap map[uintptr]Field, arg any) ([]Field, error) {
-	fields := make([]Field, 0)
+func getArgsSelect(AddrMap map[uintptr]field, arg any) ([]field, error) {
+	fields := make([]field, 0)
 
 	if reflect.ValueOf(arg).Kind() != reflect.Pointer {
 		return nil, ErrInvalidArg
@@ -265,8 +271,8 @@ func getArgsSelect(AddrMap map[uintptr]Field, arg any) ([]Field, error) {
 	return fields, nil
 }
 
-func getArgsSelectAno(AddrMap map[uintptr]Field, valueOf reflect.Value) ([]Field, error) {
-	fields := make([]Field, 0)
+func getArgsSelectAno(AddrMap map[uintptr]field, valueOf reflect.Value) ([]field, error) {
+	fields := make([]field, 0)
 	var fieldOf reflect.Value
 	for i := 0; i < valueOf.NumField(); i++ {
 		fieldOf = valueOf.Field(i).Elem()
@@ -283,8 +289,8 @@ func getArgsSelectAno(AddrMap map[uintptr]Field, valueOf reflect.Value) ([]Field
 	return fields, nil
 }
 
-func getArgsJoin(AddrMap map[uintptr]Field, args ...any) ([]Field, error) {
-	fields := make([]Field, 2)
+func getArgsJoin(AddrMap map[uintptr]field, args ...any) ([]field, error) {
+	fields := make([]field, 2)
 	var ptr uintptr
 	for i := range args {
 		if reflect.ValueOf(args[i]).Kind() == reflect.Ptr {
@@ -304,7 +310,7 @@ func getArgsJoin(AddrMap map[uintptr]Field, args ...any) ([]Field, error) {
 	return fields, nil
 }
 
-func getArgsTables(AddrMap map[uintptr]Field, tables []string, args ...any) ([]byte, error) {
+func getArgsTables(AddrMap map[uintptr]field, tables []string, args ...any) ([]byte, error) {
 	if reflect.ValueOf(args[0]).Kind() != reflect.Pointer {
 		//TODO: add ErrInvalidTable
 		return nil, ErrInvalidArg
@@ -320,9 +326,9 @@ func getArgsTables(AddrMap map[uintptr]Field, tables []string, args ...any) ([]b
 		//TODO: add ErrInvalidTable
 		return nil, ErrInvalidArg
 	}
-	tables[i] = string(AddrMap[ptr].Table())
+	tables[i] = string(AddrMap[ptr].table())
 	i++
-	from = append(from, AddrMap[ptr].Table()...)
+	from = append(from, AddrMap[ptr].table()...)
 
 	for _, a := range args[1:] {
 		if reflect.ValueOf(a).Kind() != reflect.Pointer {
@@ -336,16 +342,16 @@ func getArgsTables(AddrMap map[uintptr]Field, tables []string, args ...any) ([]b
 			//TODO: add ErrInvalidTable
 			return nil, ErrInvalidArg
 		}
-		tables[i] = string(AddrMap[ptr].Table())
+		tables[i] = string(AddrMap[ptr].table())
 		i++
 		from = append(from, ',')
-		from = append(from, AddrMap[ptr].Table()...)
+		from = append(from, AddrMap[ptr].table()...)
 	}
 
 	return from, nil
 }
 
-func getArg(arg any, AddrMap map[uintptr]Field) Field {
+func getArg(arg any, AddrMap map[uintptr]field) field {
 	v := reflect.ValueOf(arg)
 	if v.Kind() != reflect.Pointer {
 		return nil
@@ -358,27 +364,27 @@ func getArg(arg any, AddrMap map[uintptr]Field) Field {
 	return nil
 }
 
-func helperWhere(builder *builder, addrMap map[uintptr]Field, brs ...query.Operator) error {
+func helperWhere(builder *builder, addrMap map[uintptr]field, brs ...query.Operator) error {
 	for i := range brs {
 		switch br := brs[i].(type) {
 		case query.Operation:
 			if a := getArg(br.Arg, addrMap); a != nil {
-				br.Arg = a.GetSelect()
+				br.Arg = a.getSelect()
 				builder.brs = append(builder.brs, br)
 				continue
 			}
 			return ErrInvalidWhere
 		case query.OperationArg:
 			if a, b := getArg(br.Op.Arg, addrMap), getArg(br.Op.Value, addrMap); a != nil && b != nil {
-				br.Op.Arg = a.GetSelect()
-				br.Op.ValueFlag = b.GetSelect()
+				br.Op.Arg = a.getSelect()
+				br.Op.ValueFlag = b.getSelect()
 				builder.brs = append(builder.brs, br)
 				continue
 			}
 			return ErrInvalidWhere
 		case query.OperationIs:
 			if a := getArg(br.Arg, addrMap); a != nil {
-				br.Arg = a.GetSelect()
+				br.Arg = a.getSelect()
 				builder.brs = append(builder.brs, br)
 				continue
 			}

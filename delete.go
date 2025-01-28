@@ -15,21 +15,17 @@ type stateDelete struct {
 	err     error
 }
 
-func createDeleteState(conn Connection, c *Config, ctx context.Context, d Driver, e error) *stateDelete {
-	return &stateDelete{conn: conn, builder: createBuilder(d), config: c, ctx: ctx, err: e}
+func Remove[T any](table *T, value T, tx ...*Tx) error {
+	return RemoveContext(context.Background(), table, value, tx...)
 }
 
-func Remove[T any](table *T, value T) error {
-	return RemoveContext(context.Background(), table, value)
-}
-
-func RemoveContext[T any](ctx context.Context, table *T, value T) error {
+func RemoveContext[T any](ctx context.Context, table *T, value T, tx ...*Tx) error {
 	pks, pksValue, err := getArgsPks(AddrMap, table, value)
 	if err != nil {
 		return err
 	}
 
-	s := DeleteContext(ctx, table)
+	s := DeleteContext(ctx, table, tx...)
 	helperOperation(s.builder, pks, pksValue)
 	return s.Where()
 }
@@ -38,22 +34,29 @@ func RemoveContext[T any](ctx context.Context, table *T, value T) error {
 // to specify the context, use [query.DeleteContext].
 //
 // # Example
-func Delete[T any](table *T) *stateDelete {
-	return DeleteContext(context.Background(), table)
+func Delete[T any](table *T, tx ...*Tx) *stateDelete {
+	return DeleteContext(context.Background(), table, tx...)
 }
 
 // DeleteContext creates a delete state for table
-func DeleteContext[T any](ctx context.Context, table *T) *stateDelete {
+func DeleteContext[T any](ctx context.Context, table *T, tx ...*Tx) *stateDelete {
 	fields, err := getArgsTable(AddrMap, table)
 
 	var state *stateDelete
 	if err != nil {
-		state = createDeleteState(nil, nil, ctx, nil, err)
+		state = new(stateDelete)
+		state.err = ErrInvalidArg
 		return state
 	}
 
-	db := fields[0].GetDb()
-	state = createDeleteState(db.ConnPool, db.Config, ctx, db.Driver, err)
+	db := fields[0].getDb()
+
+	if tx != nil {
+		state = createDeleteState(tx[0].SqlTx, db.Config, ctx, db.Driver, err)
+	} else {
+		state = createDeleteState(db.SqlDB, db.Config, ctx, db.Driver, err)
+	}
+
 	state.builder.fields = fields
 	return state
 }
@@ -79,4 +82,8 @@ func (s *stateDelete) Where(Brs ...query.Operator) error {
 		log.Println("\n" + Sql)
 	}
 	return handlerValues(s.conn, Sql, s.builder.argsAny, s.ctx)
+}
+
+func createDeleteState(conn Connection, c *Config, ctx context.Context, d Driver, e error) *stateDelete {
+	return &stateDelete{conn: conn, builder: createBuilder(d), config: c, ctx: ctx, err: e}
 }

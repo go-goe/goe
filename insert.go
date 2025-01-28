@@ -18,21 +18,27 @@ type stateInsert[T any] struct {
 // to specify the context, use [query.InsertContext].
 //
 // # Example
-func Insert[T any](table *T) *stateInsert[T] {
-	return InsertContext[T](context.Background(), table)
+func Insert[T any](table *T, tx ...*Tx) *stateInsert[T] {
+	return InsertContext[T](context.Background(), table, tx...)
 }
 
 // InsertContext creates a insert state for table
-func InsertContext[T any](ctx context.Context, table *T) *stateInsert[T] {
+func InsertContext[T any](ctx context.Context, table *T, tx ...*Tx) *stateInsert[T] {
 	fields, err := getArgsTable(AddrMap, table)
 
 	var state *stateInsert[T]
 	if err != nil {
-		state = createInsertState[T](nil, nil, ctx, nil, err)
+		state = new(stateInsert[T])
+		state.err = err
 		return state
 	}
-	db := fields[0].GetDb()
-	state = createInsertState[T](db.ConnPool, db.Config, ctx, db.Driver, err)
+	db := fields[0].getDb()
+
+	if tx != nil {
+		state = createInsertState[T](tx[0].SqlTx, db.Config, ctx, db.Driver, err)
+	} else {
+		state = createInsertState[T](db.SqlDB, db.Config, ctx, db.Driver, err)
+	}
 	state.builder.fields = fields
 	return state
 }
@@ -82,11 +88,11 @@ func createInsertState[T any](conn Connection, c *Config, ctx context.Context, d
 	return &stateInsert[T]{conn: conn, builder: createBuilder(d), config: c, ctx: ctx, err: e}
 }
 
-func getArgsTable[T any](AddrMap map[uintptr]Field, table *T) ([]Field, error) {
+func getArgsTable[T any](AddrMap map[uintptr]field, table *T) ([]field, error) {
 	if table == nil {
 		return nil, ErrInvalidArg
 	}
-	fields := make([]Field, 0)
+	fields := make([]field, 0)
 
 	valueOf := reflect.ValueOf(table).Elem()
 	if valueOf.Kind() != reflect.Struct {
