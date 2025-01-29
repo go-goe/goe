@@ -151,19 +151,19 @@ func createAtt(db *DB, attributeName string, tableBytes []byte, d Driver) *att {
 		attributeStrings: createAttributeStrings(db, tableBytes, attributeName, d)}
 }
 
-func (p *pk) buildAttributeSelect(b *builder, i int) {
+func (p *pk) buildAttributeSelect(b *builder) {
 	b.sql.WriteString(p.selectName)
 }
 
-func (a *att) buildAttributeSelect(b *builder, i int) {
+func (a *att) buildAttributeSelect(b *builder) {
 	b.sql.WriteString(a.selectName)
 }
 
-func (m *manyToOne) buildAttributeSelect(b *builder, i int) {
+func (m *manyToOne) buildAttributeSelect(b *builder) {
 	b.sql.WriteString(m.selectName)
 }
 
-func (o *oneToOne) buildAttributeSelect(b *builder, i int) {
+func (o *oneToOne) buildAttributeSelect(b *builder) {
 	b.sql.WriteString(o.selectName)
 }
 
@@ -243,4 +243,17 @@ func (m *manyToOne) getSelect() string {
 
 func (o *oneToOne) getSelect() string {
 	return o.selectName
+}
+
+type aggregate struct {
+	selectName string
+	db         *DB
+}
+
+func (a *aggregate) buildAttributeSelect(b *builder) {
+	b.sql.WriteString(a.selectName)
+}
+
+func (a *aggregate) getDb() *DB {
+	return a.db
 }

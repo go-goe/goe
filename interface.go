@@ -6,14 +6,23 @@ import (
 )
 
 type field interface {
+	fieldSelect
+	fieldDb
 	isPrimaryKey() bool
 	getSelect() string
-	getDb() *DB
 	table() []byte
-	buildAttributeSelect(*builder, int)
 	buildAttributeInsert(*builder)
 	writeAttributeInsert(*builder)
 	buildAttributeUpdate(*builder)
+}
+
+type fieldDb interface {
+	getDb() *DB
+}
+
+type fieldSelect interface {
+	fieldDb
+	buildAttributeSelect(*builder)
 }
 
 type Driver interface {

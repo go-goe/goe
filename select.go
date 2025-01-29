@@ -69,7 +69,7 @@ func SelectContext[T any](ctx context.Context, t *T, tx ...*Tx) *stateSelect[T] 
 		state = createSelectState[T](db.SqlDB, db.Config, ctx, db.Driver, nil)
 	}
 
-	state.builder.fields = fields
+	state.builder.fieldsSelect = fields
 	return state
 }
 
@@ -162,6 +162,10 @@ func (s *stateSelect[T]) OrderByDesc(arg any) *stateSelect[T] {
 
 // TODO: Add Doc
 func (s *stateSelect[T]) From(tables ...any) *stateSelect[T] {
+	if s.err != nil {
+		return s
+	}
+
 	s.builder.tables = make([]string, len(tables))
 	args, err := getArgsTables(addrMap, s.builder.tables, tables...)
 	if err != nil {
@@ -223,7 +227,7 @@ func (s *stateSelect[T]) Rows() iter.Seq2[T, error] {
 		log.Println("\n" + Sql)
 	}
 
-	return handlerResult[T](s.conn, Sql, s.builder.argsAny, len(s.builder.fields), s.ctx)
+	return handlerResult[T](s.conn, Sql, s.builder.argsAny, len(s.builder.fieldsSelect), s.ctx)
 }
 
 func SafeGet[T any](v *T) T {
@@ -341,8 +345,8 @@ func equalsOrLike(s string, a any) query.Operation {
 		Value:    strings.ToUpper(v)}
 }
 
-func getArgsSelect(addrMap map[uintptr]field, arg any) ([]field, error) {
-	fields := make([]field, 0)
+func getArgsSelect(addrMap map[uintptr]field, arg any) ([]fieldSelect, error) {
+	fields := make([]fieldSelect, 0)
 
 	if reflect.ValueOf(arg).Kind() != reflect.Pointer {
 		return nil, ErrInvalidArg
@@ -376,8 +380,8 @@ func getArgsSelect(addrMap map[uintptr]field, arg any) ([]field, error) {
 	return fields, nil
 }
 
-func getArgsSelectAno(addrMap map[uintptr]field, valueOf reflect.Value) ([]field, error) {
-	fields := make([]field, 0)
+func getArgsSelectAno(addrMap map[uintptr]field, valueOf reflect.Value) ([]fieldSelect, error) {
+	fields := make([]fieldSelect, 0)
 	var fieldOf reflect.Value
 	for i := 0; i < valueOf.NumField(); i++ {
 		fieldOf = valueOf.Field(i).Elem()
@@ -386,12 +390,29 @@ func getArgsSelectAno(addrMap map[uintptr]field, valueOf reflect.Value) ([]field
 			fields = append(fields, addrMap[addr])
 			continue
 		}
+		// check if is aggregate
+		if fieldOf.Kind() == reflect.Struct {
+			addr := uintptr(fieldOf.Field(0).Elem().UnsafePointer())
+			if addrMap[addr] != nil {
+				fields = append(fields, createAggregate(addrMap[addr], fieldOf.Interface()))
+				continue
+			}
+		}
 		return nil, ErrInvalidArg
 	}
 	if len(fields) == 0 {
 		return nil, ErrInvalidArg
 	}
 	return fields, nil
+}
+
+func createAggregate(field field, a any) fieldSelect {
+	switch ag := a.(type) {
+	case query.Count:
+		return &aggregate{selectName: ag.Aggregate(field.getSelect()), db: field.getDb()}
+	}
+
+	return nil
 }
 
 func getArgsJoin(addrMap map[uintptr]field, args ...any) ([]field, error) {

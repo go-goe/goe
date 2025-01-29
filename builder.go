@@ -22,6 +22,7 @@ type builder struct {
 	inserts       []field
 	froms         []byte
 	fields        []field
+	fieldsSelect  []fieldSelect
 	argsAny       []any
 	structColumns []string //update
 	attrNames     []string //insert and update
@@ -44,17 +45,17 @@ func createBuilder(d Driver) *builder {
 func (b *builder) buildSelect() {
 	b.sql.Write(b.driver.Select())
 
-	len := len(b.fields)
+	len := len(b.fieldsSelect)
 	if len == 0 {
 		return
 	}
 
-	for i := range b.fields[:len-1] {
-		b.fields[i].buildAttributeSelect(b, i)
+	for i := range b.fieldsSelect[:len-1] {
+		b.fieldsSelect[i].buildAttributeSelect(b)
 		b.sql.WriteByte(',')
 	}
 
-	b.fields[len-1].buildAttributeSelect(b, len-1)
+	b.fieldsSelect[len-1].buildAttributeSelect(b)
 }
 
 func (b *builder) buildSelectJoins(join string, fields []field) {
