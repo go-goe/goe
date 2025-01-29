@@ -235,6 +235,85 @@ func TestSelect(t *testing.T) {
 			},
 		},
 		{
+			desc: "List",
+			testCase: func(t *testing.T) {
+				var a []Animal
+				a, err = goe.List(db.Animal).AsSlice()
+				if err != nil {
+					t.Fatalf("Expected List, got error: %v", err)
+				}
+				if len(a) != len(animals) {
+					t.Errorf("Expected %v animals, got %v", len(animals), len(a))
+				}
+			},
+		},
+		{
+			desc: "List_Filter",
+			testCase: func(t *testing.T) {
+				var a []Animal
+				a, err = goe.List(db.Animal).Filter(Animal{Name: "Cat", Id: animals[0].Id, IdHabitat: &habitats[0].Id}).AsSlice()
+				if err != nil {
+					t.Fatalf("Expected List, got error: %v", err)
+				}
+				if len(a) != 2 {
+					t.Errorf("Expected %v animal, got %v", 1, len(a))
+				}
+			},
+		},
+		{
+			desc: "List_Filter_Like",
+			testCase: func(t *testing.T) {
+				var a []Animal
+				a, err = goe.List(db.Animal).Filter(Animal{Name: "%Cat%"}).AsSlice()
+				if err != nil {
+					t.Fatalf("Expected List, got error: %v", err)
+				}
+				if len(a) != 3 {
+					t.Errorf("Expected 3, got %v", len(a))
+				}
+			},
+		},
+		{
+			desc: "List_Filter_Page",
+			testCase: func(t *testing.T) {
+				var a []Animal
+				a, err = goe.List(db.Animal).Filter(Animal{Name: "%Cat%"}).Page(1, 2).AsSlice()
+				if err != nil {
+					t.Fatalf("Expected List, got error: %v", err)
+				}
+				if len(a) != 2 {
+					t.Errorf("Expected 1, got %v", len(a))
+				}
+			},
+		},
+		{
+			desc: "List_Filter_Order",
+			testCase: func(t *testing.T) {
+				var a []Animal
+				a, err = goe.List(db.Animal).OrderByDesc(&db.Animal.Id).AsSlice()
+				if err != nil {
+					t.Fatalf("Expected List, got error: %v", err)
+				}
+				if a[0].Id != animals[len(animals)-1].Id {
+					t.Errorf("Expected %v, got %v", animals[len(animals)-1].Id, a[0].Id)
+				}
+			},
+		},
+		{
+			desc: "Select_Count",
+			testCase: func(t *testing.T) {
+				a := runSelect(t, goe.Select(&struct {
+					*query.Count
+				}{
+					query.GetCount(&db.Animal.Id),
+				}).From(db.Animal).Rows())
+
+				if int(a[0].Value) != len(animals) {
+					t.Errorf("Expected %v got: %v", len(animals), a[0].Value)
+				}
+			},
+		},
+		{
 			desc: "Find",
 			testCase: func(t *testing.T) {
 				var a *Animal
