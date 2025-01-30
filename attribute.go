@@ -251,6 +251,7 @@ type aggregate struct {
 }
 
 func (a *aggregate) buildAttributeSelect(b *builder) {
+	//TODO: update to write bytes
 	b.sql.WriteString(a.selectName)
 }
 

@@ -69,10 +69,10 @@ func mapStructQuery[T any](rows *sql.Rows, dest []any, value reflect.Type) iter.
 			s, f reflect.Value
 		)
 		defer rows.Close()
+		s = reflect.New(value).Elem()
 
 		for rows.Next() {
 			err = rows.Scan(dest...)
-			s = reflect.New(value).Elem()
 
 			if err != nil {
 				yield(s.Interface().(T), err)

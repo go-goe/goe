@@ -194,7 +194,7 @@ func (s *stateSelect[T]) Joins(joins ...query.Joins) *stateSelect[T] {
 }
 
 func (s *stateSelect[T]) RowsAsSlice() ([]T, error) {
-	rows := make([]T, 0)
+	rows := make([]T, 0, s.builder.limit)
 	for row, err := range s.Rows() {
 		if err != nil {
 			return nil, err
