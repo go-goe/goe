@@ -31,7 +31,7 @@ type builder struct {
 	offset        uint     //select
 	joins         []string //select
 	joinsArgs     []field  //select
-	tables        []string //select TODO: update all table names to a int ID
+	tables        []uint
 	brs           []query.Operator
 }
 
@@ -61,7 +61,7 @@ func (b *builder) buildSelect() {
 func (b *builder) buildSelectJoins(join string, fields []field) {
 	j := len(b.joinsArgs)
 	b.joinsArgs = append(b.joinsArgs, make([]field, 2)...)
-	b.tables = append(b.tables, make([]string, 1)...)
+	b.tables = append(b.tables, make([]uint, 1)...)
 	b.joins = append(b.joins, join)
 	b.joinsArgs[j] = fields[0]
 	b.joinsArgs[j+1] = fields[1]
@@ -135,16 +135,16 @@ func (b *builder) buildTables() (err error) {
 	return nil
 }
 
-func buildJoins(join string, sql *strings.Builder, f1, f2 field, tables []string, tableIndice int) error {
+func buildJoins(join string, sql *strings.Builder, f1, f2 field, tables []uint, tableIndice int) error {
 	sql.WriteByte('\n')
-	if !slices.Contains(tables, string(f2.table())) {
+	if !slices.Contains(tables, f2.getTableId()) {
 		sql.WriteString(fmt.Sprintf("%v %v on (%v = %v)", join, string(f2.table()), f1.getSelect(), f2.getSelect()))
-		tables[tableIndice] = string(f2.table())
+		tables[tableIndice] = f2.getTableId()
 		return nil
 	}
 	//TODO: update this to write
 	sql.WriteString(fmt.Sprintf("%v %v on (%v = %v)", join, string(f1.table()), f1.getSelect(), f2.getSelect()))
-	tables[tableIndice] = string(f1.table())
+	tables[tableIndice] = f1.getTableId()
 	return nil
 }
 

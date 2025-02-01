@@ -31,12 +31,14 @@ func Open[T any](driver Driver, config Config) (*T, error) {
 	}
 
 	var err error
+	var tableId uint = 1
 	// init Fields
 	for i := 0; i < valueOf.NumField(); i++ {
-		err = initField(valueOf, valueOf.Field(i).Elem(), dbTarget, driver)
+		err = initField(valueOf, valueOf.Field(i).Elem(), dbTarget, tableId, driver)
 		if err != nil {
 			return nil, err
 		}
+		tableId++
 	}
 
 	dbTarget.Driver = driver
@@ -45,8 +47,8 @@ func Open[T any](driver Driver, config Config) (*T, error) {
 	return db, nil
 }
 
-func initField(tables reflect.Value, valueOf reflect.Value, db *DB, driver Driver) error {
-	pks, FieldNames, err := getPk(db, valueOf.Type(), driver)
+func initField(tables reflect.Value, valueOf reflect.Value, db *DB, tableId uint, driver Driver) error {
+	pks, FieldNames, err := getPk(db, valueOf.Type(), tableId, driver)
 	if err != nil {
 		return err
 	}
@@ -68,47 +70,48 @@ func initField(tables reflect.Value, valueOf reflect.Value, db *DB, driver Drive
 		}
 		switch valueOf.Field(i).Kind() {
 		case reflect.Slice:
-			err := handlerSlice(tables, valueOf.Field(i).Type().Elem(), valueOf, i, pks, db, driver)
+			err := handlerSlice(tables, valueOf.Field(i).Type().Elem(), valueOf, i, pks, db, tableId, driver)
 			if err != nil {
 				return err
 			}
 		case reflect.Struct:
-			handlerStruct(valueOf.Field(i).Type(), valueOf, i, pks[0], db, driver)
+			handlerStruct(valueOf.Field(i).Type(), valueOf, i, pks[0], db, tableId, driver)
 		case reflect.Ptr:
-			helperAttribute(tables, valueOf, i, db, driver, pks, true)
+			helperAttribute(tables, valueOf, i, db, tableId, driver, pks, true)
 		default:
-			helperAttribute(tables, valueOf, i, db, driver, pks, false)
+			helperAttribute(tables, valueOf, i, db, tableId, driver, pks, false)
 		}
 	}
 	return nil
 }
 
-func handlerStruct(targetTypeOf reflect.Type, valueOf reflect.Value, i int, p *pk, db *DB, driver Driver) {
+func handlerStruct(targetTypeOf reflect.Type, valueOf reflect.Value, i int, p *pk, db *DB, tableId uint, driver Driver) {
 	switch targetTypeOf.Name() {
 	case "Time":
-		newAttr(valueOf, i, p.tableBytes, uintptr(valueOf.Field(i).Addr().UnsafePointer()), db, driver)
+		newAttr(valueOf, i, p.tableBytes, uintptr(valueOf.Field(i).Addr().UnsafePointer()), db, tableId, driver)
 	}
 }
 
-func handlerSlice(tables reflect.Value, targetTypeOf reflect.Type, valueOf reflect.Value, i int, pks []*pk, db *DB, driver Driver) error {
+func handlerSlice(tables reflect.Value, targetTypeOf reflect.Type, valueOf reflect.Value, i int, pks []*pk, db *DB, tableId uint, driver Driver) error {
 	switch targetTypeOf.Kind() {
 	case reflect.Uint8:
-		helperAttribute(tables, valueOf, i, db, driver, pks, false)
+		helperAttribute(tables, valueOf, i, db, tableId, driver, pks, false)
 	}
 	return nil
 }
 
-func newAttr(valueOf reflect.Value, i int, tableBytes []byte, addr uintptr, db *DB, d Driver) {
+func newAttr(valueOf reflect.Value, i int, tableBytes []byte, addr uintptr, db *DB, tableId uint, d Driver) {
 	at := createAtt(
 		db,
 		valueOf.Type().Field(i).Name,
 		tableBytes,
+		tableId,
 		d,
 	)
 	addrMap[addr] = at
 }
 
-func getPk(db *DB, typeOf reflect.Type, driver Driver) ([]*pk, []string, error) {
+func getPk(db *DB, typeOf reflect.Type, tableId uint, driver Driver) ([]*pk, []string, error) {
 	var pks []*pk
 	var FieldsNames []string
 
@@ -116,7 +119,7 @@ func getPk(db *DB, typeOf reflect.Type, driver Driver) ([]*pk, []string, error) 
 	if valid {
 		pks := make([]*pk, 1)
 		FieldsNames = make([]string, 1)
-		pks[0] = createPk(db, []byte(typeOf.Name()), id.Name, isAutoIncrement(id), driver)
+		pks[0] = createPk(db, []byte(typeOf.Name()), id.Name, isAutoIncrement(id), tableId, driver)
 		FieldsNames[0] = id.Name
 		return pks, FieldsNames, nil
 	}
@@ -129,7 +132,7 @@ func getPk(db *DB, typeOf reflect.Type, driver Driver) ([]*pk, []string, error) 
 	pks = make([]*pk, len(Fields))
 	FieldsNames = make([]string, len(Fields))
 	for i := range Fields {
-		pks[i] = createPk(db, []byte(typeOf.Name()), Fields[i].Name, isAutoIncrement(Fields[i]), driver)
+		pks[i] = createPk(db, []byte(typeOf.Name()), Fields[i].Name, isAutoIncrement(Fields[i]), tableId, driver)
 		FieldsNames[i] = Fields[i].Name
 	}
 
@@ -140,14 +143,14 @@ func isAutoIncrement(id reflect.StructField) bool {
 	return strings.Contains(id.Type.Kind().String(), "int")
 }
 
-func isManyToOne(db *DB, tables reflect.Value, typeOf reflect.Type, driver Driver, table, prefix string) field {
+func isManyToOne(db *DB, tables reflect.Value, typeOf reflect.Type, tableId uint, driver Driver, table, prefix string) field {
 	for c := 0; c < tables.NumField(); c++ {
 		if tables.Field(c).Elem().Type().Name() == table {
 			for i := 0; i < tables.Field(c).Elem().NumField(); i++ {
 				// check if there is a slice to typeOf
 				if tables.Field(c).Elem().Field(i).Kind() == reflect.Slice {
 					if tables.Field(c).Elem().Field(i).Type().Elem().Name() == typeOf.Name() {
-						return createManyToOne(db, tables.Field(c).Elem().Type(), typeOf, driver, prefix)
+						return createManyToOne(db, tables.Field(c).Elem().Type(), typeOf, tableId, driver, prefix)
 					}
 				}
 			}
@@ -157,12 +160,12 @@ func isManyToOne(db *DB, tables reflect.Value, typeOf reflect.Type, driver Drive
 					typeOfMtm = typeOfMtm.Elem()
 					for i := 0; i < typeOfMtm.NumField(); i++ {
 						if typeOfMtm.Field(i).Kind() == reflect.Slice && typeOfMtm.Field(i).Type().Elem().Name() == table {
-							return createManyToOne(db, typeOfMtm.Field(i).Type().Elem(), typeOf, driver, prefix)
+							return createManyToOne(db, typeOfMtm.Field(i).Type().Elem(), typeOf, tableId, driver, prefix)
 						}
 					}
 				}
 			}
-			return createOneToOne(db, tables.Field(c).Elem().Type(), typeOf, driver, prefix)
+			return createOneToOne(db, tables.Field(c).Elem().Type(), typeOf, tableId, driver, prefix)
 		}
 	}
 	return nil
@@ -224,14 +227,14 @@ func checkTablePattern(tables reflect.Value, Field reflect.StructField) (table, 
 	return table, prefix
 }
 
-func helperAttribute(tables reflect.Value, valueOf reflect.Value, i int, db *DB, driver Driver, pks []*pk, nullable bool) {
+func helperAttribute(tables reflect.Value, valueOf reflect.Value, i int, db *DB, tableId uint, driver Driver, pks []*pk, nullable bool) {
 	table, prefix := checkTablePattern(tables, valueOf.Type().Field(i))
 	if table != "" {
-		if mto := isManyToOne(db, tables, valueOf.Type(), driver, table, prefix); mto != nil {
+		if mto := isManyToOne(db, tables, valueOf.Type(), tableId, driver, table, prefix); mto != nil {
 			switch v := mto.(type) {
 			case *manyToOne:
 				if v == nil {
-					newAttr(valueOf, i, pks[0].tableBytes, uintptr(valueOf.Field(i).Addr().UnsafePointer()), db, driver)
+					newAttr(valueOf, i, pks[0].tableBytes, uintptr(valueOf.Field(i).Addr().UnsafePointer()), db, tableId, driver)
 					break
 				}
 				addrMap[uintptr(valueOf.Field(i).Addr().UnsafePointer())] = v
@@ -243,7 +246,7 @@ func helperAttribute(tables reflect.Value, valueOf reflect.Value, i int, db *DB,
 				}
 			case *oneToOne:
 				if v == nil {
-					newAttr(valueOf, i, pks[0].tableBytes, uintptr(valueOf.Field(i).Addr().UnsafePointer()), db, driver)
+					newAttr(valueOf, i, pks[0].tableBytes, uintptr(valueOf.Field(i).Addr().UnsafePointer()), db, tableId, driver)
 					break
 				}
 				addrMap[uintptr(valueOf.Field(i).Addr().UnsafePointer())] = v
@@ -258,5 +261,5 @@ func helperAttribute(tables reflect.Value, valueOf reflect.Value, i int, db *DB,
 			return
 		}
 	}
-	newAttr(valueOf, i, pks[0].tableBytes, uintptr(valueOf.Field(i).Addr().UnsafePointer()), db, driver)
+	newAttr(valueOf, i, pks[0].tableBytes, uintptr(valueOf.Field(i).Addr().UnsafePointer()), db, tableId, driver)
 }

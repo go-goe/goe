@@ -166,7 +166,7 @@ func (s *stateSelect[T]) From(tables ...any) *stateSelect[T] {
 		return s
 	}
 
-	s.builder.tables = make([]string, len(tables))
+	s.builder.tables = make([]uint, len(tables))
 	args, err := getArgsTables(addrMap, s.builder.tables, tables...)
 	if err != nil {
 		s.err = err
@@ -436,7 +436,7 @@ func getArgsJoin(addrMap map[uintptr]field, args ...any) ([]field, error) {
 	return fields, nil
 }
 
-func getArgsTables(addrMap map[uintptr]field, tables []string, args ...any) ([]byte, error) {
+func getArgsTables(addrMap map[uintptr]field, tables []uint, args ...any) ([]byte, error) {
 	if reflect.ValueOf(args[0]).Kind() != reflect.Pointer {
 		//TODO: add ErrInvalidTable
 		return nil, ErrInvalidArg
@@ -452,7 +452,7 @@ func getArgsTables(addrMap map[uintptr]field, tables []string, args ...any) ([]b
 		//TODO: add ErrInvalidTable
 		return nil, ErrInvalidArg
 	}
-	tables[i] = string(addrMap[ptr].table())
+	tables[i] = addrMap[ptr].getTableId()
 	i++
 	from = append(from, addrMap[ptr].table()...)
 
@@ -468,7 +468,7 @@ func getArgsTables(addrMap map[uintptr]field, tables []string, args ...any) ([]b
 			//TODO: add ErrInvalidTable
 			return nil, ErrInvalidArg
 		}
-		tables[i] = string(addrMap[ptr].table())
+		tables[i] = addrMap[ptr].getTableId()
 		i++
 		from = append(from, ',')
 		from = append(from, addrMap[ptr].table()...)
