@@ -138,12 +138,27 @@ func (b *builder) buildTables() (err error) {
 func buildJoins(join string, sql *strings.Builder, f1, f2 field, tables []uint, tableIndice int) error {
 	sql.WriteByte('\n')
 	if !slices.Contains(tables, f2.getTableId()) {
-		sql.WriteString(fmt.Sprintf("%v %v on (%v = %v)", join, string(f2.table()), f1.getSelect(), f2.getSelect()))
+		sql.WriteString(join)
+		sql.WriteByte(' ')
+		sql.Write(f2.table())
+		sql.WriteString(" on (")
+		sql.WriteString(f1.getSelect())
+		sql.WriteString(" = ")
+		sql.WriteString(f2.getSelect())
+		sql.WriteByte(')')
+
 		tables[tableIndice] = f2.getTableId()
 		return nil
 	}
-	//TODO: update this to write
-	sql.WriteString(fmt.Sprintf("%v %v on (%v = %v)", join, string(f1.table()), f1.getSelect(), f2.getSelect()))
+	sql.WriteString(join)
+	sql.WriteByte(' ')
+	sql.Write(f1.table())
+	sql.WriteString(" on (")
+	sql.WriteString(f1.getSelect())
+	sql.WriteString(" = ")
+	sql.WriteString(f2.getSelect())
+	sql.WriteByte(')')
+
 	tables[tableIndice] = f1.getTableId()
 	return nil
 }
