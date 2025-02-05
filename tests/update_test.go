@@ -255,9 +255,9 @@ func TestUpdate(t *testing.T) {
 				}
 
 				personJobs := []PersonJobTitle{
-					{IdPerson: persons[0].Id, IdJobTitle: jobs[0].Id, CreatedAt: time.Now()},
-					{IdPerson: persons[1].Id, IdJobTitle: jobs[0].Id, CreatedAt: time.Now()},
-					{IdPerson: persons[2].Id, IdJobTitle: jobs[1].Id, CreatedAt: time.Now()},
+					{PersonId: persons[0].Id, IdJobTitle: jobs[0].Id, CreatedAt: time.Now()},
+					{PersonId: persons[1].Id, IdJobTitle: jobs[0].Id, CreatedAt: time.Now()},
+					{PersonId: persons[2].Id, IdJobTitle: jobs[1].Id, CreatedAt: time.Now()},
 				}
 				err = goe.Insert(db.PersonJobTitle, tx).All(personJobs)
 				if err != nil {
@@ -277,7 +277,7 @@ func TestUpdate(t *testing.T) {
 					Person:   &db.Person.Name,
 				}, tx).From(db.Person).
 					Joins(
-						query.Join[int](&db.Person.Id, &db.PersonJobTitle.IdPerson),
+						query.Join[int](&db.Person.Id, &db.PersonJobTitle.PersonId),
 						query.Join[int](&db.JobTitle.Id, &db.PersonJobTitle.IdJobTitle),
 					).
 					Where(query.Equals(&db.JobTitle.Id, jobs[0].Id)).Rows() {
@@ -299,7 +299,7 @@ func TestUpdate(t *testing.T) {
 				}
 
 				err = goe.Update(db.PersonJobTitle, tx).Includes(&db.PersonJobTitle.IdJobTitle).Where(
-					query.Equals(&db.PersonJobTitle.IdPerson, persons[2].Id),
+					query.Equals(&db.PersonJobTitle.PersonId, persons[2].Id),
 					query.And(),
 					query.Equals(&db.PersonJobTitle.IdJobTitle, jobs[1].Id),
 				).Value(PersonJobTitle{IdJobTitle: jobs[0].Id})
@@ -317,7 +317,7 @@ func TestUpdate(t *testing.T) {
 					Person:   &db.Person.Name,
 				}, tx).From(db.Person).
 					Joins(
-						query.Join[int](&db.Person.Id, &db.PersonJobTitle.IdPerson),
+						query.Join[int](&db.Person.Id, &db.PersonJobTitle.PersonId),
 						query.Join[int](&db.JobTitle.Id, &db.PersonJobTitle.IdJobTitle),
 					).
 					Where(query.Equals(&db.JobTitle.Id, jobs[0].Id)).Rows() {
@@ -352,7 +352,7 @@ func TestUpdate(t *testing.T) {
 					Person:   &db.Person.Name,
 				}).From(db.Person).
 					Joins(
-						query.Join[int](&db.Person.Id, &db.PersonJobTitle.IdPerson),
+						query.Join[int](&db.Person.Id, &db.PersonJobTitle.PersonId),
 						query.Join[int](&db.JobTitle.Id, &db.PersonJobTitle.IdJobTitle),
 					).
 					Where(query.Equals(&db.JobTitle.Id, jobs[0].Id)).Rows() {
@@ -397,9 +397,9 @@ func TestUpdate(t *testing.T) {
 				}
 
 				personJobs := []PersonJobTitle{
-					{IdPerson: persons[0].Id, IdJobTitle: jobs[0].Id, CreatedAt: time.Now()},
-					{IdPerson: persons[1].Id, IdJobTitle: jobs[0].Id, CreatedAt: time.Now()},
-					{IdPerson: persons[2].Id, IdJobTitle: jobs[1].Id, CreatedAt: time.Now()},
+					{PersonId: persons[0].Id, IdJobTitle: jobs[0].Id, CreatedAt: time.Now()},
+					{PersonId: persons[1].Id, IdJobTitle: jobs[0].Id, CreatedAt: time.Now()},
+					{PersonId: persons[2].Id, IdJobTitle: jobs[1].Id, CreatedAt: time.Now()},
 				}
 				err = goe.Insert(db.PersonJobTitle).All(personJobs)
 				if err != nil {
@@ -418,7 +418,7 @@ func TestUpdate(t *testing.T) {
 					Person:   &db.Person.Name,
 				}).From(db.Person).
 					Joins(
-						query.Join[int](&db.Person.Id, &db.PersonJobTitle.IdPerson),
+						query.Join[int](&db.Person.Id, &db.PersonJobTitle.PersonId),
 						query.Join[int](&db.JobTitle.Id, &db.PersonJobTitle.IdJobTitle),
 					).
 					Where(query.Equals(&db.JobTitle.Id, jobs[0].Id)).Rows() {
@@ -440,7 +440,7 @@ func TestUpdate(t *testing.T) {
 				}
 
 				err = goe.Update(db.PersonJobTitle).Includes(&db.PersonJobTitle.IdJobTitle).Where(
-					query.Equals(&db.PersonJobTitle.IdPerson, persons[2].Id),
+					query.Equals(&db.PersonJobTitle.PersonId, persons[2].Id),
 					query.And(),
 					query.Equals(&db.PersonJobTitle.IdJobTitle, jobs[1].Id),
 				).Value(PersonJobTitle{IdJobTitle: jobs[0].Id})
@@ -457,7 +457,7 @@ func TestUpdate(t *testing.T) {
 					Person:   &db.Person.Name,
 				}).From(db.Person).
 					Joins(
-						query.Join[int](&db.Person.Id, &db.PersonJobTitle.IdPerson),
+						query.Join[int](&db.Person.Id, &db.PersonJobTitle.PersonId),
 						query.Join[int](&db.JobTitle.Id, &db.PersonJobTitle.IdJobTitle),
 					).
 					Where(query.Equals(&db.JobTitle.Id, jobs[0].Id)).Rows() {
@@ -502,9 +502,9 @@ func TestUpdate(t *testing.T) {
 				}
 
 				personJobs := []PersonJobTitle{
-					{IdPerson: persons[0].Id, IdJobTitle: jobs[0].Id},
-					{IdPerson: persons[1].Id, IdJobTitle: jobs[0].Id},
-					{IdPerson: persons[2].Id, IdJobTitle: jobs[1].Id},
+					{PersonId: persons[0].Id, IdJobTitle: jobs[0].Id},
+					{PersonId: persons[1].Id, IdJobTitle: jobs[0].Id},
+					{PersonId: persons[2].Id, IdJobTitle: jobs[1].Id},
 				}
 				err = goe.Insert(db.PersonJobTitle).All(personJobs)
 				if err != nil {
@@ -524,7 +524,7 @@ func TestUpdate(t *testing.T) {
 					Person:   &db.Person.Name,
 				}).From(db.Person).
 					Joins(
-						query.Join[int](&db.Person.Id, &db.PersonJobTitle.IdPerson),
+						query.Join[int](&db.Person.Id, &db.PersonJobTitle.PersonId),
 						query.Join[int](&db.JobTitle.Id, &db.PersonJobTitle.IdJobTitle),
 					).
 					Where(query.Equals(&db.JobTitle.Id, jobs[0].Id)).Rows() {
@@ -547,7 +547,7 @@ func TestUpdate(t *testing.T) {
 				}
 
 				err = goe.Save(db.PersonJobTitle).Replace(PersonJobTitle{
-					IdPerson:   persons[2].Id,
+					PersonId:   persons[2].Id,
 					IdJobTitle: jobs[1].Id}).Value(PersonJobTitle{
 					IdJobTitle: jobs[0].Id, CreatedAt: time.Now()})
 				if err != nil {
@@ -565,7 +565,7 @@ func TestUpdate(t *testing.T) {
 					Person:    &db.Person.Name,
 				}).From(db.Person).
 					Joins(
-						query.Join[int](&db.Person.Id, &db.PersonJobTitle.IdPerson),
+						query.Join[int](&db.Person.Id, &db.PersonJobTitle.PersonId),
 						query.Join[int](&db.JobTitle.Id, &db.PersonJobTitle.IdJobTitle),
 					).
 					Where(query.Equals(&db.JobTitle.Id, jobs[0].Id)).OrderByAsc(&db.Person.Id).Rows() {

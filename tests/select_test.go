@@ -174,8 +174,8 @@ func TestSelect(t *testing.T) {
 
 	tt := time.Now().AddDate(0, 0, 10)
 	userRoles := []UserRole{
-		{IdUser: users[0].Id, IdRole: roles[0].Id, EndDate: &tt},
-		{IdUser: users[1].Id, IdRole: roles[2].Id},
+		{UserId: users[0].Id, RoleId: roles[0].Id, EndDate: &tt},
+		{UserId: users[1].Id, RoleId: roles[2].Id},
 	}
 	err = goe.Insert(db.UserRole).All(userRoles)
 	if err != nil {
@@ -202,9 +202,9 @@ func TestSelect(t *testing.T) {
 	}
 
 	personJobs := []PersonJobTitle{
-		{IdPerson: persons[0].Id, IdJobTitle: jobs[0].Id, CreatedAt: time.Now()},
-		{IdPerson: persons[1].Id, IdJobTitle: jobs[0].Id, CreatedAt: time.Now()},
-		{IdPerson: persons[2].Id, IdJobTitle: jobs[1].Id, CreatedAt: time.Now()},
+		{PersonId: persons[0].Id, IdJobTitle: jobs[0].Id, CreatedAt: time.Now()},
+		{PersonId: persons[1].Id, IdJobTitle: jobs[0].Id, CreatedAt: time.Now()},
+		{PersonId: persons[2].Id, IdJobTitle: jobs[1].Id, CreatedAt: time.Now()},
 	}
 	err = goe.Insert(db.PersonJobTitle).All(personJobs)
 	if err != nil {
@@ -732,8 +732,8 @@ func TestSelect(t *testing.T) {
 				}).
 					From(db.User).
 					Joins(
-						query.LeftJoin[int](&db.User.Id, &db.UserRole.IdUser),
-						query.LeftJoin[int](&db.UserRole.IdRole, &db.Role.Id),
+						query.LeftJoin[int](&db.User.Id, &db.UserRole.UserId),
+						query.LeftJoin[int](&db.UserRole.RoleId, &db.Role.Id),
 					).
 					OrderByAsc(&db.User.Id).Rows() {
 
@@ -780,8 +780,8 @@ func TestSelect(t *testing.T) {
 				}).
 					From(db.User).
 					Joins(
-						query.RightJoin[int](&db.UserRole.IdUser, &db.User.Id),
-						query.RightJoin[int](&db.Role.Id, &db.UserRole.IdRole),
+						query.RightJoin[int](&db.UserRole.UserId, &db.User.Id),
+						query.RightJoin[int](&db.Role.Id, &db.UserRole.RoleId),
 					).
 					OrderByAsc(&db.User.Id).Rows() {
 
@@ -824,7 +824,7 @@ func TestSelect(t *testing.T) {
 					Person:   &db.Person.Name,
 				}).From(db.Person).
 					Joins(
-						query.Join[int](&db.Person.Id, &db.PersonJobTitle.IdPerson),
+						query.Join[int](&db.Person.Id, &db.PersonJobTitle.PersonId),
 						query.Join[int](&db.PersonJobTitle.IdJobTitle, &db.JobTitle.Id),
 					).Rows() {
 

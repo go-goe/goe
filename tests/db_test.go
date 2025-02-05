@@ -66,8 +66,8 @@ type User struct {
 
 type UserRole struct {
 	Id      int
-	IdUser  int
-	IdRole  int
+	UserId  int
+	RoleId  int
 	EndDate *time.Time
 }
 
@@ -104,7 +104,7 @@ type Person struct {
 }
 
 type PersonJobTitle struct {
-	IdPerson   int `goe:"pk"`
+	PersonId   int `goe:"pk"`
 	IdJobTitle int `goe:"pk"`
 	CreatedAt  time.Time
 }
