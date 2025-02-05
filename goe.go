@@ -228,11 +228,8 @@ func prefixNamePattern(tables reflect.Value, field reflect.StructField) (table, 
 				}
 			}
 		}
-		if !tables.FieldByName(table).IsValid() {
-			table = ""
-		}
 	}
-	return table, prefix
+	return "", ""
 }
 
 func posfixNamePattern(tables reflect.Value, field reflect.StructField) (table, prefix string) {
@@ -250,9 +247,6 @@ func posfixNamePattern(tables reflect.Value, field reflect.StructField) (table, 
 					return table, prefix
 				}
 			}
-		}
-		if !tables.FieldByName(table).IsValid() {
-			table = ""
 		}
 	}
 	return "", ""
