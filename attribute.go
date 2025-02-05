@@ -28,7 +28,7 @@ func (o *oneToOne) table() []byte {
 	return o.tableBytes
 }
 
-func createOneToOne(db *DB, typeOf reflect.Type, targetTypeOf reflect.Type, tableId uint, Driver Driver, prefix string) *oneToOne {
+func createOneToOne(db *DB, typeOf reflect.Type, targetTypeOf reflect.Type, tableId uint, Driver Driver, prefix, fieldName string) *oneToOne {
 	mto := new(oneToOne)
 	targetPks := primaryKeys(typeOf)
 	count := 0
@@ -45,7 +45,7 @@ func createOneToOne(db *DB, typeOf reflect.Type, targetTypeOf reflect.Type, tabl
 	mto.attributeStrings = createAttributeStrings(
 		db,
 		[]byte(Driver.KeywordHandler(utils.TableNamePattern(targetTypeOf.Name()))),
-		prefix+typeOf.Name(),
+		fieldName,
 		tableId,
 		Driver,
 	)
@@ -73,7 +73,7 @@ func (m *manyToOne) table() []byte {
 	return m.tableBytes
 }
 
-func createManyToOne(db *DB, typeOf reflect.Type, targetTypeOf reflect.Type, tableId uint, Driver Driver, prefix string) *manyToOne {
+func createManyToOne(db *DB, typeOf reflect.Type, targetTypeOf reflect.Type, tableId uint, Driver Driver, prefix, fieldName string) *manyToOne {
 	mto := new(manyToOne)
 	targetPks := primaryKeys(typeOf)
 	count := 0
@@ -90,7 +90,7 @@ func createManyToOne(db *DB, typeOf reflect.Type, targetTypeOf reflect.Type, tab
 	mto.attributeStrings = createAttributeStrings(
 		db,
 		[]byte(Driver.KeywordHandler(utils.TableNamePattern(targetTypeOf.Name()))),
-		prefix+typeOf.Name(),
+		fieldName,
 		tableId,
 		Driver,
 	)

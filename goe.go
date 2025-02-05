@@ -143,14 +143,14 @@ func isAutoIncrement(id reflect.StructField) bool {
 	return strings.Contains(id.Type.Kind().String(), "int")
 }
 
-func isManyToOne(db *DB, tables reflect.Value, typeOf reflect.Type, tableId uint, driver Driver, table, prefix string) field {
+func isManyToOne(db *DB, tables reflect.Value, typeOf reflect.Type, tableId uint, driver Driver, table, prefix, fieldName string) field {
 	for c := 0; c < tables.NumField(); c++ {
 		if tables.Field(c).Elem().Type().Name() == table {
 			for i := 0; i < tables.Field(c).Elem().NumField(); i++ {
 				// check if there is a slice to typeOf
 				if tables.Field(c).Elem().Field(i).Kind() == reflect.Slice {
 					if tables.Field(c).Elem().Field(i).Type().Elem().Name() == typeOf.Name() {
-						return createManyToOne(db, tables.Field(c).Elem().Type(), typeOf, tableId, driver, prefix)
+						return createManyToOne(db, tables.Field(c).Elem().Type(), typeOf, tableId, driver, prefix, fieldName)
 					}
 				}
 			}
@@ -160,12 +160,12 @@ func isManyToOne(db *DB, tables reflect.Value, typeOf reflect.Type, tableId uint
 					typeOfMtm = typeOfMtm.Elem()
 					for i := 0; i < typeOfMtm.NumField(); i++ {
 						if typeOfMtm.Field(i).Kind() == reflect.Slice && typeOfMtm.Field(i).Type().Elem().Name() == table {
-							return createManyToOne(db, typeOfMtm.Field(i).Type().Elem(), typeOf, tableId, driver, prefix)
+							return createManyToOne(db, typeOfMtm.Field(i).Type().Elem(), typeOf, tableId, driver, prefix, fieldName)
 						}
 					}
 				}
 			}
-			return createOneToOne(db, tables.Field(c).Elem().Type(), typeOf, tableId, driver, prefix)
+			return createOneToOne(db, tables.Field(c).Elem().Type(), typeOf, tableId, driver, prefix, fieldName)
 		}
 	}
 	return nil
@@ -204,17 +204,22 @@ func getTagValue(FieldTag string, subTag string) string {
 	return ""
 }
 
-func checkTablePattern(tables reflect.Value, Field reflect.StructField) (table, prefix string) {
-	table = getTagValue(Field.Tag.Get("goe"), "table:")
+func checkTablePattern(tables reflect.Value, field reflect.StructField) (table, prefix string) {
+	table, prefix = prefixPattern(tables, field)
+	return table, prefix
+}
+
+func prefixPattern(tables reflect.Value, field reflect.StructField) (table, prefix string) {
+	table = getTagValue(field.Tag.Get("goe"), "table:")
 	if table != "" {
-		prefix = strings.ReplaceAll(Field.Name, table, "")
+		prefix = strings.ReplaceAll(field.Name, table, "")
 		return table, prefix
 	}
 	if table == "" {
-		for r := len(Field.Name) - 1; r > 1; r-- {
-			if Field.Name[r] < 'a' {
-				table = Field.Name[r:]
-				prefix = Field.Name[:r]
+		for r := len(field.Name) - 1; r > 1; r-- {
+			if field.Name[r] < 'a' {
+				table = field.Name[r:]
+				prefix = field.Name[:r]
 				if tables.FieldByName(table).IsValid() {
 					return table, prefix
 				}
@@ -230,7 +235,7 @@ func checkTablePattern(tables reflect.Value, Field reflect.StructField) (table, 
 func helperAttribute(tables reflect.Value, valueOf reflect.Value, i int, db *DB, tableId uint, driver Driver, pks []*pk, nullable bool) {
 	table, prefix := checkTablePattern(tables, valueOf.Type().Field(i))
 	if table != "" {
-		if mto := isManyToOne(db, tables, valueOf.Type(), tableId, driver, table, prefix); mto != nil {
+		if mto := isManyToOne(db, tables, valueOf.Type(), tableId, driver, table, prefix, valueOf.Type().Field(i).Name); mto != nil {
 			switch v := mto.(type) {
 			case *manyToOne:
 				if v == nil {

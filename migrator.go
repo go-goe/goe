@@ -146,14 +146,14 @@ func handlerSliceMigrate(table *TableMigrate, tables reflect.Value, field reflec
 	return nil
 }
 
-func isManyToOneMigrate(tables reflect.Value, typeOf reflect.Type, nullable bool, table, prefix string, driver Driver) any {
+func isManyToOneMigrate(tables reflect.Value, typeOf reflect.Type, nullable bool, table, prefix, fieldName string, driver Driver) any {
 	for c := 0; c < tables.NumField(); c++ {
 		if tables.Field(c).Elem().Type().Name() == table {
 			for i := 0; i < tables.Field(c).Elem().NumField(); i++ {
 				// check if there is a slice to typeOf
 				if tables.Field(c).Elem().Field(i).Kind() == reflect.Slice {
 					if tables.Field(c).Elem().Field(i).Type().Elem().Name() == typeOf.Name() {
-						return createManyToOneMigrate(tables.Field(c).Elem().Type(), nullable, prefix, driver)
+						return createManyToOneMigrate(tables.Field(c).Elem().Type(), nullable, prefix, fieldName, driver)
 					}
 				}
 			}
@@ -163,18 +163,18 @@ func isManyToOneMigrate(tables reflect.Value, typeOf reflect.Type, nullable bool
 					typeOfMtm = typeOfMtm.Elem()
 					for i := 0; i < typeOfMtm.NumField(); i++ {
 						if typeOfMtm.Field(i).Kind() == reflect.Slice && typeOfMtm.Field(i).Type().Elem().Name() == table {
-							return createManyToOneMigrate(tables.Field(c).Elem().Type(), nullable, prefix, driver)
+							return createManyToOneMigrate(tables.Field(c).Elem().Type(), nullable, prefix, fieldName, driver)
 						}
 					}
 				}
 			}
-			return createOneToOneMigrate(tables.Field(c).Elem().Type(), nullable, prefix, driver)
+			return createOneToOneMigrate(tables.Field(c).Elem().Type(), nullable, prefix, fieldName, driver)
 		}
 	}
 	return nil
 }
 
-func createManyToOneMigrate(typeOf reflect.Type, nullable bool, prefix string, driver Driver) *ManyToOneMigrate {
+func createManyToOneMigrate(typeOf reflect.Type, nullable bool, prefix, fieldName string, driver Driver) *ManyToOneMigrate {
 	fieldPks := primaryKeys(typeOf)
 	count := 0
 	for i := range fieldPks {
@@ -194,13 +194,13 @@ func createManyToOneMigrate(typeOf reflect.Type, nullable bool, prefix string, d
 	mto.EscapingTargetTable = driver.KeywordHandler(mto.TargetTable)
 	mto.EscapingTargetColumn = driver.KeywordHandler(mto.TargetColumn)
 
-	mto.Name = utils.ManyToOneNamePattern(prefix, typeOf.Name())
+	mto.Name = utils.ColumnNamePattern(fieldName)
 	mto.EscapingName = driver.KeywordHandler(mto.Name)
 	mto.Nullable = nullable
 	return mto
 }
 
-func createOneToOneMigrate(typeOf reflect.Type, nullable bool, prefix string, driver Driver) *OneToOneMigrate {
+func createOneToOneMigrate(typeOf reflect.Type, nullable bool, prefix, fieldName string, driver Driver) *OneToOneMigrate {
 	fieldPks := primaryKeys(typeOf)
 	count := 0
 	for i := range fieldPks {
@@ -220,7 +220,7 @@ func createOneToOneMigrate(typeOf reflect.Type, nullable bool, prefix string, dr
 	mto.EscapingTargetTable = driver.KeywordHandler(mto.TargetTable)
 	mto.EscapingTargetColumn = driver.KeywordHandler(mto.TargetColumn)
 
-	mto.Name = utils.ManyToOneNamePattern(prefix, typeOf.Name())
+	mto.Name = utils.ColumnNamePattern(fieldName)
 	mto.EscapingName = driver.KeywordHandler(mto.Name)
 	mto.Nullable = nullable
 	return mto
@@ -377,7 +377,7 @@ func createMigrateAtt(attributeName string, dataType string, nullable bool, driv
 func helperAttributeMigrate(tbl *TableMigrate, tables reflect.Value, valueOf reflect.Value, field reflect.StructField, i int, nullable bool, driver Driver) error {
 	table, prefix := checkTablePattern(tables, valueOf.Type().Field(i))
 	if table != "" {
-		if mto := isManyToOneMigrate(tables, valueOf.Type(), nullable, table, prefix, driver); mto != nil {
+		if mto := isManyToOneMigrate(tables, valueOf.Type(), nullable, table, prefix, valueOf.Type().Field(i).Name, driver); mto != nil {
 			switch v := mto.(type) {
 			case *ManyToOneMigrate:
 				if v == nil {
