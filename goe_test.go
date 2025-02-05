@@ -60,7 +60,7 @@ func TestMapDatabase(t *testing.T) {
 	type UserLog struct {
 		Id     uint
 		Action string
-		IdUser uint `goe:"table:User"`
+		IdUser uint
 	}
 
 	type Database struct {

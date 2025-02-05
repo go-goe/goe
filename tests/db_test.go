@@ -13,9 +13,9 @@ import (
 )
 
 type Animal struct {
-	Name        string     `goe:"index"`
-	IdHabitat   *uuid.UUID `goe:"table:Habitat"`
-	IdInfo      *[]byte    `goe:"table:Info"`
+	Name        string `goe:"index"`
+	IdHabitat   *uuid.UUID
+	IdInfo      *[]byte
 	Id          int
 	AnimalFoods []AnimalFood
 }

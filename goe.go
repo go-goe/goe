@@ -213,19 +213,12 @@ func checkTablePattern(tables reflect.Value, field reflect.StructField) (table, 
 }
 
 func prefixNamePattern(tables reflect.Value, field reflect.StructField) (table, prefix string) {
-	table = getTagValue(field.Tag.Get("goe"), "table:")
-	if table != "" {
-		prefix = strings.ReplaceAll(field.Name, table, "")
-		return table, prefix
-	}
-	if table == "" {
-		for r := len(field.Name) - 1; r > 1; r-- {
-			if field.Name[r] < 'a' {
-				table = field.Name[r:]
-				prefix = field.Name[:r]
-				if tables.FieldByName(table).IsValid() {
-					return table, prefix
-				}
+	for r := len(field.Name) - 1; r > 1; r-- {
+		if field.Name[r] < 'a' {
+			table = field.Name[r:]
+			prefix = field.Name[:r]
+			if tables.FieldByName(table).IsValid() {
+				return table, prefix
 			}
 		}
 	}
@@ -233,19 +226,12 @@ func prefixNamePattern(tables reflect.Value, field reflect.StructField) (table, 
 }
 
 func posfixNamePattern(tables reflect.Value, field reflect.StructField) (table, prefix string) {
-	table = getTagValue(field.Tag.Get("goe"), "table:")
-	if table != "" {
-		prefix = strings.ReplaceAll(field.Name, table, "")
-		return table, prefix
-	}
-	if table == "" {
-		for r := 0; r < len(field.Name); r++ {
-			if field.Name[r] < 'a' {
-				table = field.Name[:r]
-				prefix = field.Name[r:]
-				if tables.FieldByName(table).IsValid() {
-					return table, prefix
-				}
+	for r := 0; r < len(field.Name); r++ {
+		if field.Name[r] < 'a' {
+			table = field.Name[:r]
+			prefix = field.Name[r:]
+			if tables.FieldByName(table).IsValid() {
+				return table, prefix
 			}
 		}
 	}
