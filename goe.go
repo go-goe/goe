@@ -205,11 +205,14 @@ func getTagValue(FieldTag string, subTag string) string {
 }
 
 func checkTablePattern(tables reflect.Value, field reflect.StructField) (table, prefix string) {
-	table, prefix = prefixPattern(tables, field)
-	return table, prefix
+	table, prefix = prefixNamePattern(tables, field)
+	if table != "" {
+		return table, prefix
+	}
+	return posfixNamePattern(tables, field)
 }
 
-func prefixPattern(tables reflect.Value, field reflect.StructField) (table, prefix string) {
+func prefixNamePattern(tables reflect.Value, field reflect.StructField) (table, prefix string) {
 	table = getTagValue(field.Tag.Get("goe"), "table:")
 	if table != "" {
 		prefix = strings.ReplaceAll(field.Name, table, "")
@@ -230,6 +233,29 @@ func prefixPattern(tables reflect.Value, field reflect.StructField) (table, pref
 		}
 	}
 	return table, prefix
+}
+
+func posfixNamePattern(tables reflect.Value, field reflect.StructField) (table, prefix string) {
+	table = getTagValue(field.Tag.Get("goe"), "table:")
+	if table != "" {
+		prefix = strings.ReplaceAll(field.Name, table, "")
+		return table, prefix
+	}
+	if table == "" {
+		for r := 0; r < len(field.Name); r++ {
+			if field.Name[r] < 'a' {
+				table = field.Name[:r]
+				prefix = field.Name[r:]
+				if tables.FieldByName(table).IsValid() {
+					return table, prefix
+				}
+			}
+		}
+		if !tables.FieldByName(table).IsValid() {
+			table = ""
+		}
+	}
+	return "", ""
 }
 
 func helperAttribute(tables reflect.Value, valueOf reflect.Value, i int, db *DB, tableId uint, driver Driver, pks []*pk, nullable bool) {
