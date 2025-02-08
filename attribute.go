@@ -28,6 +28,10 @@ func (o *oneToOne) table() []byte {
 	return o.tableBytes
 }
 
+func (o *oneToOne) getAttributeName() []byte {
+	return o.attributeName
+}
+
 func createOneToOne(db *DB, typeOf reflect.Type, targetTypeOf reflect.Type, tableId uint, Driver Driver, prefix, fieldName string) *oneToOne {
 	mto := new(oneToOne)
 	targetPks := primaryKeys(typeOf)
@@ -73,6 +77,10 @@ func (m *manyToOne) table() []byte {
 	return m.tableBytes
 }
 
+func (m *manyToOne) getAttributeName() []byte {
+	return m.attributeName
+}
+
 func createManyToOne(db *DB, typeOf reflect.Type, targetTypeOf reflect.Type, tableId uint, Driver Driver, prefix, fieldName string) *manyToOne {
 	mto := new(manyToOne)
 	targetPks := primaryKeys(typeOf)
@@ -102,7 +110,7 @@ type attributeStrings struct {
 	tableId             uint
 	tableBytes          []byte
 	selectName          string
-	attributeName       string
+	attributeName       []byte
 	structAttributeName string
 }
 
@@ -112,7 +120,7 @@ func createAttributeStrings(db *DB, table []byte, attributeName string, tableId 
 		tableBytes:          table,
 		tableId:             tableId,
 		selectName:          fmt.Sprintf("%v.%v", string(table), Driver.KeywordHandler(utils.ColumnNamePattern(attributeName))),
-		attributeName:       Driver.KeywordHandler(utils.ColumnNamePattern(attributeName)),
+		attributeName:       []byte(Driver.KeywordHandler(utils.ColumnNamePattern(attributeName))),
 		structAttributeName: attributeName,
 	}
 }
@@ -136,6 +144,10 @@ func (p *pk) getTableId() uint {
 
 func (p *pk) table() []byte {
 	return p.tableBytes
+}
+
+func (p *pk) getAttributeName() []byte {
+	return p.attributeName
 }
 
 func createPk(db *DB, table []byte, attributeName string, autoIncrement bool, tableId uint, Driver Driver) *pk {
@@ -164,6 +176,10 @@ func (a *att) getTableId() uint {
 
 func (a *att) table() []byte {
 	return a.tableBytes
+}
+
+func (a *att) getAttributeName() []byte {
+	return a.attributeName
 }
 
 func createAtt(db *DB, attributeName string, tableBytes []byte, tableId uint, d Driver) *att {
@@ -196,8 +212,8 @@ func (p *pk) buildAttributeInsert(b *builder) {
 }
 
 func (p *pk) writeAttributeInsert(b *builder) {
-	b.sql.WriteString(p.attributeName)
-	b.attrNames = append(b.attrNames, p.structAttributeName)
+	b.sql.Write(p.attributeName)
+	b.structColumns = append(b.structColumns, p.structAttributeName)
 }
 
 func (a *att) buildAttributeInsert(b *builder) {
@@ -205,8 +221,8 @@ func (a *att) buildAttributeInsert(b *builder) {
 }
 
 func (a *att) writeAttributeInsert(b *builder) {
-	b.sql.WriteString(a.attributeName)
-	b.attrNames = append(b.attrNames, a.structAttributeName)
+	b.sql.Write(a.attributeName)
+	b.structColumns = append(b.structColumns, a.structAttributeName)
 }
 
 func (m *manyToOne) buildAttributeInsert(b *builder) {
@@ -214,8 +230,8 @@ func (m *manyToOne) buildAttributeInsert(b *builder) {
 }
 
 func (m *manyToOne) writeAttributeInsert(b *builder) {
-	b.sql.WriteString(m.attributeName)
-	b.attrNames = append(b.attrNames, m.structAttributeName)
+	b.sql.Write(m.attributeName)
+	b.structColumns = append(b.structColumns, m.structAttributeName)
 }
 
 func (o *oneToOne) buildAttributeInsert(b *builder) {
@@ -223,29 +239,25 @@ func (o *oneToOne) buildAttributeInsert(b *builder) {
 }
 
 func (o *oneToOne) writeAttributeInsert(b *builder) {
-	b.sql.WriteString(o.attributeName)
-	b.attrNames = append(b.attrNames, o.structAttributeName)
+	b.sql.Write(o.attributeName)
+	b.structColumns = append(b.structColumns, o.structAttributeName)
 }
 
 func (p *pk) buildAttributeUpdate(b *builder) {
 	if !p.autoIncrement {
-		b.attrNames = append(b.attrNames, p.attributeName)
 		b.structColumns = append(b.structColumns, p.structAttributeName)
 	}
 }
 
 func (a *att) buildAttributeUpdate(b *builder) {
-	b.attrNames = append(b.attrNames, a.attributeName)
 	b.structColumns = append(b.structColumns, a.structAttributeName)
 }
 
 func (m *manyToOne) buildAttributeUpdate(b *builder) {
-	b.attrNames = append(b.attrNames, m.attributeName)
 	b.structColumns = append(b.structColumns, m.structAttributeName)
 }
 
 func (o *oneToOne) buildAttributeUpdate(b *builder) {
-	b.attrNames = append(b.attrNames, o.attributeName)
 	b.structColumns = append(b.structColumns, o.structAttributeName)
 }
 

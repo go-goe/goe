@@ -24,8 +24,7 @@ type builder struct {
 	fields        []field
 	fieldsSelect  []fieldSelect
 	argsAny       []any
-	structColumns []string //update
-	attrNames     []string //insert and update
+	structColumns []string //insert and update
 	orderBy       string
 	limit         uint     //select
 	offset        uint     //select
@@ -180,7 +179,7 @@ func buildJoins(join string, sql *strings.Builder, f1, f2 field, tables []uint, 
 func (b *builder) buildInsert() {
 	b.sql.Write(b.driver.Insert())
 
-	b.attrNames = make([]string, 0, len(b.fields))
+	b.structColumns = make([]string, 0, len(b.fields))
 
 	f := b.fields[0]
 	b.sql.Write(f.table())
@@ -201,16 +200,17 @@ func (b *builder) buildInsert() {
 
 func (b *builder) buildValues(value reflect.Value) string {
 	b.sql.WriteByte('(')
-	b.argsAny = make([]any, 0, len(b.attrNames))
+	b.argsAny = make([]any, 0, len(b.structColumns))
 
 	c := 2
 	b.sql.WriteString("$1")
-	buildValueField(value.FieldByName(b.attrNames[0]), b)
-	a := b.attrNames[1:]
+	b.argsAny = append(b.argsAny, value.FieldByName(b.structColumns[0]).Interface())
+
+	a := b.structColumns[1:]
 	for i := range a {
 		b.sql.WriteByte(',')
 		b.sql.WriteString(fmt.Sprintf("$%v", c))
-		buildValueField(value.FieldByName(a[i]), b)
+		b.argsAny = append(b.argsAny, value.FieldByName(a[i]).Interface())
 		c++
 	}
 	b.sql.WriteByte(')')
@@ -222,7 +222,7 @@ func (b *builder) buildValues(value reflect.Value) string {
 }
 
 func (b *builder) buildBatchValues(value reflect.Value) string {
-	b.argsAny = make([]any, 0, len(b.attrNames))
+	b.argsAny = make([]any, 0, len(b.structColumns))
 
 	c := 1
 	buildBatchValues(value.Index(0), b, &c)
@@ -242,26 +242,22 @@ func (b *builder) buildBatchValues(value reflect.Value) string {
 func buildBatchValues(value reflect.Value, b *builder, c *int) {
 	b.sql.WriteByte('(')
 	b.sql.WriteString(fmt.Sprintf("$%v", *c))
-	buildValueField(value.FieldByName(b.attrNames[0]), b)
-	a := b.attrNames[1:]
+	b.argsAny = append(b.argsAny, value.FieldByName(b.structColumns[0]).Interface())
+
+	a := b.structColumns[1:]
 	for i := range a {
 		b.sql.WriteByte(',')
 		b.sql.WriteString(fmt.Sprintf("$%v", *c+1))
-		buildValueField(value.FieldByName(a[i]), b)
+		b.argsAny = append(b.argsAny, value.FieldByName(a[i]).Interface())
 		*c++
 	}
 	b.sql.WriteByte(')')
-}
-
-func buildValueField(valueField reflect.Value, b *builder) {
-	b.argsAny = append(b.argsAny, valueField.Interface())
 }
 
 func (b *builder) buildUpdate() {
 	b.sql.Write(b.driver.Update())
 
 	b.structColumns = make([]string, 0, len(b.fields))
-	b.attrNames = make([]string, 0, len(b.fields))
 
 	b.sql.Write(b.fields[0].table())
 	b.sql.Write(b.driver.Set())
@@ -274,21 +270,20 @@ func (b *builder) buildUpdate() {
 }
 
 func (b *builder) buildSet(value reflect.Value) {
-	b.argsAny = make([]any, 0, len(b.attrNames))
+	b.argsAny = make([]any, 0, len(b.structColumns))
 	var c uint16 = 1
-	buildSetField(value.FieldByName(b.structColumns[0]), b.attrNames[0], b, c)
+	buildSetField(value.FieldByName(b.structColumns[0]), b.fields[0].getAttributeName(), b, c)
 
-	a := b.attrNames[1:]
-	s := b.structColumns[1:]
-	for i := range a {
+	for i := 1; i < len(b.structColumns); i++ {
 		b.sql.WriteByte(',')
 		c++
-		buildSetField(value.FieldByName(s[i]), a[i], b, c)
+		buildSetField(value.FieldByName(b.structColumns[i]), b.fields[i].getAttributeName(), b, c)
 	}
 }
 
-func buildSetField(valueField reflect.Value, FieldName string, b *builder, c uint16) {
-	b.sql.WriteString(fmt.Sprintf("%v = $%v", FieldName, c))
+func buildSetField(valueField reflect.Value, attributeName []byte, b *builder, c uint16) {
+	b.sql.Write(attributeName)
+	b.sql.WriteString(fmt.Sprintf("= $%v", c))
 	b.argsAny = append(b.argsAny, valueField.Interface())
 	c++
 }

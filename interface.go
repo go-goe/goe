@@ -11,6 +11,7 @@ type field interface {
 	isPrimaryKey() bool
 	getTableId() uint
 	getSelect() string
+	getAttributeName() []byte
 	table() []byte
 	buildAttributeInsert(*builder)
 	writeAttributeInsert(*builder)
