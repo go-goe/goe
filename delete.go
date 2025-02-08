@@ -71,17 +71,16 @@ func (s *stateDelete) Where(Brs ...query.Operator) error {
 		return s.err
 	}
 
-	s.builder.buildDelete()
 	s.err = s.builder.buildSqlDelete()
 	if s.err != nil {
 		return s.err
 	}
 
-	Sql := s.builder.sql.String()
+	sql := s.builder.sql.String()
 	if s.config.LogQuery {
-		log.Println("\n" + Sql)
+		log.Println("\n" + sql)
 	}
-	return handlerValues(s.conn, Sql, s.builder.argsAny, s.ctx)
+	return handlerValues(s.conn, sql, s.builder.argsAny, s.ctx)
 }
 
 func createDeleteState(conn Connection, c *Config, ctx context.Context, d Driver, e error) *stateDelete {

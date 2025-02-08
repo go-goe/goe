@@ -213,7 +213,6 @@ func (s *stateSelect[T]) Rows() iter.Seq2[T, error] {
 		}
 	}
 
-	s.builder.buildSelect()
 	s.err = s.builder.buildSqlSelect()
 	if s.err != nil {
 		var v T
@@ -222,12 +221,12 @@ func (s *stateSelect[T]) Rows() iter.Seq2[T, error] {
 		}
 	}
 
-	Sql := s.builder.sql.String()
+	sql := s.builder.sql.String()
 	if s.config.LogQuery {
-		log.Println("\n" + Sql)
+		log.Println("\n" + sql)
 	}
 
-	return handlerResult[T](s.conn, Sql, s.builder.argsAny, len(s.builder.fieldsSelect), s.ctx)
+	return handlerResult[T](s.conn, sql, s.builder.argsAny, len(s.builder.fieldsSelect), s.ctx)
 }
 
 func SafeGet[T any](v *T) T {

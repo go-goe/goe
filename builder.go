@@ -44,6 +44,7 @@ func createBuilder(d Driver) *builder {
 
 func (b *builder) buildSelect() {
 	b.sql.Write(b.driver.Select())
+	b.sql.WriteByte(' ')
 
 	len := len(b.fieldsSelect)
 	if len == 0 {
@@ -77,6 +78,7 @@ func (b *builder) buildPage() {
 }
 
 func (b *builder) buildSqlSelect() (err error) {
+	b.buildSelect()
 	err = b.buildTables()
 	if err != nil {
 		return err
@@ -84,19 +86,32 @@ func (b *builder) buildSqlSelect() (err error) {
 	err = b.buildWhere()
 	b.sql.WriteString(b.orderBy)
 	b.buildPage()
-	b.sql.WriteByte(';')
 	return err
 }
 
-func (b *builder) buildSqlUpdate() (err error) {
+func (b *builder) buildSqlInsert(v reflect.Value) (idName string) {
+	b.buildInsert()
+	idName = b.buildValues(v)
+	return idName
+}
+
+func (b *builder) buildSqlInsertBatch(v reflect.Value) (idName string) {
+	b.buildInsert()
+	idName = b.buildBatchValues(v)
+	return idName
+}
+
+func (b *builder) buildSqlUpdate(v reflect.Value) (err error) {
+	b.buildUpdate()
+	b.buildSet(v)
 	err = b.buildWhere()
-	b.sql.WriteByte(';')
 	return err
 }
 
 func (b *builder) buildSqlDelete() (err error) {
+	b.sql.Write(b.driver.Delete())
+	b.sql.Write(b.fields[0].table())
 	err = b.buildWhere()
-	b.sql.WriteByte(';')
 	return err
 }
 
@@ -105,7 +120,8 @@ func (b *builder) buildWhere() error {
 		return nil
 	}
 	b.sql.WriteByte('\n')
-	b.sql.WriteString("WHERE ")
+	b.sql.Write(b.driver.Where())
+	b.sql.WriteByte(' ')
 	argsCount := len(b.argsAny) + 1
 	for _, op := range b.brs {
 		switch v := op.(type) {
@@ -139,11 +155,10 @@ func buildJoins(join string, sql *strings.Builder, f1, f2 field, tables []uint, 
 	sql.WriteByte('\n')
 	if !slices.Contains(tables, f2.getTableId()) {
 		sql.WriteString(join)
-		sql.WriteByte(' ')
 		sql.Write(f2.table())
-		sql.WriteString(" on (")
+		sql.WriteString("on(")
 		sql.WriteString(f1.getSelect())
-		sql.WriteString(" = ")
+		sql.WriteByte('=')
 		sql.WriteString(f2.getSelect())
 		sql.WriteByte(')')
 
@@ -151,11 +166,10 @@ func buildJoins(join string, sql *strings.Builder, f1, f2 field, tables []uint, 
 		return nil
 	}
 	sql.WriteString(join)
-	sql.WriteByte(' ')
 	sql.Write(f1.table())
-	sql.WriteString(" on (")
+	sql.WriteString("on(")
 	sql.WriteString(f1.getSelect())
-	sql.WriteString(" = ")
+	sql.WriteByte('=')
 	sql.WriteString(f2.getSelect())
 	sql.WriteByte(')')
 
@@ -164,15 +178,13 @@ func buildJoins(join string, sql *strings.Builder, f1, f2 field, tables []uint, 
 }
 
 func (b *builder) buildInsert() {
-	//TODO: Set a drive type to share stm
-	b.sql.WriteString("INSERT ")
-	b.sql.WriteString("INTO ")
+	b.sql.Write(b.driver.Insert())
 
 	b.attrNames = make([]string, 0, len(b.fields))
 
 	f := b.fields[0]
 	b.sql.Write(f.table())
-	b.sql.WriteString(" (")
+	b.sql.WriteByte('(')
 	for i := range b.fields {
 		b.fields[i].buildAttributeInsert(b)
 	}
@@ -183,12 +195,12 @@ func (b *builder) buildInsert() {
 		f.writeAttributeInsert(b)
 	}
 
-	b.sql.WriteString(") ")
-	b.sql.WriteString("VALUES ")
+	b.sql.WriteByte(')')
+	b.sql.Write(b.driver.Values())
 }
 
 func (b *builder) buildValues(value reflect.Value) string {
-	b.sql.WriteByte(40)
+	b.sql.WriteByte('(')
 	b.argsAny = make([]any, 0, len(b.attrNames))
 
 	c := 2
@@ -228,7 +240,7 @@ func (b *builder) buildBatchValues(value reflect.Value) string {
 }
 
 func buildBatchValues(value reflect.Value, b *builder, c *int) {
-	b.sql.WriteByte(40)
+	b.sql.WriteByte('(')
 	b.sql.WriteString(fmt.Sprintf("$%v", *c))
 	buildValueField(value.FieldByName(b.attrNames[0]), b)
 	a := b.attrNames[1:]
@@ -246,14 +258,13 @@ func buildValueField(valueField reflect.Value, b *builder) {
 }
 
 func (b *builder) buildUpdate() {
-	//TODO: Set a drive type to share stm
-	b.sql.WriteString("UPDATE ")
+	b.sql.Write(b.driver.Update())
 
 	b.structColumns = make([]string, 0, len(b.fields))
 	b.attrNames = make([]string, 0, len(b.fields))
 
 	b.sql.Write(b.fields[0].table())
-	b.sql.WriteString(" SET ")
+	b.sql.Write(b.driver.Set())
 	b.fields[0].buildAttributeUpdate(b)
 
 	a := b.fields[1:]
@@ -280,10 +291,4 @@ func buildSetField(valueField reflect.Value, FieldName string, b *builder, c uin
 	b.sql.WriteString(fmt.Sprintf("%v = $%v", FieldName, c))
 	b.argsAny = append(b.argsAny, valueField.Interface())
 	c++
-}
-
-func (b *builder) buildDelete() {
-	//TODO: Set a drive type to share stm
-	b.sql.WriteString("DELETE FROM ")
-	b.sql.Write(b.fields[0].table())
 }

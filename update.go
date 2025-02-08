@@ -168,9 +168,7 @@ func (s *stateUpdate[T]) Value(value T) error {
 
 	v := reflect.ValueOf(value)
 
-	s.builder.buildUpdate()
-	s.builder.buildSet(v)
-	s.err = s.builder.buildSqlUpdate()
+	s.err = s.builder.buildSqlUpdate(v)
 	if s.err != nil {
 		return s.err
 	}

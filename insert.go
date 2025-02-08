@@ -54,8 +54,7 @@ func (s *stateInsert[T]) One(value *T) error {
 
 	v := reflect.ValueOf(value).Elem()
 
-	s.builder.buildInsert()
-	idName := s.builder.buildValues(v)
+	idName := s.builder.buildSqlInsert(v)
 
 	sql := s.builder.sql.String()
 	if s.config.LogQuery {
@@ -74,8 +73,7 @@ func (s *stateInsert[T]) All(value []T) error {
 
 	valueOf := reflect.ValueOf(value)
 
-	s.builder.buildInsert()
-	idName := s.builder.buildBatchValues(valueOf)
+	idName := s.builder.buildSqlInsertBatch(valueOf)
 
 	Sql := s.builder.sql.String()
 	if s.config.LogQuery {

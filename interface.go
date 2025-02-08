@@ -34,9 +34,19 @@ type Driver interface {
 	RenameColumn(table, oldColumn, newColumn string, conn Connection) (string, error)
 	Init(*DB)
 	KeywordHandler(string) string
+	Sql
+}
+
+type Sql interface {
 	Select() []byte
 	From() []byte
+	Where() []byte
+	Insert() []byte
+	Values() []byte
 	Returning([]byte) []byte
+	Update() []byte
+	Set() []byte
+	Delete() []byte
 }
 
 type Connection interface {
