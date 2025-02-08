@@ -207,7 +207,7 @@ func (p *pk) buildAttributeInsert(b *builder) {
 	if !p.autoIncrement {
 		b.inserts = append(b.inserts, p)
 	}
-	b.returning = b.driver.Returning([]byte(p.attributeName))
+	b.returning = b.driver.Returning(p.attributeName)
 	b.structPkName = p.structAttributeName
 }
 
