@@ -8,7 +8,6 @@ import (
 )
 
 type oneToOne struct {
-	primaryKey bool
 	attributeStrings
 }
 
@@ -17,7 +16,7 @@ func (o *oneToOne) getDb() *DB {
 }
 
 func (o *oneToOne) isPrimaryKey() bool {
-	return o.primaryKey
+	return false
 }
 
 func (o *oneToOne) getTableId() int {
@@ -58,7 +57,6 @@ func createOneToOne(db *DB, typeOf reflect.Type, targetTypeOf reflect.Type, tabl
 }
 
 type manyToOne struct {
-	primaryKey bool
 	attributeStrings
 }
 
@@ -67,7 +65,7 @@ func (m *manyToOne) getDb() *DB {
 }
 
 func (m *manyToOne) isPrimaryKey() bool {
-	return m.primaryKey
+	return false
 }
 
 func (m *manyToOne) getTableId() int {

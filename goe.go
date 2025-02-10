@@ -256,29 +256,28 @@ func helperAttribute(tables reflect.Value, valueOf reflect.Value, i int, db *DB,
 		if mto := isManyToOne(db, tables, valueOf.Type(), tableId, fieldId, driver, table, prefix, valueOf.Type().Field(i).Name); mto != nil {
 			switch v := mto.(type) {
 			case *manyToOne:
+				ptr := uintptr(valueOf.Field(i).Addr().UnsafePointer())
 				if v == nil {
-					newAttr(valueOf, i, pks[0].tableBytes, uintptr(valueOf.Field(i).Addr().UnsafePointer()), db, tableId, fieldId, driver)
-					break
+					newAttr(valueOf, i, pks[0].tableBytes, ptr, db, tableId, fieldId, driver)
+					return
 				}
-				addrMap[uintptr(valueOf.Field(i).Addr().UnsafePointer())] = v
+				if addrMap[ptr] == nil {
+					addrMap[ptr] = v
+					return
+				}
 				for _, pk := range pks {
 					if !nullable && pk.fieldId == v.fieldId {
 						pk.autoIncrement = false
-						v.primaryKey = true
 					}
 				}
 			case *oneToOne:
+				ptr := uintptr(valueOf.Field(i).Addr().UnsafePointer())
 				if v == nil {
-					newAttr(valueOf, i, pks[0].tableBytes, uintptr(valueOf.Field(i).Addr().UnsafePointer()), db, tableId, fieldId, driver)
-					break
+					newAttr(valueOf, i, pks[0].tableBytes, ptr, db, tableId, fieldId, driver)
+					return
 				}
-				addrMap[uintptr(valueOf.Field(i).Addr().UnsafePointer())] = v
-				for _, pk := range pks {
-					//TODO: Check this
-					if !nullable && pk.fieldId == v.fieldId {
-						pk.autoIncrement = false
-						v.primaryKey = true
-					}
+				if addrMap[ptr] == nil {
+					addrMap[ptr] = v
 				}
 			}
 			return
