@@ -9,7 +9,7 @@ type field interface {
 	fieldSelect
 	fieldDb
 	isPrimaryKey() bool
-	getTableId() uint
+	getTableId() int
 	getSelect() string
 	getAttributeName() []byte
 	table() []byte

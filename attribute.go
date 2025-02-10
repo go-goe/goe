@@ -20,7 +20,7 @@ func (o *oneToOne) isPrimaryKey() bool {
 	return o.primaryKey
 }
 
-func (o *oneToOne) getTableId() uint {
+func (o *oneToOne) getTableId() int {
 	return o.tableId
 }
 
@@ -32,7 +32,7 @@ func (o *oneToOne) getAttributeName() []byte {
 	return o.attributeName
 }
 
-func createOneToOne(db *DB, typeOf reflect.Type, targetTypeOf reflect.Type, tableId uint, Driver Driver, prefix, fieldName string) *oneToOne {
+func createOneToOne(db *DB, typeOf reflect.Type, targetTypeOf reflect.Type, tableId, fieldId int, Driver Driver, prefix, fieldName string) *oneToOne {
 	mto := new(oneToOne)
 	targetPks := primaryKeys(typeOf)
 	count := 0
@@ -51,6 +51,7 @@ func createOneToOne(db *DB, typeOf reflect.Type, targetTypeOf reflect.Type, tabl
 		[]byte(Driver.KeywordHandler(utils.TableNamePattern(targetTypeOf.Name()))),
 		fieldName,
 		tableId,
+		fieldId,
 		Driver,
 	)
 	return mto
@@ -69,7 +70,7 @@ func (m *manyToOne) isPrimaryKey() bool {
 	return m.primaryKey
 }
 
-func (m *manyToOne) getTableId() uint {
+func (m *manyToOne) getTableId() int {
 	return m.tableId
 }
 
@@ -81,7 +82,7 @@ func (m *manyToOne) getAttributeName() []byte {
 	return m.attributeName
 }
 
-func createManyToOne(db *DB, typeOf reflect.Type, targetTypeOf reflect.Type, tableId uint, Driver Driver, prefix, fieldName string) *manyToOne {
+func createManyToOne(db *DB, typeOf reflect.Type, targetTypeOf reflect.Type, tableId, fieldId int, Driver Driver, prefix, fieldName string) *manyToOne {
 	mto := new(manyToOne)
 	targetPks := primaryKeys(typeOf)
 	count := 0
@@ -100,28 +101,29 @@ func createManyToOne(db *DB, typeOf reflect.Type, targetTypeOf reflect.Type, tab
 		[]byte(Driver.KeywordHandler(utils.TableNamePattern(targetTypeOf.Name()))),
 		fieldName,
 		tableId,
+		fieldId,
 		Driver,
 	)
 	return mto
 }
 
 type attributeStrings struct {
-	db                  *DB
-	tableId             uint
-	tableBytes          []byte
-	selectName          string
-	attributeName       []byte
-	structAttributeName string
+	db            *DB
+	tableId       int
+	tableBytes    []byte
+	selectName    string
+	attributeName []byte
+	fieldId       int
 }
 
-func createAttributeStrings(db *DB, table []byte, attributeName string, tableId uint, Driver Driver) attributeStrings {
+func createAttributeStrings(db *DB, table []byte, attributeName string, tableId, fieldId int, Driver Driver) attributeStrings {
 	return attributeStrings{
-		db:                  db,
-		tableBytes:          table,
-		tableId:             tableId,
-		selectName:          fmt.Sprintf("%v.%v", string(table), Driver.KeywordHandler(utils.ColumnNamePattern(attributeName))),
-		attributeName:       []byte(Driver.KeywordHandler(utils.ColumnNamePattern(attributeName))),
-		structAttributeName: attributeName,
+		db:            db,
+		tableBytes:    table,
+		tableId:       tableId,
+		fieldId:       fieldId,
+		selectName:    fmt.Sprintf("%v.%v", string(table), Driver.KeywordHandler(utils.ColumnNamePattern(attributeName))),
+		attributeName: []byte(Driver.KeywordHandler(utils.ColumnNamePattern(attributeName))),
 	}
 }
 
@@ -138,7 +140,7 @@ func (p *pk) isPrimaryKey() bool {
 	return true
 }
 
-func (p *pk) getTableId() uint {
+func (p *pk) getTableId() int {
 	return p.tableId
 }
 
@@ -150,11 +152,10 @@ func (p *pk) getAttributeName() []byte {
 	return p.attributeName
 }
 
-func createPk(db *DB, table []byte, attributeName string, autoIncrement bool, tableId uint, Driver Driver) *pk {
-	//TODO:: Check this utils
+func createPk(db *DB, table []byte, attributeName string, autoIncrement bool, tableId, fieldId int, Driver Driver) *pk {
 	table = []byte(Driver.KeywordHandler(utils.TableNamePattern(string(table))))
 	return &pk{
-		attributeStrings: createAttributeStrings(db, table, attributeName, tableId, Driver),
+		attributeStrings: createAttributeStrings(db, table, attributeName, tableId, fieldId, Driver),
 		autoIncrement:    autoIncrement}
 }
 
@@ -170,7 +171,7 @@ func (a *att) isPrimaryKey() bool {
 	return false
 }
 
-func (a *att) getTableId() uint {
+func (a *att) getTableId() int {
 	return a.tableId
 }
 
@@ -182,9 +183,9 @@ func (a *att) getAttributeName() []byte {
 	return a.attributeName
 }
 
-func createAtt(db *DB, attributeName string, tableBytes []byte, tableId uint, d Driver) *att {
+func createAtt(db *DB, attributeName string, tableBytes []byte, tableId, fieldId int, d Driver) *att {
 	return &att{
-		attributeStrings: createAttributeStrings(db, tableBytes, attributeName, tableId, d)}
+		attributeStrings: createAttributeStrings(db, tableBytes, attributeName, tableId, fieldId, d)}
 }
 
 func (p *pk) buildAttributeSelect(b *builder) {
@@ -208,12 +209,12 @@ func (p *pk) buildAttributeInsert(b *builder) {
 		b.inserts = append(b.inserts, p)
 	}
 	b.returning = b.driver.Returning(p.attributeName)
-	b.structPkName = p.structAttributeName
+	b.pkFieldId = p.fieldId
 }
 
 func (p *pk) writeAttributeInsert(b *builder) {
 	b.sql.Write(p.attributeName)
-	b.structColumns = append(b.structColumns, p.structAttributeName)
+	b.fieldIds = append(b.fieldIds, p.fieldId)
 }
 
 func (a *att) buildAttributeInsert(b *builder) {
@@ -222,7 +223,7 @@ func (a *att) buildAttributeInsert(b *builder) {
 
 func (a *att) writeAttributeInsert(b *builder) {
 	b.sql.Write(a.attributeName)
-	b.structColumns = append(b.structColumns, a.structAttributeName)
+	b.fieldIds = append(b.fieldIds, a.fieldId)
 }
 
 func (m *manyToOne) buildAttributeInsert(b *builder) {
@@ -231,7 +232,7 @@ func (m *manyToOne) buildAttributeInsert(b *builder) {
 
 func (m *manyToOne) writeAttributeInsert(b *builder) {
 	b.sql.Write(m.attributeName)
-	b.structColumns = append(b.structColumns, m.structAttributeName)
+	b.fieldIds = append(b.fieldIds, m.fieldId)
 }
 
 func (o *oneToOne) buildAttributeInsert(b *builder) {
@@ -240,25 +241,25 @@ func (o *oneToOne) buildAttributeInsert(b *builder) {
 
 func (o *oneToOne) writeAttributeInsert(b *builder) {
 	b.sql.Write(o.attributeName)
-	b.structColumns = append(b.structColumns, o.structAttributeName)
+	b.fieldIds = append(b.fieldIds, o.fieldId)
 }
 
 func (p *pk) buildAttributeUpdate(b *builder) {
 	if !p.autoIncrement {
-		b.structColumns = append(b.structColumns, p.structAttributeName)
+		b.fieldIds = append(b.fieldIds, p.fieldId)
 	}
 }
 
 func (a *att) buildAttributeUpdate(b *builder) {
-	b.structColumns = append(b.structColumns, a.structAttributeName)
+	b.fieldIds = append(b.fieldIds, a.fieldId)
 }
 
 func (m *manyToOne) buildAttributeUpdate(b *builder) {
-	b.structColumns = append(b.structColumns, m.structAttributeName)
+	b.fieldIds = append(b.fieldIds, m.fieldId)
 }
 
 func (o *oneToOne) buildAttributeUpdate(b *builder) {
-	b.structColumns = append(b.structColumns, o.structAttributeName)
+	b.fieldIds = append(b.fieldIds, o.fieldId)
 }
 
 func (p *pk) getSelect() string {

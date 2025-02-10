@@ -54,14 +54,14 @@ func (s *stateInsert[T]) One(value *T) error {
 
 	v := reflect.ValueOf(value).Elem()
 
-	idName := s.builder.buildSqlInsert(v)
+	pkFieldId := s.builder.buildSqlInsert(v)
 
 	sql := s.builder.sql.String()
 	if s.config.LogQuery {
 		log.Println("\n" + sql)
 	}
 	if s.builder.returning != nil {
-		return handlerValuesReturning(s.conn, sql, v, s.builder.argsAny, idName, s.ctx)
+		return handlerValuesReturning(s.conn, sql, v, s.builder.argsAny, pkFieldId, s.ctx)
 	}
 	return handlerValues(s.conn, sql, s.builder.argsAny, s.ctx)
 }
@@ -73,13 +73,13 @@ func (s *stateInsert[T]) All(value []T) error {
 
 	valueOf := reflect.ValueOf(value)
 
-	idName := s.builder.buildSqlInsertBatch(valueOf)
+	pkFieldId := s.builder.buildSqlInsertBatch(valueOf)
 
 	Sql := s.builder.sql.String()
 	if s.config.LogQuery {
 		log.Println("\n" + Sql)
 	}
-	return handlerValuesReturningBatch(s.conn, Sql, valueOf, s.builder.argsAny, idName, s.ctx)
+	return handlerValuesReturningBatch(s.conn, Sql, valueOf, s.builder.argsAny, pkFieldId, s.ctx)
 }
 
 func createInsertState[T any](conn Connection, c *Config, ctx context.Context, d Driver, e error) *stateInsert[T] {

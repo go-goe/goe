@@ -15,23 +15,23 @@ var ErrNoMatchesTables = errors.New("don't have any relationship")
 var ErrNotManyToMany = errors.New("don't have a many to many relationship")
 
 type builder struct {
-	sql           *strings.Builder
-	driver        Driver
-	structPkName  string //insert
-	returning     []byte //insert
-	inserts       []field
-	froms         []byte
-	fields        []field
-	fieldsSelect  []fieldSelect
-	argsAny       []any
-	structColumns []string //insert and update
-	orderBy       string
-	limit         uint     //select
-	offset        uint     //select
-	joins         []string //select
-	joinsArgs     []field  //select
-	tables        []uint
-	brs           []query.Operator
+	sql          *strings.Builder
+	driver       Driver
+	pkFieldId    int    //insert
+	returning    []byte //insert
+	inserts      []field
+	froms        []byte
+	fields       []field
+	fieldsSelect []fieldSelect
+	argsAny      []any
+	fieldIds     []int //insert and update
+	orderBy      string
+	limit        uint     //select
+	offset       uint     //select
+	joins        []string //select
+	joinsArgs    []field  //select
+	tables       []int
+	brs          []query.Operator
 }
 
 func createBuilder(d Driver) *builder {
@@ -61,7 +61,7 @@ func (b *builder) buildSelect() {
 func (b *builder) buildSelectJoins(join string, fields []field) {
 	j := len(b.joinsArgs)
 	b.joinsArgs = append(b.joinsArgs, make([]field, 2)...)
-	b.tables = append(b.tables, make([]uint, 1)...)
+	b.tables = append(b.tables, make([]int, 1)...)
 	b.joins = append(b.joins, join)
 	b.joinsArgs[j] = fields[0]
 	b.joinsArgs[j+1] = fields[1]
@@ -88,16 +88,16 @@ func (b *builder) buildSqlSelect() (err error) {
 	return err
 }
 
-func (b *builder) buildSqlInsert(v reflect.Value) (idName string) {
+func (b *builder) buildSqlInsert(v reflect.Value) (pkFieldId int) {
 	b.buildInsert()
-	idName = b.buildValues(v)
-	return idName
+	pkFieldId = b.buildValues(v)
+	return pkFieldId
 }
 
-func (b *builder) buildSqlInsertBatch(v reflect.Value) (idName string) {
+func (b *builder) buildSqlInsertBatch(v reflect.Value) (pkFieldId int) {
 	b.buildInsert()
-	idName = b.buildBatchValues(v)
-	return idName
+	pkFieldId = b.buildBatchValues(v)
+	return pkFieldId
 }
 
 func (b *builder) buildSqlUpdate(v reflect.Value) (err error) {
@@ -150,7 +150,7 @@ func (b *builder) buildTables() (err error) {
 	return nil
 }
 
-func buildJoins(join string, sql *strings.Builder, f1, f2 field, tables []uint, tableIndice int) error {
+func buildJoins(join string, sql *strings.Builder, f1, f2 field, tables []int, tableIndice int) error {
 	sql.WriteByte('\n')
 	if !slices.Contains(tables, f2.getTableId()) {
 		sql.WriteString(join)
@@ -179,7 +179,7 @@ func buildJoins(join string, sql *strings.Builder, f1, f2 field, tables []uint, 
 func (b *builder) buildInsert() {
 	b.sql.Write(b.driver.Insert())
 
-	b.structColumns = make([]string, 0, len(b.fields))
+	b.fieldIds = make([]int, 0, len(b.fields))
 
 	f := b.fields[0]
 	b.sql.Write(f.table())
@@ -198,31 +198,31 @@ func (b *builder) buildInsert() {
 	b.sql.Write(b.driver.Values())
 }
 
-func (b *builder) buildValues(value reflect.Value) string {
+func (b *builder) buildValues(value reflect.Value) int {
 	b.sql.WriteByte('(')
-	b.argsAny = make([]any, 0, len(b.structColumns))
+	b.argsAny = make([]any, 0, len(b.fieldIds))
 
 	c := 2
 	b.sql.WriteString("$1")
-	b.argsAny = append(b.argsAny, value.FieldByName(b.structColumns[0]).Interface())
+	b.argsAny = append(b.argsAny, value.Field(b.fieldIds[0]).Interface())
 
-	a := b.structColumns[1:]
+	a := b.fieldIds[1:]
 	for i := range a {
 		b.sql.WriteByte(',')
 		b.sql.WriteString(fmt.Sprintf("$%v", c))
-		b.argsAny = append(b.argsAny, value.FieldByName(a[i]).Interface())
+		b.argsAny = append(b.argsAny, value.Field(a[i]).Interface())
 		c++
 	}
 	b.sql.WriteByte(')')
 	if b.returning != nil {
 		b.sql.Write(b.returning)
 	}
-	return b.structPkName
+	return b.pkFieldId
 
 }
 
-func (b *builder) buildBatchValues(value reflect.Value) string {
-	b.argsAny = make([]any, 0, len(b.structColumns))
+func (b *builder) buildBatchValues(value reflect.Value) int {
+	b.argsAny = make([]any, 0, len(b.fieldIds))
 
 	c := 1
 	buildBatchValues(value.Index(0), b, &c)
@@ -235,20 +235,20 @@ func (b *builder) buildBatchValues(value reflect.Value) string {
 	if b.returning != nil {
 		b.sql.Write(b.returning)
 	}
-	return b.structPkName
+	return b.pkFieldId
 
 }
 
 func buildBatchValues(value reflect.Value, b *builder, c *int) {
 	b.sql.WriteByte('(')
 	b.sql.WriteString(fmt.Sprintf("$%v", *c))
-	b.argsAny = append(b.argsAny, value.FieldByName(b.structColumns[0]).Interface())
+	b.argsAny = append(b.argsAny, value.Field(b.fieldIds[0]).Interface())
 
-	a := b.structColumns[1:]
+	a := b.fieldIds[1:]
 	for i := range a {
 		b.sql.WriteByte(',')
 		b.sql.WriteString(fmt.Sprintf("$%v", *c+1))
-		b.argsAny = append(b.argsAny, value.FieldByName(a[i]).Interface())
+		b.argsAny = append(b.argsAny, value.Field(a[i]).Interface())
 		*c++
 	}
 	b.sql.WriteByte(')')
@@ -257,7 +257,7 @@ func buildBatchValues(value reflect.Value, b *builder, c *int) {
 func (b *builder) buildUpdate() {
 	b.sql.Write(b.driver.Update())
 
-	b.structColumns = make([]string, 0, len(b.fields))
+	b.fieldIds = make([]int, 0, len(b.fields))
 
 	b.sql.Write(b.fields[0].table())
 	b.sql.Write(b.driver.Set())
@@ -270,14 +270,14 @@ func (b *builder) buildUpdate() {
 }
 
 func (b *builder) buildSet(value reflect.Value) {
-	b.argsAny = make([]any, 0, len(b.structColumns))
+	b.argsAny = make([]any, 0, len(b.fieldIds))
 	var c uint16 = 1
-	buildSetField(value.FieldByName(b.structColumns[0]), b.fields[0].getAttributeName(), b, c)
+	buildSetField(value.Field(b.fieldIds[0]), b.fields[0].getAttributeName(), b, c)
 
-	for i := 1; i < len(b.structColumns); i++ {
+	for i := 1; i < len(b.fieldIds); i++ {
 		b.sql.WriteByte(',')
 		c++
-		buildSetField(value.FieldByName(b.structColumns[i]), b.fields[i].getAttributeName(), b, c)
+		buildSetField(value.Field(b.fieldIds[i]), b.fields[i].getAttributeName(), b, c)
 	}
 }
 

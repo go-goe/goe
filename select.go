@@ -166,7 +166,7 @@ func (s *stateSelect[T]) From(tables ...any) *stateSelect[T] {
 		return s
 	}
 
-	s.builder.tables = make([]uint, len(tables))
+	s.builder.tables = make([]int, len(tables))
 	args, err := getArgsTables(addrMap, s.builder.tables, tables...)
 	if err != nil {
 		s.err = err
@@ -435,7 +435,7 @@ func getArgsJoin(addrMap map[uintptr]field, args ...any) ([]field, error) {
 	return fields, nil
 }
 
-func getArgsTables(addrMap map[uintptr]field, tables []uint, args ...any) ([]byte, error) {
+func getArgsTables(addrMap map[uintptr]field, tables []int, args ...any) ([]byte, error) {
 	if reflect.ValueOf(args[0]).Kind() != reflect.Pointer {
 		//TODO: add ErrInvalidTable
 		return nil, ErrInvalidArg

@@ -15,17 +15,17 @@ func handlerValues(conn Connection, sqlQuery string, args []any, ctx context.Con
 	return nil
 }
 
-func handlerValuesReturning(conn Connection, sqlQuery string, value reflect.Value, args []any, idName string, ctx context.Context) error {
+func handlerValuesReturning(conn Connection, sqlQuery string, value reflect.Value, args []any, pkFieldId int, ctx context.Context) error {
 	row := conn.QueryRowContext(ctx, sqlQuery, args...)
 
-	err := row.Scan(value.FieldByName(idName).Addr().Interface())
+	err := row.Scan(value.Field(pkFieldId).Addr().Interface())
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func handlerValuesReturningBatch(conn Connection, sqlQuery string, value reflect.Value, args []any, idName string, ctx context.Context) error {
+func handlerValuesReturningBatch(conn Connection, sqlQuery string, value reflect.Value, args []any, pkFieldId int, ctx context.Context) error {
 	rows, err := conn.QueryContext(ctx, sqlQuery, args...)
 	if err != nil {
 		return err
@@ -34,7 +34,7 @@ func handlerValuesReturningBatch(conn Connection, sqlQuery string, value reflect
 
 	i := 0
 	for rows.Next() {
-		err = rows.Scan(value.Index(i).FieldByName(idName).Addr().Interface())
+		err = rows.Scan(value.Index(i).Field(pkFieldId).Addr().Interface())
 		if err != nil {
 			return err
 		}
