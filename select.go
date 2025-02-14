@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"iter"
 	"log"
+	"math"
 	"reflect"
 	"strings"
 
@@ -15,6 +16,7 @@ type stateSelect[T any] struct {
 	config  *Config
 	conn    Connection
 	builder *builder
+	tables  []any
 	ctx     context.Context
 	err     error
 }
@@ -110,18 +112,6 @@ func (s *stateSelect[T]) Skip(i uint) *stateSelect[T] {
 	return s
 }
 
-// Page returns page p with i elements
-//
-// # Example
-//
-//	// returns first 20 elements
-//	db.Select(db.Habitat).Page(1, 20).Scan(&h)
-func (s *stateSelect[T]) Page(p uint, i uint) *stateSelect[T] {
-	s.builder.offset = i * (p - 1)
-	s.builder.limit = i
-	return s
-}
-
 // OrderByAsc makes a ordained by arg ascending query
 //
 // # Example
@@ -172,6 +162,7 @@ func (s *stateSelect[T]) From(tables ...any) *stateSelect[T] {
 		s.err = err
 		return s
 	}
+	s.tables = tables
 	s.builder.froms = args
 	return s
 }
@@ -202,6 +193,104 @@ func (s *stateSelect[T]) RowsAsSlice() ([]T, error) {
 		rows = append(rows, row)
 	}
 	return rows, nil
+}
+
+type Pagination[T any] struct {
+	TotalValues int64
+	TotalPages  uint
+
+	PageValues int
+	PageSize   uint
+
+	CurrentPage     uint
+	HasPreviousPage bool
+	PreviousPage    uint
+	HasNextPage     bool
+	NextPage        uint
+
+	StartIndex uint
+	EndIndex   uint
+	Values     []T
+}
+
+func (s *stateSelect[T]) AsPagination(page, size uint) (*Pagination[T], error) {
+	if s.err != nil {
+		return nil, s.err
+	}
+
+	var err error
+	if page == 0 || size == 0 {
+		p := new(Pagination[T])
+		p.Values, err = s.RowsAsSlice()
+		return p, err
+	}
+
+	stateCount := Select(&struct {
+		*query.Count
+	}{
+		Count: query.GetCount(s.tables[0]),
+	})
+
+	// copy joins
+	stateCount.builder.joins = s.builder.joins
+	stateCount.builder.joinsArgs = s.builder.joinsArgs
+	stateCount.builder.tables = make([]int, len(s.builder.tables))
+	copy(stateCount.builder.tables, s.builder.tables)
+	stateCount.builder.froms = s.builder.froms
+
+	// copy wheres
+	stateCount.builder.brs = s.builder.brs
+
+	var count int64
+	for row, err := range stateCount.Rows() {
+		if err != nil {
+			return nil, err
+		}
+		count = row.Value
+		break
+	}
+
+	s.builder.offset = size * (page - 1)
+	s.builder.limit = size
+
+	p := new(Pagination[T])
+
+	p.Values, err = s.RowsAsSlice()
+	if err != nil {
+		return nil, err
+	}
+
+	p.TotalValues = count
+
+	p.TotalPages = uint(math.Ceil(float64(count) / float64(size)))
+	p.CurrentPage = page
+
+	if page == p.TotalPages {
+		p.NextPage = page
+	} else {
+		p.NextPage = page + 1
+		p.HasNextPage = true
+	}
+
+	if page == 1 {
+		p.PreviousPage = page
+	} else {
+		p.PreviousPage = page - 1
+		p.HasPreviousPage = true
+	}
+
+	p.PageSize = size
+	p.PageValues = len(p.Values)
+
+	p.StartIndex = (page-1)*size + 1
+
+	if !p.HasNextPage {
+		p.EndIndex = uint(p.TotalValues)
+	} else {
+		p.EndIndex = size * page
+	}
+
+	return p, nil
 }
 
 // TODO: Add doc
@@ -254,11 +343,6 @@ func ListContext[T any](ctx context.Context, t *T, tx ...*Tx) *list[T] {
 	return &list[T]{sSelect: SelectContext(ctx, t, tx...).From(t), table: t}
 }
 
-func (l *list[T]) Page(page, size uint) *list[T] {
-	l.sSelect.Page(page, size)
-	return l
-}
-
 func (l *list[T]) OrderByAsc(a any) *list[T] {
 	l.sSelect.OrderByAsc(a)
 	return l
@@ -285,6 +369,14 @@ func (l *list[T]) AsSlice() ([]T, error) {
 		return nil, l.err
 	}
 	return l.sSelect.RowsAsSlice()
+}
+
+func (l *list[T]) AsPagination(page, size uint) (*Pagination[T], error) {
+	if l.err != nil {
+		return nil, l.err
+	}
+
+	return l.sSelect.AsPagination(page, size)
 }
 
 func getNonZeroFields[T any](addrMap map[uintptr]field, table *T, value T) ([]field, []any, error) {

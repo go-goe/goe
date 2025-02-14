@@ -132,6 +132,29 @@ func TestSelect(t *testing.T) {
 		{Name: "Puma", IdHabitat: &habitats[1].Id},
 		{Name: "Snake", IdHabitat: &habitats[1].Id},
 		{Name: "Whale"},
+		{Name: "Wolf"},
+		{Name: "Spider"},
+		{Name: "Roach"},
+		{Name: "Cricket"},
+		{Name: "Eagle"},
+		{Name: "Falcon"},
+		{Name: "Shark"},
+		{Name: "Dolphin"},
+		{Name: "Turtle"},
+		{Name: "Crocodile"},
+		{Name: "Frog"},
+		{Name: "Elephant"},
+		{Name: "Giraffe"},
+		{Name: "Kangaroo"},
+		{Name: "Koala"},
+		{Name: "Penguin"},
+		{Name: "Polar Bear"},
+		{Name: "Octopus"},
+		{Name: "Jellyfish"},
+		{Name: "Ant"},
+		{Name: "Butterfly"},
+		{Name: "Owl"},
+		{Name: "Fox"},
 	}
 	err = goe.Insert(db.Animal).All(animals)
 	if err != nil {
@@ -274,19 +297,6 @@ func TestSelect(t *testing.T) {
 			},
 		},
 		{
-			desc: "List_Filter_Page",
-			testCase: func(t *testing.T) {
-				var a []Animal
-				a, err = goe.List(db.Animal).Filter(Animal{Name: "%Cat%"}).Page(1, 2).AsSlice()
-				if err != nil {
-					t.Fatalf("Expected List, got error: %v", err)
-				}
-				if len(a) != 2 {
-					t.Errorf("Expected 1, got %v", len(a))
-				}
-			},
-		},
-		{
 			desc: "List_Filter_Order",
 			testCase: func(t *testing.T) {
 				var a []Animal
@@ -310,6 +320,204 @@ func TestSelect(t *testing.T) {
 
 				if int(a[0].Value) != len(animals) {
 					t.Errorf("Expected %v got: %v", len(animals), a[0].Value)
+				}
+			},
+		},
+		{
+			desc: "List_As_Pagination",
+			testCase: func(t *testing.T) {
+				var p *goe.Pagination[Animal]
+				p, err = goe.List(db.Animal).AsPagination(1, 10)
+				if err != nil {
+					t.Fatalf("Expected pagination, got: %v", err)
+				}
+
+				if p.TotalValues != int64(len(animals)) {
+					t.Errorf("Expected %v, got %v", len(animals), p.TotalValues)
+				}
+
+				if p.TotalPages != 4 {
+					t.Errorf("Expected 4, got %v", p.TotalPages)
+				}
+
+				if p.PageSize != 10 {
+					t.Errorf("Expected 10, got %v", p.PageSize)
+				}
+
+				if p.CurrentPage != 1 {
+					t.Errorf("Expected 1, got %v", p.CurrentPage)
+				}
+
+				if p.NextPage != 2 {
+					t.Errorf("Expected 2, got %v", p.NextPage)
+				}
+
+				if p.PreviousPage != 1 {
+					t.Errorf("Expected 1, got %v", p.PreviousPage)
+				}
+
+				if p.HasNextPage != true {
+					t.Errorf("Expected true, got %v", p.HasNextPage)
+				}
+
+				if p.HasPreviousPage != false {
+					t.Errorf("Expected false, got %v", p.HasPreviousPage)
+				}
+
+				if p.PageValues != 10 {
+					t.Errorf("Expected 10, got %v", p.PageValues)
+				}
+
+				if p.StartIndex != 1 {
+					t.Errorf("Expected 1, got %v", p.StartIndex)
+				}
+
+				if p.EndIndex != 10 {
+					t.Errorf("Expected 10, got %v", p.EndIndex)
+				}
+
+				//navigate to second page
+				p, err = goe.List(db.Animal).AsPagination(p.NextPage, p.PageSize)
+				if p.StartIndex != 11 {
+					t.Errorf("Expected 1, got %v", p.StartIndex)
+				}
+
+				if p.EndIndex != 20 {
+					t.Errorf("Expected 10, got %v", p.EndIndex)
+				}
+
+				//navigate to third page
+				p, err = goe.List(db.Animal).AsPagination(p.NextPage, p.PageSize)
+				if p.StartIndex != 21 {
+					t.Errorf("Expected 1, got %v", p.StartIndex)
+				}
+
+				if p.EndIndex != 30 {
+					t.Errorf("Expected 10, got %v", p.EndIndex)
+				}
+
+				p, err = goe.List(db.Animal).AsPagination(p.TotalPages, p.PageSize)
+				if err != nil {
+					t.Fatalf("Expected pagination, got: %v", err)
+				}
+
+				if p.TotalValues != int64(len(animals)) {
+					t.Errorf("Expected %v, got %v", len(animals), p.TotalValues)
+				}
+
+				if p.TotalPages != 4 {
+					t.Errorf("Expected 4, got %v", p.TotalPages)
+				}
+
+				if p.PageSize != 10 {
+					t.Errorf("Expected 10, got %v", p.PageSize)
+				}
+
+				if p.CurrentPage != 4 {
+					t.Errorf("Expected 4, got %v", p.CurrentPage)
+				}
+
+				if p.NextPage != 4 {
+					t.Errorf("Expected 4, got %v", p.NextPage)
+				}
+
+				if p.PreviousPage != 3 {
+					t.Errorf("Expected 3, got %v", p.PreviousPage)
+				}
+
+				if p.HasNextPage != false {
+					t.Errorf("Expected false, got %v", p.HasNextPage)
+				}
+
+				if p.HasPreviousPage != true {
+					t.Errorf("Expected true, got %v", p.HasPreviousPage)
+				}
+
+				if p.PageValues != 2 {
+					t.Errorf("Expected 2, got %v", p.PageValues)
+				}
+
+				if p.StartIndex != 31 {
+					t.Errorf("Expected 31, got %v", p.StartIndex)
+				}
+
+				if p.EndIndex != 32 {
+					t.Errorf("Expected 31, got %v", p.EndIndex)
+				}
+			},
+		},
+		{
+			desc: "List_As_Pagination_Page_0",
+			testCase: func(t *testing.T) {
+				var p *goe.Pagination[Animal]
+				p, err = goe.List(db.Animal).AsPagination(0, 1)
+				if err != nil {
+					t.Fatalf("Expected pagination, got: %v", err)
+				}
+
+				if len(p.Values) != len(animals) {
+					t.Fatalf("Expected %v, got: %v", len(animals), len(p.Values))
+				}
+			},
+		},
+		{
+			desc: "List_As_Pagination_Size_0",
+			testCase: func(t *testing.T) {
+				var p *goe.Pagination[Animal]
+				p, err = goe.List(db.Animal).AsPagination(1, 0)
+				if err != nil {
+					t.Fatalf("Expected pagination, got: %v", err)
+				}
+
+				if len(p.Values) != len(animals) {
+					t.Fatalf("Expected %v, got: %v", len(animals), len(p.Values))
+				}
+			},
+		},
+		{
+			desc: "Select_As_Pagination",
+			testCase: func(t *testing.T) {
+				var p *goe.Pagination[Animal]
+				p, err = goe.Select(db.Animal).From(db.Animal).
+					Joins(query.Join[uuid.UUID](&db.Animal.IdHabitat, &db.Habitat.Id)).
+					Where(query.Like(&db.Animal.Name, "%at")).
+					OrderByDesc(&db.Animal.Id).
+					AsPagination(1, 10)
+				if err != nil {
+					t.Fatalf("Expected pagination, got: %v", err)
+				}
+
+				if p.TotalValues != 3 {
+					t.Errorf("Expected 3, got %v", p.TotalValues)
+				}
+			},
+		},
+		{
+			desc: "Select_As_Pagination_Anonymous",
+			testCase: func(t *testing.T) {
+				var p *goe.Pagination[struct {
+					Animal    *string
+					Habitat   *string
+					HabitatId *uuid.UUID
+				}]
+				p, err = goe.Select(&struct {
+					Animal    *string
+					Habitat   *string
+					HabitatId *uuid.UUID
+				}{
+					Animal:    &db.Animal.Name,
+					Habitat:   &db.Habitat.Name,
+					HabitatId: &db.Habitat.Id,
+				}).From(db.Animal).
+					Joins(query.LeftJoin[uuid.UUID](&db.Animal.IdHabitat, &db.Habitat.Id)).
+					OrderByAsc(&db.Animal.Id).
+					AsPagination(1, 10)
+				if err != nil {
+					t.Fatalf("Expected pagination, got: %v", err)
+				}
+
+				if p.TotalValues != 32 {
+					t.Errorf("Expected 32, got %v", p.TotalValues)
 				}
 			},
 		},
@@ -437,8 +645,8 @@ func TestSelect(t *testing.T) {
 			testCase: func(t *testing.T) {
 				qr := goe.Select(db.Animal).From(db.Animal).Where(query.Equals[*uuid.UUID](&db.Animal.IdHabitat, nil)).Rows()
 				a := runSelect(t, qr)
-				if len(a) != 1 {
-					t.Errorf("Expected %v animals, got %v", 1, len(a))
+				if len(a) != 24 {
+					t.Errorf("Expected %v animals, got %v", 22, len(a))
 				}
 			},
 		},
@@ -479,17 +687,6 @@ func TestSelect(t *testing.T) {
 				a := runSelect(t, qr)
 				if a[0].Id < a[1].Id {
 					t.Errorf("Expected animals order by desc, got %v", a)
-				}
-			},
-		},
-		{
-			desc: "Select_Page",
-			testCase: func(t *testing.T) {
-				var pageSize uint = 5
-				qr := goe.Select(db.Animal).From(db.Animal).Page(1, pageSize).Rows()
-				a := runSelect(t, qr)
-				if len(a) != int(pageSize) {
-					t.Errorf("Expected %v animals, got %v", pageSize, len(a))
 				}
 			},
 		},
@@ -676,24 +873,6 @@ func TestSelect(t *testing.T) {
 
 				if len(s) != 2 {
 					t.Errorf("Expected 2, got : %v", len(s))
-				}
-			},
-		},
-		{
-			desc: "Select_Join_Page",
-			testCase: func(t *testing.T) {
-				var pageSize uint = 2
-
-				qr := goe.Select(db.Animal).From(db.Animal).
-					Joins(
-						query.Join[int](&db.Animal.Id, &db.AnimalFood.IdAnimal),
-						query.Join[uuid.UUID](&db.Food.Id, &db.AnimalFood.IdFood),
-					).
-					Page(1, pageSize).Rows()
-				a := runSelect(t, qr)
-
-				if len(a) != int(pageSize) {
-					t.Errorf("Expected %v animals, got %v", pageSize, len(a))
 				}
 			},
 		},
