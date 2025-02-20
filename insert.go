@@ -18,12 +18,12 @@ type stateInsert[T any] struct {
 // to specify the context, use [query.InsertContext].
 //
 // # Example
-func Insert[T any](table *T, tx ...*Tx) *stateInsert[T] {
+func Insert[T any](table *T, tx ...Transaction) *stateInsert[T] {
 	return InsertContext[T](context.Background(), table, tx...)
 }
 
 // InsertContext creates a insert state for table
-func InsertContext[T any](ctx context.Context, table *T, tx ...*Tx) *stateInsert[T] {
+func InsertContext[T any](ctx context.Context, table *T, tx ...Transaction) *stateInsert[T] {
 	fields, err := getArgsTable(addrMap, table)
 
 	var state *stateInsert[T]
@@ -35,9 +35,9 @@ func InsertContext[T any](ctx context.Context, table *T, tx ...*Tx) *stateInsert
 	db := fields[0].getDb()
 
 	if tx != nil {
-		state = createInsertState[T](tx[0].SqlTx, db.Config, ctx, db.Driver, err)
+		state = createInsertState[T](tx[0], db.Config, ctx, db.Driver, err)
 	} else {
-		state = createInsertState[T](db.SqlDB, db.Config, ctx, db.Driver, err)
+		state = createInsertState[T](db.Driver.NewConnection(), db.Config, ctx, db.Driver, err)
 	}
 	state.builder.fields = fields
 	return state

@@ -2,6 +2,7 @@ package goe_test
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"testing"
@@ -32,7 +33,7 @@ func (md *MockDriver) RenameColumn(string, string, string, goe.Connection) (stri
 	return "", nil
 }
 
-func (md *MockDriver) Init(*goe.DB) {
+func (md *MockDriver) Init() {
 }
 
 func (md *MockDriver) KeywordHandler(s string) string {
@@ -73,6 +74,18 @@ func (md *MockDriver) Set() []byte {
 
 func (md *MockDriver) Delete() []byte {
 	return nil
+}
+
+func (md *MockDriver) NewConnection() goe.Connection {
+	return nil
+}
+
+func (md *MockDriver) NewTransaction(ctx context.Context, opts *sql.TxOptions) (goe.Transaction, error) {
+	return nil, nil
+}
+
+func (md *MockDriver) Stats() sql.DBStats {
+	return sql.DBStats{}
 }
 
 func TestMapDatabase(t *testing.T) {

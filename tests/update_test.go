@@ -153,9 +153,9 @@ func TestUpdate(t *testing.T) {
 		{
 			desc: "Update_Animal_Tx_Commit",
 			testCase: func(t *testing.T) {
-				var tx *goe.Tx
+				var tx goe.Transaction
 
-				tx, err = goe.BeginTx(db)
+				tx, err = goe.NewTransaction(db)
 				if err != nil {
 					t.Fatalf("Expected tx, got error: %v", err)
 				}
@@ -225,9 +225,9 @@ func TestUpdate(t *testing.T) {
 		{
 			desc: "Update_PersonJobs_Tx_Rollback",
 			testCase: func(t *testing.T) {
-				var tx *goe.Tx
+				var tx goe.Transaction
 
-				tx, err = goe.BeginTx(db)
+				tx, err = goe.NewTransaction(db)
 				if err != nil {
 					t.Fatalf("Expected tx, got error: %v", err)
 				}

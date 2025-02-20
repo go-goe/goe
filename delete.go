@@ -15,11 +15,11 @@ type stateDelete struct {
 	err     error
 }
 
-func Remove[T any](table *T, value T, tx ...*Tx) error {
+func Remove[T any](table *T, value T, tx ...Transaction) error {
 	return RemoveContext(context.Background(), table, value, tx...)
 }
 
-func RemoveContext[T any](ctx context.Context, table *T, value T, tx ...*Tx) error {
+func RemoveContext[T any](ctx context.Context, table *T, value T, tx ...Transaction) error {
 	pks, pksValue, err := getPksField(addrMap, table, value)
 	if err != nil {
 		return err
@@ -34,12 +34,12 @@ func RemoveContext[T any](ctx context.Context, table *T, value T, tx ...*Tx) err
 // to specify the context, use [query.DeleteContext].
 //
 // # Example
-func Delete[T any](table *T, tx ...*Tx) *stateDelete {
+func Delete[T any](table *T, tx ...Transaction) *stateDelete {
 	return DeleteContext(context.Background(), table, tx...)
 }
 
 // DeleteContext creates a delete state for table
-func DeleteContext[T any](ctx context.Context, table *T, tx ...*Tx) *stateDelete {
+func DeleteContext[T any](ctx context.Context, table *T, tx ...Transaction) *stateDelete {
 	fields, err := getArgsTable(addrMap, table)
 
 	var state *stateDelete
@@ -52,9 +52,9 @@ func DeleteContext[T any](ctx context.Context, table *T, tx ...*Tx) *stateDelete
 	db := fields[0].getDb()
 
 	if tx != nil {
-		state = createDeleteState(tx[0].SqlTx, db.Config, ctx, db.Driver, err)
+		state = createDeleteState(tx[0], db.Config, ctx, db.Driver, err)
 	} else {
-		state = createDeleteState(db.SqlDB, db.Config, ctx, db.Driver, err)
+		state = createDeleteState(db.Driver.NewConnection(), db.Config, ctx, db.Driver, err)
 	}
 
 	state.builder.fields = fields

@@ -17,11 +17,11 @@ type save[T any] struct {
 	update   *stateUpdate[T]
 }
 
-func Save[T any](table *T, tx ...*Tx) *save[T] {
+func Save[T any](table *T, tx ...Transaction) *save[T] {
 	return SaveContext(context.Background(), table, tx...)
 }
 
-func SaveContext[T any](ctx context.Context, table *T, tx ...*Tx) *save[T] {
+func SaveContext[T any](ctx context.Context, table *T, tx ...Transaction) *save[T] {
 	save := &save[T]{}
 	save.update = UpdateContext(ctx, table, tx...)
 
@@ -106,12 +106,12 @@ type stateUpdate[T any] struct {
 // to specify the context, use [DB.UpdateContext].
 //
 // # Example
-func Update[T any](table *T, tx ...*Tx) *stateUpdate[T] {
+func Update[T any](table *T, tx ...Transaction) *stateUpdate[T] {
 	return UpdateContext(context.Background(), table, tx...)
 }
 
 // UpdateContext creates a update state for table
-func UpdateContext[T any](ctx context.Context, table *T, tx ...*Tx) *stateUpdate[T] {
+func UpdateContext[T any](ctx context.Context, table *T, tx ...Transaction) *stateUpdate[T] {
 	f := getArg(table, addrMap)
 
 	var state *stateUpdate[T]
@@ -124,9 +124,9 @@ func UpdateContext[T any](ctx context.Context, table *T, tx ...*Tx) *stateUpdate
 	db := f.getDb()
 
 	if tx != nil {
-		state = createUpdateState[T](tx[0].SqlTx, db.Config, ctx, db.Driver, nil)
+		state = createUpdateState[T](tx[0], db.Config, ctx, db.Driver, nil)
 	} else {
-		state = createUpdateState[T](db.SqlDB, db.Config, ctx, db.Driver, nil)
+		state = createUpdateState[T](db.Driver.NewConnection(), db.Config, ctx, db.Driver, nil)
 	}
 
 	return state

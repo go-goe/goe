@@ -1,6 +1,7 @@
 package tests_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/google/uuid"
@@ -42,7 +43,7 @@ func BenchmarkSelectRaw(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		rows, _ := goeDb.SqlDB.Query("select a.id, a.name, a.idinfo, a.idhabitat from animals a;")
+		rows, _ := goeDb.RawConnection().QueryContext(context.Background(), "select a.id, a.name, a.idinfo, a.idhabitat from animals a;")
 		defer rows.Close()
 
 		var a Animal
@@ -131,7 +132,7 @@ func BenchmarkJoinSql(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 
-		rows, _ := goeDb.SqlDB.Query(`select f.id, f.name from foods f
+		rows, _ := goeDb.RawConnection().QueryContext(context.Background(), `select f.id, f.name from foods f
 						join animalfoods af on f.id = af.idfood
 						join animals a on af.idanimal = a.id 
 						join habitats h on a.idhabitat = h.id 

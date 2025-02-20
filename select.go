@@ -21,11 +21,11 @@ type stateSelect[T any] struct {
 	err     error
 }
 
-func Find[T any](t *T, v T, tx ...*Tx) (*T, error) {
+func Find[T any](t *T, v T, tx ...Transaction) (*T, error) {
 	return FindContext(context.Background(), t, v, tx...)
 }
 
-func FindContext[T any](ctx context.Context, t *T, v T, tx ...*Tx) (*T, error) {
+func FindContext[T any](ctx context.Context, t *T, v T, tx ...Transaction) (*T, error) {
 	pks, pksValue, err := getPksField(addrMap, t, v)
 
 	if err != nil {
@@ -49,11 +49,11 @@ func FindContext[T any](ctx context.Context, t *T, v T, tx ...*Tx) (*T, error) {
 // to specify the context, use [query.SelectContext].
 //
 // # Example
-func Select[T any](t *T, tx ...*Tx) *stateSelect[T] {
+func Select[T any](t *T, tx ...Transaction) *stateSelect[T] {
 	return SelectContext(context.Background(), t, tx...)
 }
 
-func SelectContext[T any](ctx context.Context, t *T, tx ...*Tx) *stateSelect[T] {
+func SelectContext[T any](ctx context.Context, t *T, tx ...Transaction) *stateSelect[T] {
 	fields, err := getArgsSelect(addrMap, t)
 
 	var state *stateSelect[T]
@@ -66,9 +66,9 @@ func SelectContext[T any](ctx context.Context, t *T, tx ...*Tx) *stateSelect[T] 
 	db := fields[0].getDb()
 
 	if tx != nil {
-		state = createSelectState[T](tx[0].SqlTx, db.Config, ctx, db.Driver, nil)
+		state = createSelectState[T](tx[0], db.Config, ctx, db.Driver, nil)
 	} else {
-		state = createSelectState[T](db.SqlDB, db.Config, ctx, db.Driver, nil)
+		state = createSelectState[T](db.Driver.NewConnection(), db.Config, ctx, db.Driver, nil)
 	}
 
 	state.builder.fieldsSelect = fields
@@ -335,11 +335,11 @@ type list[T any] struct {
 	err     error
 }
 
-func List[T any](t *T, tx ...*Tx) *list[T] {
+func List[T any](t *T, tx ...Transaction) *list[T] {
 	return ListContext(context.Background(), t, tx...)
 }
 
-func ListContext[T any](ctx context.Context, t *T, tx ...*Tx) *list[T] {
+func ListContext[T any](ctx context.Context, t *T, tx ...Transaction) *list[T] {
 	return &list[T]{sSelect: SelectContext(ctx, t, tx...).From(t), table: t}
 }
 

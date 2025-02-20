@@ -21,8 +21,8 @@ func TestDelete(t *testing.T) {
 		t.Fatalf("Expected goe database, got error: %v", err)
 	}
 
-	if goeDb.SqlDB.Stats().InUse != 0 {
-		t.Errorf("Expected closed connection, got: %v", goeDb.SqlDB.Stats().InUse)
+	if goeDb.Stats().InUse != 0 {
+		t.Errorf("Expected closed connection, got: %v", goeDb.Stats().InUse)
 	}
 	err = goe.Delete(db.AnimalFood).Where()
 	if err != nil {
@@ -72,8 +72,8 @@ func TestDelete(t *testing.T) {
 		{
 			desc: "Delete_One_Record",
 			testCase: func(t *testing.T) {
-				if goeDb.SqlDB.Stats().InUse != 0 {
-					t.Errorf("Expected closed connection, got: %v", goeDb.SqlDB.Stats().InUse)
+				if goeDb.Stats().InUse != 0 {
+					t.Errorf("Expected closed connection, got: %v", goeDb.Stats().InUse)
 				}
 
 				a := Animal{Name: "Dog"}
@@ -82,8 +82,8 @@ func TestDelete(t *testing.T) {
 					t.Fatalf("Expected a insert animal, got error: %v", err)
 				}
 
-				if goeDb.SqlDB.Stats().InUse != 0 {
-					t.Errorf("Expected closed connection, got: %v", goeDb.SqlDB.Stats().InUse)
+				if goeDb.Stats().InUse != 0 {
+					t.Errorf("Expected closed connection, got: %v", goeDb.Stats().InUse)
 				}
 
 				var as *Animal
@@ -92,8 +92,8 @@ func TestDelete(t *testing.T) {
 					t.Fatalf("Expected a select, got error: %v", err)
 				}
 
-				if goeDb.SqlDB.Stats().InUse != 0 {
-					t.Errorf("Expected closed connection, got: %v", goeDb.SqlDB.Stats().InUse)
+				if goeDb.Stats().InUse != 0 {
+					t.Errorf("Expected closed connection, got: %v", goeDb.Stats().InUse)
 				}
 
 				err = goe.Remove(db.Animal, Animal{Id: as.Id})
@@ -101,8 +101,8 @@ func TestDelete(t *testing.T) {
 					t.Errorf("Expected a delete animal, got error: %v", err)
 				}
 
-				if goeDb.SqlDB.Stats().InUse != 0 {
-					t.Errorf("Expected closed connection, got: %v", goeDb.SqlDB.Stats().InUse)
+				if goeDb.Stats().InUse != 0 {
+					t.Errorf("Expected closed connection, got: %v", goeDb.Stats().InUse)
 				}
 
 				_, err = goe.Find(db.Animal, Animal{Id: as.Id})
@@ -126,8 +126,8 @@ func TestDelete(t *testing.T) {
 					t.Fatalf("Expected a select, got error: %v", err)
 				}
 
-				var tx *goe.Tx
-				tx, err = goe.BeginTx(db)
+				var tx goe.Transaction
+				tx, err = goe.NewTransaction(db)
 				if err != nil {
 					t.Fatalf("Expected tx, got error: %v", err)
 				}
@@ -207,9 +207,9 @@ func TestDelete(t *testing.T) {
 					t.Fatalf("Expected a insert, got error: %v", err)
 				}
 
-				var tx *goe.Tx
+				var tx goe.Transaction
 
-				tx, err = goe.BeginTx(db)
+				tx, err = goe.NewTransaction(db)
 				if err != nil {
 					t.Fatalf("Expected tx, got error: %v", err)
 				}

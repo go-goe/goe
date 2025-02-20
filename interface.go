@@ -33,9 +33,34 @@ type Driver interface {
 	DropTable(string, Connection) (string, error)
 	DropColumn(table, column string, conn Connection) (string, error)
 	RenameColumn(table, oldColumn, newColumn string, conn Connection) (string, error)
-	Init(*DB)
+	Init()
 	KeywordHandler(string) string
+	NewConnection() Connection
+	NewTransaction(ctx context.Context, opts *sql.TxOptions) (Transaction, error)
+	Stats() sql.DBStats
 	Sql
+}
+
+type Connection interface {
+	ExecContext(ctx context.Context, query string, args ...any) error
+	QueryRowContext(ctx context.Context, query string, args ...any) Row
+	QueryContext(ctx context.Context, query string, args ...any) (Rows, error)
+}
+
+type Transaction interface {
+	Connection
+	Commit() error
+	Rollback() error
+}
+
+type Rows interface {
+	Close() error
+	Next() bool
+	Row
+}
+
+type Row interface {
+	Scan(dest ...any) error
 }
 
 type Sql interface {
@@ -48,10 +73,4 @@ type Sql interface {
 	Update() []byte
 	Set() []byte
 	Delete() []byte
-}
-
-type Connection interface {
-	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
-	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
-	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
 }

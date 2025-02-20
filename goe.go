@@ -40,7 +40,7 @@ func Open[T any](driver Driver, config Config) (*T, error) {
 	}
 
 	dbTarget.Driver = driver
-	dbTarget.Driver.Init(dbTarget)
+	dbTarget.Driver.Init()
 	dbTarget.Config = &config
 	return db, nil
 }

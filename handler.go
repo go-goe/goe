@@ -2,13 +2,12 @@ package goe
 
 import (
 	"context"
-	"database/sql"
 	"iter"
 	"reflect"
 )
 
 func handlerValues(conn Connection, sqlQuery string, args []any, ctx context.Context) error {
-	_, err := conn.ExecContext(ctx, sqlQuery, args...)
+	err := conn.ExecContext(ctx, sqlQuery, args...)
 	if err != nil {
 		return err
 	}
@@ -62,7 +61,7 @@ func handlerResult[T any](conn Connection, sqlQuery string, args []any, numField
 	return mapStructQuery[T](rows, dest, value)
 }
 
-func mapStructQuery[T any](rows *sql.Rows, dest []any, value reflect.Type) iter.Seq2[T, error] {
+func mapStructQuery[T any](rows Rows, dest []any, value reflect.Type) iter.Seq2[T, error] {
 	return func(yield func(T, error) bool) {
 		var (
 			err  error

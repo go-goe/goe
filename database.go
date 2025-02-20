@@ -33,8 +33,15 @@ var addrMap map[uintptr]field
 
 type DB struct {
 	Config *Config
-	SqlDB  *sql.DB
 	Driver Driver
+}
+
+func (db *DB) Stats() sql.DBStats {
+	return db.Driver.Stats()
+}
+
+func (db *DB) RawConnection() Connection {
+	return db.Driver.NewConnection()
 }
 
 func GetGoeDatabase(dbTarget any) (db *DB, err error) {
@@ -51,33 +58,15 @@ func GetGoeDatabase(dbTarget any) (db *DB, err error) {
 	return goeDb.getDb(), nil
 }
 
-func BeginTx(dbTarget any) (*Tx, error) {
-	return BeginTxContext(context.Background(), dbTarget, sql.LevelSerializable)
+func NewTransaction(dbTarget any) (Transaction, error) {
+	return NewTransactionContext(context.Background(), dbTarget, sql.LevelSerializable)
 }
 
-func BeginTxContext(ctx context.Context, dbTarget any, isolation sql.IsolationLevel) (*Tx, error) {
+func NewTransactionContext(ctx context.Context, dbTarget any, isolation sql.IsolationLevel) (Transaction, error) {
 	goeDb, err := GetGoeDatabase(dbTarget)
 	if err != nil {
 		return nil, err
 	}
 
-	var sqlTx *sql.Tx
-	sqlTx, err = goeDb.SqlDB.BeginTx(ctx, &sql.TxOptions{Isolation: isolation})
-	if err != nil {
-		return nil, err
-	}
-
-	return &Tx{SqlTx: sqlTx}, nil
-}
-
-type Tx struct {
-	SqlTx *sql.Tx
-}
-
-func (tx *Tx) Commit() error {
-	return tx.SqlTx.Commit()
-}
-
-func (tx *Tx) Rollback() error {
-	return tx.SqlTx.Rollback()
+	return goeDb.Driver.NewTransaction(ctx, &sql.TxOptions{Isolation: isolation})
 }
