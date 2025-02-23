@@ -22,8 +22,7 @@ func AutoMigrateContext(ctx context.Context, dbTarget any) error {
 		return m.Error
 	}
 
-	//TODO: remove this driver connection
-	sql, err := db.Driver.MigrateContext(ctx, m, db.Driver.NewConnection())
+	sql, err := db.Driver.MigrateContext(ctx, m)
 	if db.Config.LogQuery {
 		log.Println("\n" + sql)
 	}
@@ -36,7 +35,7 @@ func DropTable(dbTarget any, table string) error {
 		return err
 	}
 
-	sql, err := db.Driver.DropTable(db.Driver.KeywordHandler(utils.TableNamePattern(table)), db.Driver.NewConnection())
+	sql, err := db.Driver.DropTable(db.Driver.KeywordHandler(utils.TableNamePattern(table)))
 	if db.Config.LogQuery {
 		log.Println("\n" + sql)
 	}
@@ -52,7 +51,7 @@ func DropColumn(dbTarget any, table, column string) error {
 	table = db.Driver.KeywordHandler(utils.TableNamePattern(table))
 	column = db.Driver.KeywordHandler(utils.ColumnNamePattern(column))
 
-	sql, err := db.Driver.DropColumn(table, column, db.Driver.NewConnection())
+	sql, err := db.Driver.DropColumn(table, column)
 	if db.Config.LogQuery {
 		log.Println("\n" + sql)
 	}
@@ -69,7 +68,7 @@ func RenameColumn(dbTarget any, table, oldColumn, newColumn string) error {
 	oldColumn = db.Driver.KeywordHandler(utils.ColumnNamePattern(oldColumn))
 	newColumn = db.Driver.KeywordHandler(utils.ColumnNamePattern(newColumn))
 
-	sql, err := db.Driver.RenameColumn(table, oldColumn, newColumn, db.Driver.NewConnection())
+	sql, err := db.Driver.RenameColumn(table, oldColumn, newColumn)
 	if db.Config.LogQuery {
 		log.Println("\n" + sql)
 	}

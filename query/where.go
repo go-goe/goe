@@ -13,7 +13,10 @@ type Operation struct {
 	Arg       any
 	Value     any
 	Operator  string
-	ValueFlag string
+	Attribute string
+	Table     string
+	Function  uint
+	ValueFlag string //TODO: update to attribute
 }
 
 func (o Operation) Operation() string {
@@ -21,8 +24,10 @@ func (o Operation) Operation() string {
 }
 
 type OperationIs struct {
-	Arg      any
-	Operator string
+	Arg       any
+	Operator  string
+	Table     string
+	Attribute string
 }
 
 func (o OperationIs) Operation() string {

@@ -23,11 +23,11 @@ func (o *oneToOne) getTableId() int {
 	return o.tableId
 }
 
-func (o *oneToOne) table() []byte {
-	return o.tableBytes
+func (o *oneToOne) table() string {
+	return o.tableName
 }
 
-func (o *oneToOne) getAttributeName() []byte {
+func (o *oneToOne) getAttributeName() string {
 	return o.attributeName
 }
 
@@ -47,7 +47,7 @@ func createOneToOne(db *DB, typeOf reflect.Type, targetTypeOf reflect.Type, tabl
 
 	mto.attributeStrings = createAttributeStrings(
 		db,
-		[]byte(Driver.KeywordHandler(utils.TableNamePattern(targetTypeOf.Name()))),
+		Driver.KeywordHandler(utils.TableNamePattern(targetTypeOf.Name())),
 		fieldName,
 		tableId,
 		fieldId,
@@ -72,11 +72,11 @@ func (m *manyToOne) getTableId() int {
 	return m.tableId
 }
 
-func (m *manyToOne) table() []byte {
-	return m.tableBytes
+func (m *manyToOne) table() string {
+	return m.tableName
 }
 
-func (m *manyToOne) getAttributeName() []byte {
+func (m *manyToOne) getAttributeName() string {
 	return m.attributeName
 }
 
@@ -96,7 +96,7 @@ func createManyToOne(db *DB, typeOf reflect.Type, targetTypeOf reflect.Type, tab
 
 	mto.attributeStrings = createAttributeStrings(
 		db,
-		[]byte(Driver.KeywordHandler(utils.TableNamePattern(targetTypeOf.Name()))),
+		Driver.KeywordHandler(utils.TableNamePattern(targetTypeOf.Name())),
 		fieldName,
 		tableId,
 		fieldId,
@@ -108,20 +108,20 @@ func createManyToOne(db *DB, typeOf reflect.Type, targetTypeOf reflect.Type, tab
 type attributeStrings struct {
 	db            *DB
 	tableId       int
-	tableBytes    []byte
+	tableName     string
 	selectName    string
-	attributeName []byte
+	attributeName string
 	fieldId       int
 }
 
-func createAttributeStrings(db *DB, table []byte, attributeName string, tableId, fieldId int, Driver Driver) attributeStrings {
+func createAttributeStrings(db *DB, table string, attributeName string, tableId, fieldId int, Driver Driver) attributeStrings {
 	return attributeStrings{
 		db:            db,
-		tableBytes:    table,
+		tableName:     table,
 		tableId:       tableId,
 		fieldId:       fieldId,
-		selectName:    fmt.Sprintf("%v.%v", string(table), Driver.KeywordHandler(utils.ColumnNamePattern(attributeName))),
-		attributeName: []byte(Driver.KeywordHandler(utils.ColumnNamePattern(attributeName))),
+		selectName:    fmt.Sprintf("%v.%v", table, Driver.KeywordHandler(utils.ColumnNamePattern(attributeName))),
+		attributeName: Driver.KeywordHandler(utils.ColumnNamePattern(attributeName)),
 	}
 }
 
@@ -142,16 +142,16 @@ func (p *pk) getTableId() int {
 	return p.tableId
 }
 
-func (p *pk) table() []byte {
-	return p.tableBytes
+func (p *pk) table() string {
+	return p.tableName
 }
 
-func (p *pk) getAttributeName() []byte {
+func (p *pk) getAttributeName() string {
 	return p.attributeName
 }
 
-func createPk(db *DB, table []byte, attributeName string, autoIncrement bool, tableId, fieldId int, Driver Driver) *pk {
-	table = []byte(Driver.KeywordHandler(utils.TableNamePattern(string(table))))
+func createPk(db *DB, table string, attributeName string, autoIncrement bool, tableId, fieldId int, Driver Driver) *pk {
+	table = Driver.KeywordHandler(utils.TableNamePattern(table))
 	return &pk{
 		attributeStrings: createAttributeStrings(db, table, attributeName, tableId, fieldId, Driver),
 		autoIncrement:    autoIncrement}
@@ -173,72 +173,90 @@ func (a *att) getTableId() int {
 	return a.tableId
 }
 
-func (a *att) table() []byte {
-	return a.tableBytes
+func (a *att) table() string {
+	return a.tableName
 }
 
-func (a *att) getAttributeName() []byte {
+func (a *att) getAttributeName() string {
 	return a.attributeName
 }
 
-func createAtt(db *DB, attributeName string, tableBytes []byte, tableId, fieldId int, d Driver) *att {
+func createAtt(db *DB, attributeName string, table string, tableId, fieldId int, d Driver) *att {
 	return &att{
-		attributeStrings: createAttributeStrings(db, tableBytes, attributeName, tableId, fieldId, d)}
+		attributeStrings: createAttributeStrings(db, table, attributeName, tableId, fieldId, d)}
 }
 
 func (p *pk) buildAttributeSelect(b *builder) {
 	b.sql.WriteString(p.selectName)
+	b.query.Attributes = append(b.query.Attributes, Attribute{
+		Table: p.tableName,
+		Name:  p.attributeName,
+	})
 }
 
 func (a *att) buildAttributeSelect(b *builder) {
 	b.sql.WriteString(a.selectName)
+	b.query.Attributes = append(b.query.Attributes, Attribute{
+		Table: a.tableName,
+		Name:  a.attributeName,
+	})
 }
 
 func (m *manyToOne) buildAttributeSelect(b *builder) {
 	b.sql.WriteString(m.selectName)
+	b.query.Attributes = append(b.query.Attributes, Attribute{
+		Table: m.tableName,
+		Name:  m.attributeName,
+	})
 }
 
 func (o *oneToOne) buildAttributeSelect(b *builder) {
 	b.sql.WriteString(o.selectName)
+	b.query.Attributes = append(b.query.Attributes, Attribute{
+		Table: o.tableName,
+		Name:  o.attributeName,
+	})
 }
 
 func (p *pk) buildAttributeInsert(b *builder) {
 	if !p.autoIncrement {
 		b.inserts = append(b.inserts, p)
+		b.query.Attributes = append(b.query.Attributes, Attribute{Name: p.getAttributeName()})
+		return
 	}
-	b.returning = b.driver.Returning(p.attributeName)
+	b.query.ReturningId = &Attribute{Name: p.getAttributeName()}
+	b.returning = b.driver.Returning([]byte(p.attributeName))
 	b.pkFieldId = p.fieldId
 }
 
 func (p *pk) writeAttributeInsert(b *builder) {
-	b.sql.Write(p.attributeName)
 	b.fieldIds = append(b.fieldIds, p.fieldId)
 }
 
 func (a *att) buildAttributeInsert(b *builder) {
 	b.inserts = append(b.inserts, a)
+	b.query.Attributes = append(b.query.Attributes, Attribute{Name: a.getAttributeName()})
 }
 
 func (a *att) writeAttributeInsert(b *builder) {
-	b.sql.Write(a.attributeName)
 	b.fieldIds = append(b.fieldIds, a.fieldId)
 }
 
 func (m *manyToOne) buildAttributeInsert(b *builder) {
 	b.inserts = append(b.inserts, m)
+	b.query.Attributes = append(b.query.Attributes, Attribute{Name: m.getAttributeName()})
 }
 
 func (m *manyToOne) writeAttributeInsert(b *builder) {
-	b.sql.Write(m.attributeName)
 	b.fieldIds = append(b.fieldIds, m.fieldId)
 }
 
 func (o *oneToOne) buildAttributeInsert(b *builder) {
 	b.inserts = append(b.inserts, o)
+	b.query.Attributes = append(b.query.Attributes, Attribute{Name: o.getAttributeName()})
 }
 
 func (o *oneToOne) writeAttributeInsert(b *builder) {
-	b.sql.Write(o.attributeName)
 	b.fieldIds = append(b.fieldIds, o.fieldId)
 }
 
@@ -277,13 +295,20 @@ func (o *oneToOne) getSelect() string {
 }
 
 type aggregate struct {
-	selectName string
-	db         *DB
+	attributeName string
+	table         string
+	aggregateType uint
+	selectName    string
+	db            *DB
 }
 
 func (a *aggregate) buildAttributeSelect(b *builder) {
 	//TODO: update to write bytes
 	b.sql.WriteString(a.selectName)
+	b.query.Attributes = append(b.query.Attributes, Attribute{
+		Table:         a.table,
+		Name:          a.attributeName,
+		AggregateType: a.aggregateType})
 }
 
 func (a *aggregate) getDb() *DB {

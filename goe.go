@@ -85,7 +85,7 @@ func initField(tables reflect.Value, valueOf reflect.Value, db *DB, tableId int,
 func handlerStruct(targetTypeOf reflect.Type, valueOf reflect.Value, i int, p *pk, db *DB, tableId, fieldId int, driver Driver) {
 	switch targetTypeOf.Name() {
 	case "Time":
-		newAttr(valueOf, i, p.tableBytes, uintptr(valueOf.Field(i).Addr().UnsafePointer()), db, tableId, fieldId, driver)
+		newAttr(valueOf, i, p.tableName, uintptr(valueOf.Field(i).Addr().UnsafePointer()), db, tableId, fieldId, driver)
 	}
 }
 
@@ -97,11 +97,11 @@ func handlerSlice(tables reflect.Value, targetTypeOf reflect.Type, valueOf refle
 	return nil
 }
 
-func newAttr(valueOf reflect.Value, i int, tableBytes []byte, addr uintptr, db *DB, tableId, fieldId int, d Driver) {
+func newAttr(valueOf reflect.Value, i int, table string, addr uintptr, db *DB, tableId, fieldId int, d Driver) {
 	at := createAtt(
 		db,
 		valueOf.Type().Field(i).Name,
-		tableBytes,
+		table,
 		tableId,
 		fieldId,
 		d,
@@ -121,7 +121,7 @@ func getPk(db *DB, typeOf reflect.Type, tableId int, driver Driver) ([]*pk, []in
 		pks := make([]*pk, 1)
 		fieldIds = make([]int, 1)
 		fieldId = getFieldId(typeOf, id.Name)
-		pks[0] = createPk(db, []byte(typeOf.Name()), id.Name, isAutoIncrement(id), tableId, fieldId, driver)
+		pks[0] = createPk(db, typeOf.Name(), id.Name, isAutoIncrement(id), tableId, fieldId, driver)
 		fieldIds[0] = fieldId
 		return pks, fieldIds, nil
 	}
@@ -135,7 +135,7 @@ func getPk(db *DB, typeOf reflect.Type, tableId int, driver Driver) ([]*pk, []in
 	fieldIds = make([]int, len(fields))
 	for i := range fields {
 		fieldId = getFieldId(typeOf, fields[i].Name)
-		pks[i] = createPk(db, []byte(typeOf.Name()), fields[i].Name, isAutoIncrement(fields[i]), tableId, fieldId, driver)
+		pks[i] = createPk(db, typeOf.Name(), fields[i].Name, isAutoIncrement(fields[i]), tableId, fieldId, driver)
 		fieldIds[i] = fieldId
 	}
 
@@ -258,7 +258,7 @@ func helperAttribute(tables reflect.Value, valueOf reflect.Value, i int, db *DB,
 			case *manyToOne:
 				ptr := uintptr(valueOf.Field(i).Addr().UnsafePointer())
 				if v == nil {
-					newAttr(valueOf, i, pks[0].tableBytes, ptr, db, tableId, fieldId, driver)
+					newAttr(valueOf, i, pks[0].tableName, ptr, db, tableId, fieldId, driver)
 					return
 				}
 				if addrMap[ptr] == nil {
@@ -273,7 +273,7 @@ func helperAttribute(tables reflect.Value, valueOf reflect.Value, i int, db *DB,
 			case *oneToOne:
 				ptr := uintptr(valueOf.Field(i).Addr().UnsafePointer())
 				if v == nil {
-					newAttr(valueOf, i, pks[0].tableBytes, ptr, db, tableId, fieldId, driver)
+					newAttr(valueOf, i, pks[0].tableName, ptr, db, tableId, fieldId, driver)
 					return
 				}
 				if addrMap[ptr] == nil {
@@ -283,5 +283,5 @@ func helperAttribute(tables reflect.Value, valueOf reflect.Value, i int, db *DB,
 			return
 		}
 	}
-	newAttr(valueOf, i, pks[0].tableBytes, uintptr(valueOf.Field(i).Addr().UnsafePointer()), db, tableId, fieldId, driver)
+	newAttr(valueOf, i, pks[0].tableName, uintptr(valueOf.Field(i).Addr().UnsafePointer()), db, tableId, fieldId, driver)
 }

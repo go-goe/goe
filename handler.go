@@ -6,16 +6,16 @@ import (
 	"reflect"
 )
 
-func handlerValues(conn Connection, sqlQuery string, args []any, ctx context.Context) error {
-	err := conn.ExecContext(ctx, sqlQuery, args...)
+func handlerValues(conn Connection, query Query, ctx context.Context) error {
+	err := conn.ExecContext(ctx, query)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func handlerValuesReturning(conn Connection, sqlQuery string, value reflect.Value, args []any, pkFieldId int, ctx context.Context) error {
-	row := conn.QueryRowContext(ctx, sqlQuery, args...)
+func handlerValuesReturning(conn Connection, query Query, value reflect.Value, pkFieldId int, ctx context.Context) error {
+	row := conn.QueryRowContext(ctx, query)
 
 	err := row.Scan(value.Field(pkFieldId).Addr().Interface())
 	if err != nil {
@@ -24,8 +24,8 @@ func handlerValuesReturning(conn Connection, sqlQuery string, value reflect.Valu
 	return nil
 }
 
-func handlerValuesReturningBatch(conn Connection, sqlQuery string, value reflect.Value, args []any, pkFieldId int, ctx context.Context) error {
-	rows, err := conn.QueryContext(ctx, sqlQuery, args...)
+func handlerValuesReturningBatch(conn Connection, query Query, value reflect.Value, pkFieldId int, ctx context.Context) error {
+	rows, err := conn.QueryContext(ctx, query)
 	if err != nil {
 		return err
 	}
@@ -42,8 +42,8 @@ func handlerValuesReturningBatch(conn Connection, sqlQuery string, value reflect
 	return nil
 }
 
-func handlerResult[T any](conn Connection, sqlQuery string, args []any, numFields int, ctx context.Context) iter.Seq2[T, error] {
-	rows, err := conn.QueryContext(ctx, sqlQuery, args...)
+func handlerResult[T any](conn Connection, query Query, numFields int, ctx context.Context) iter.Seq2[T, error] {
+	rows, err := conn.QueryContext(ctx, query)
 
 	var v T
 	if err != nil {

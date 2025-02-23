@@ -80,9 +80,10 @@ func (s *stateDelete) Where(Brs ...query.Operator) error {
 	if s.config.LogQuery {
 		log.Println("\n" + sql)
 	}
-	return handlerValues(s.conn, sql, s.builder.argsAny, s.ctx)
+	s.builder.query.Arguments = s.builder.argsAny
+	return handlerValues(s.conn, s.builder.query, s.ctx)
 }
 
 func createDeleteState(conn Connection, c *Config, ctx context.Context, d Driver, e error) *stateDelete {
-	return &stateDelete{conn: conn, builder: createBuilder(d), config: c, ctx: ctx, err: e}
+	return &stateDelete{conn: conn, builder: createBuilder(d, DeleteQuery), config: c, ctx: ctx, err: e}
 }

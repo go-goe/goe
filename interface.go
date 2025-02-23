@@ -11,8 +11,8 @@ type field interface {
 	isPrimaryKey() bool
 	getTableId() int
 	getSelect() string
-	getAttributeName() []byte
-	table() []byte
+	getAttributeName() string
+	table() string
 	buildAttributeInsert(*builder)
 	writeAttributeInsert(*builder)
 	buildAttributeUpdate(*builder)
@@ -29,10 +29,10 @@ type fieldSelect interface {
 
 type Driver interface {
 	Name() string
-	MigrateContext(context.Context, *Migrator, Connection) (string, error)
-	DropTable(string, Connection) (string, error)
-	DropColumn(table, column string, conn Connection) (string, error)
-	RenameColumn(table, oldColumn, newColumn string, conn Connection) (string, error)
+	MigrateContext(context.Context, *Migrator) (string, error)
+	DropTable(string) (string, error)
+	DropColumn(table, column string) (string, error)
+	RenameColumn(table, oldColumn, newColumn string) (string, error)
 	Init()
 	KeywordHandler(string) string
 	NewConnection() Connection
@@ -42,9 +42,9 @@ type Driver interface {
 }
 
 type Connection interface {
-	ExecContext(ctx context.Context, query string, args ...any) error
-	QueryRowContext(ctx context.Context, query string, args ...any) Row
-	QueryContext(ctx context.Context, query string, args ...any) (Rows, error)
+	ExecContext(ctx context.Context, query Query) error
+	QueryRowContext(ctx context.Context, query Query) Row
+	QueryContext(ctx context.Context, query Query) (Rows, error)
 }
 
 type Transaction interface {
@@ -63,6 +63,7 @@ type Row interface {
 	Scan(dest ...any) error
 }
 
+// TODO: Remove this
 type Sql interface {
 	Select() []byte
 	From() []byte
@@ -73,4 +74,80 @@ type Sql interface {
 	Update() []byte
 	Set() []byte
 	Delete() []byte
+}
+
+const (
+	SelectQuery uint = iota
+	InsertQuery
+	UpdateQuery
+	DeleteQuery
+)
+
+const (
+	_                   = iota
+	CountAggregate uint = 1
+)
+
+const (
+	_                  = iota
+	UpperFunction uint = 1
+)
+
+const (
+	LogicalWhere uint = iota
+	OperationWhere
+	OperationArgumentWhere
+	OperationIsWhere
+)
+
+type Attribute struct {
+	Table         string
+	Name          string
+	AggregateType uint
+	FunctionType  uint
+}
+
+type JoinArgument struct {
+	Table string
+	Name  string
+}
+
+type Join struct {
+	Table          string
+	FirstArgument  JoinArgument
+	JoinOperation  string
+	SecondArgument JoinArgument
+}
+
+type Where struct {
+	Type      uint
+	Attribute Attribute
+	Value     any
+	Operator  string
+	ValueFlag string
+}
+
+type OrderBy struct {
+	Desc      bool
+	Attribute Attribute
+}
+
+type Query struct {
+	Type       uint
+	Attributes []Attribute
+	Tables     []string
+
+	Joins   []Join   //Select
+	Limit   uint     //Select
+	Offset  uint     //Select
+	OrderBy *OrderBy //Select
+
+	WhereOperations []Where //Select, Update and Delete
+	Arguments       []any   //Insert and Update
+
+	ReturningId    *Attribute //Insert
+	BatchSizeQuery int        //Insert
+	SizeArguments  int        //Insert
+
+	RawSql string
 }

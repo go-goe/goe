@@ -17,19 +17,19 @@ func (md *MockDriver) Name() string {
 	return "Mock"
 }
 
-func (md *MockDriver) MigrateContext(context.Context, *goe.Migrator, goe.Connection) (string, error) {
+func (md *MockDriver) MigrateContext(context.Context, *goe.Migrator) (string, error) {
 	return "", nil
 }
 
-func (md *MockDriver) DropTable(string, goe.Connection) (string, error) {
+func (md *MockDriver) DropTable(string) (string, error) {
 	return "", nil
 }
 
-func (md *MockDriver) DropColumn(string, string, goe.Connection) (string, error) {
+func (md *MockDriver) DropColumn(string, string) (string, error) {
 	return "", nil
 }
 
-func (md *MockDriver) RenameColumn(string, string, string, goe.Connection) (string, error) {
+func (md *MockDriver) RenameColumn(string, string, string) (string, error) {
 	return "", nil
 }
 

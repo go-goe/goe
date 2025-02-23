@@ -16,6 +16,7 @@ var ErrNotManyToMany = errors.New("don't have a many to many relationship")
 
 type builder struct {
 	sql          *strings.Builder
+	query        Query
 	driver       Driver
 	pkFieldId    int    //insert
 	returning    []byte //insert
@@ -34,14 +35,17 @@ type builder struct {
 	brs          []query.Operator
 }
 
-func createBuilder(d Driver) *builder {
+func createBuilder(d Driver, t uint) *builder {
 	return &builder{
 		sql:    &strings.Builder{},
+		query:  Query{Type: t},
 		driver: d,
 	}
 }
 
 func (b *builder) buildSelect() {
+	b.query.Attributes = make([]Attribute, 0, len(b.fieldsSelect))
+
 	b.sql.Write(b.driver.Select())
 	b.sql.WriteByte(' ')
 
@@ -69,9 +73,11 @@ func (b *builder) buildSelectJoins(join string, fields []field) {
 
 func (b *builder) buildPage() {
 	if b.limit != 0 {
+		b.query.Limit = b.limit
 		b.sql.WriteString(fmt.Sprintf(" LIMIT %v", b.limit))
 	}
 	if b.offset != 0 {
+		b.query.Offset = b.offset
 		b.sql.WriteString(fmt.Sprintf(" OFFSET %v", b.offset))
 	}
 }
@@ -108,8 +114,8 @@ func (b *builder) buildSqlUpdate(v reflect.Value) (err error) {
 }
 
 func (b *builder) buildSqlDelete() (err error) {
-	b.sql.Write(b.driver.Delete())
-	b.sql.Write(b.fields[0].table())
+	b.query.Tables = make([]string, 1)
+	b.query.Tables[0] = b.fields[0].table()
 	err = b.buildWhere()
 	return err
 }
@@ -118,6 +124,8 @@ func (b *builder) buildWhere() error {
 	if len(b.brs) == 0 {
 		return nil
 	}
+	b.query.WhereOperations = make([]Where, 0, len(b.brs))
+
 	b.sql.WriteByte('\n')
 	b.sql.Write(b.driver.Where())
 	b.sql.WriteByte(' ')
@@ -128,8 +136,49 @@ func (b *builder) buildWhere() error {
 			v.ValueFlag = fmt.Sprintf("$%v", argsCount)
 			b.sql.WriteString(v.Operation())
 			b.argsAny = append(b.argsAny, v.Value)
+
+			b.query.WhereOperations = append(b.query.WhereOperations, Where{
+				Attribute: Attribute{
+					Name:         v.Attribute,
+					Table:        v.Table,
+					FunctionType: v.Function,
+				},
+				Value:     v.Value,
+				Operator:  v.Operator,
+				ValueFlag: v.ValueFlag,
+				Type:      OperationWhere,
+			})
 			argsCount++
-		default:
+		case query.OperationArg:
+			b.query.WhereOperations = append(b.query.WhereOperations, Where{
+				Attribute: Attribute{
+					Name:  v.Op.Attribute,
+					Table: v.Op.Table,
+				},
+				Value:     v.Op.Value,
+				Operator:  v.Op.Operator,
+				ValueFlag: v.Op.ValueFlag,
+				Type:      OperationArgumentWhere,
+			})
+
+			b.sql.WriteString(v.Operation())
+		case query.OperationIs:
+			b.query.WhereOperations = append(b.query.WhereOperations, Where{
+				Attribute: Attribute{
+					Name:  v.Attribute,
+					Table: v.Table,
+				},
+				Operator: v.Operator,
+				Type:     OperationIsWhere,
+			})
+
+			b.sql.WriteString(v.Operation())
+		case query.Logical:
+			b.query.WhereOperations = append(b.query.WhereOperations, Where{
+				Operator: v.Operator,
+				Type:     LogicalWhere,
+			})
+
 			b.sql.WriteString(v.Operation())
 		}
 	}
@@ -137,11 +186,14 @@ func (b *builder) buildWhere() error {
 }
 
 func (b *builder) buildTables() (err error) {
+	if len(b.joins) != 0 {
+		b.query.Joins = make([]Join, 0, len(b.joins))
+	}
 	b.sql.Write(b.driver.From())
 	b.sql.Write(b.froms)
 	c := 1
 	for i := range b.joins {
-		err = buildJoins(b.joins[i], b.sql, b.joinsArgs[i+c-1], b.joinsArgs[i+c-1+1], b.tables, i+1)
+		err = buildJoins(b, b.joins[i], b.sql, b.joinsArgs[i+c-1], b.joinsArgs[i+c-1+1], b.tables, i+1)
 		if err != nil {
 			return err
 		}
@@ -150,27 +202,37 @@ func (b *builder) buildTables() (err error) {
 	return nil
 }
 
-func buildJoins(join string, sql *strings.Builder, f1, f2 field, tables []int, tableIndice int) error {
+func buildJoins(b *builder, join string, sql *strings.Builder, f1, f2 field, tables []int, tableIndice int) error {
 	sql.WriteByte('\n')
 	if !slices.Contains(tables, f2.getTableId()) {
 		sql.WriteString(join)
-		sql.Write(f2.table())
 		sql.WriteString("on(")
 		sql.WriteString(f1.getSelect())
 		sql.WriteByte('=')
 		sql.WriteString(f2.getSelect())
 		sql.WriteByte(')')
 
+		b.query.Joins = append(b.query.Joins, Join{
+			Table:          f2.table(),
+			FirstArgument:  JoinArgument{Table: f1.table(), Name: f1.getAttributeName()},
+			JoinOperation:  join,
+			SecondArgument: JoinArgument{Table: f2.table(), Name: f2.getAttributeName()}})
+
 		tables[tableIndice] = f2.getTableId()
 		return nil
 	}
 	sql.WriteString(join)
-	sql.Write(f1.table())
 	sql.WriteString("on(")
 	sql.WriteString(f1.getSelect())
 	sql.WriteByte('=')
 	sql.WriteString(f2.getSelect())
 	sql.WriteByte(')')
+
+	b.query.Joins = append(b.query.Joins, Join{
+		Table:          f1.table(),
+		FirstArgument:  JoinArgument{Table: f1.table(), Name: f1.getAttributeName()},
+		JoinOperation:  join,
+		SecondArgument: JoinArgument{Table: f2.table(), Name: f2.getAttributeName()}})
 
 	tables[tableIndice] = f1.getTableId()
 	return nil
@@ -180,9 +242,11 @@ func (b *builder) buildInsert() {
 	b.sql.Write(b.driver.Insert())
 
 	b.fieldIds = make([]int, 0, len(b.fields))
+	b.query.Attributes = make([]Attribute, 0, len(b.fields))
 
 	f := b.fields[0]
-	b.sql.Write(f.table())
+	b.query.Tables = make([]string, 1)
+	b.query.Tables[0] = f.table()
 	b.sql.WriteByte('(')
 	for i := range b.fields {
 		b.fields[i].buildAttributeInsert(b)
@@ -217,6 +281,9 @@ func (b *builder) buildValues(value reflect.Value) int {
 	if b.returning != nil {
 		b.sql.Write(b.returning)
 	}
+	//TODO use Arguments
+	b.query.Arguments = b.argsAny
+	b.query.SizeArguments = len(b.fieldIds)
 	return b.pkFieldId
 
 }
@@ -235,6 +302,8 @@ func (b *builder) buildBatchValues(value reflect.Value) int {
 	if b.returning != nil {
 		b.sql.Write(b.returning)
 	}
+	b.query.BatchSizeQuery = value.Len()
+	b.query.SizeArguments = len(b.fieldIds)
 	return b.pkFieldId
 
 }
@@ -252,14 +321,17 @@ func buildBatchValues(value reflect.Value, b *builder, c *int) {
 		*c++
 	}
 	b.sql.WriteByte(')')
+	b.query.Arguments = b.argsAny
 }
 
 func (b *builder) buildUpdate() {
 	b.sql.Write(b.driver.Update())
 
 	b.fieldIds = make([]int, 0, len(b.fields))
+	b.query.Attributes = make([]Attribute, 0, len(b.fields))
+	b.query.Tables = make([]string, 1)
+	b.query.Tables[0] = b.fields[0].table()
 
-	b.sql.Write(b.fields[0].table())
 	b.sql.Write(b.driver.Set())
 	b.fields[0].buildAttributeUpdate(b)
 
@@ -279,10 +351,11 @@ func (b *builder) buildSet(value reflect.Value) {
 		c++
 		buildSetField(value.Field(b.fieldIds[i]), b.fields[i].getAttributeName(), b, c)
 	}
+	b.query.Arguments = b.argsAny
 }
 
-func buildSetField(valueField reflect.Value, attributeName []byte, b *builder, c uint16) {
-	b.sql.Write(attributeName)
+func buildSetField(valueField reflect.Value, attributeName string, b *builder, c uint16) {
+	b.query.Attributes = append(b.query.Attributes, Attribute{Name: attributeName})
 	b.sql.WriteString(fmt.Sprintf("= $%v", c))
 	b.argsAny = append(b.argsAny, valueField.Interface())
 	c++

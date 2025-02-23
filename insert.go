@@ -61,9 +61,9 @@ func (s *stateInsert[T]) One(value *T) error {
 		log.Println("\n" + sql)
 	}
 	if s.builder.returning != nil {
-		return handlerValuesReturning(s.conn, sql, v, s.builder.argsAny, pkFieldId, s.ctx)
+		return handlerValuesReturning(s.conn, s.builder.query, v, pkFieldId, s.ctx)
 	}
-	return handlerValues(s.conn, sql, s.builder.argsAny, s.ctx)
+	return handlerValues(s.conn, s.builder.query, s.ctx)
 }
 
 func (s *stateInsert[T]) All(value []T) error {
@@ -79,11 +79,12 @@ func (s *stateInsert[T]) All(value []T) error {
 	if s.config.LogQuery {
 		log.Println("\n" + Sql)
 	}
-	return handlerValuesReturningBatch(s.conn, Sql, valueOf, s.builder.argsAny, pkFieldId, s.ctx)
+	s.builder.query.RawSql = Sql
+	return handlerValuesReturningBatch(s.conn, s.builder.query, valueOf, pkFieldId, s.ctx)
 }
 
 func createInsertState[T any](conn Connection, c *Config, ctx context.Context, d Driver, e error) *stateInsert[T] {
-	return &stateInsert[T]{conn: conn, builder: createBuilder(d), config: c, ctx: ctx, err: e}
+	return &stateInsert[T]{conn: conn, builder: createBuilder(d, InsertQuery), config: c, ctx: ctx, err: e}
 }
 
 func getArgsTable[T any](AddrMap map[uintptr]field, table *T) ([]field, error) {

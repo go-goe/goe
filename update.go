@@ -177,7 +177,7 @@ func (s *stateUpdate[T]) Value(value T) error {
 	if s.config.LogQuery {
 		log.Println("\n" + sql)
 	}
-	return handlerValues(s.conn, sql, s.builder.argsAny, s.ctx)
+	return handlerValues(s.conn, s.builder.query, s.ctx)
 }
 
 func getArgsUpdate(addrMap map[uintptr]field, args ...any) ([]field, error) {
@@ -272,16 +272,20 @@ func getPksField[T any](addrMap map[uintptr]field, table *T, value T) ([]field, 
 
 func helperOperation(builder *builder, pks []field, pksValue []any) {
 	builder.brs = append(builder.brs, query.Operation{
-		Arg:      pks[0].getSelect(),
-		Operator: "=",
-		Value:    pksValue[0]})
+		Arg:       pks[0].getSelect(),
+		Table:     pks[0].table(),
+		Attribute: pks[0].getAttributeName(),
+		Operator:  "=",
+		Value:     pksValue[0]})
 	pkCount := 1
 	for _, pk := range pks[1:] {
 		builder.brs = append(builder.brs, query.And())
 		builder.brs = append(builder.brs, query.Operation{
-			Arg:      pk.getSelect(),
-			Operator: "=",
-			Value:    pksValue[pkCount]})
+			Arg:       pk.getSelect(),
+			Table:     pk.table(),
+			Attribute: pk.getAttributeName(),
+			Operator:  "=",
+			Value:     pksValue[pkCount]})
 		pkCount++
 	}
 }
@@ -291,5 +295,5 @@ func createUpdateState[T any](
 	ctx context.Context,
 	d Driver,
 	e error) *stateUpdate[T] {
-	return &stateUpdate[T]{conn: conn, builder: createBuilder(d), config: c, ctx: ctx, err: e}
+	return &stateUpdate[T]{conn: conn, builder: createBuilder(d, UpdateQuery), config: c, ctx: ctx, err: e}
 }
