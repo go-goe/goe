@@ -10,7 +10,7 @@ type field interface {
 	fieldDb
 	isPrimaryKey() bool
 	getTableId() int
-	getSelect() string
+	getFieldId() int
 	getAttributeName() string
 	table() string
 	buildAttributeInsert(*builder)
@@ -93,13 +93,6 @@ const (
 	UpperFunction uint = 1
 )
 
-const (
-	LogicalWhere uint = iota
-	OperationWhere
-	OperationArgumentWhere
-	OperationIsWhere
-)
-
 type Attribute struct {
 	Table         string
 	Name          string
@@ -120,11 +113,10 @@ type Join struct {
 }
 
 type Where struct {
-	Type      uint
-	Attribute Attribute
-	Value     any
-	Operator  string
-	ValueFlag string
+	Type           uint
+	Attribute      Attribute
+	Operator       string
+	AttributeValue Attribute
 }
 
 type OrderBy struct {
@@ -143,7 +135,8 @@ type Query struct {
 	OrderBy *OrderBy //Select
 
 	WhereOperations []Where //Select, Update and Delete
-	Arguments       []any   //Insert and Update
+	WhereIndex      int     //Start of where operations on slice arguments
+	Arguments       []any
 
 	ReturningId    *Attribute //Insert
 	BatchSizeQuery int        //Insert

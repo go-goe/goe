@@ -2,9 +2,7 @@ package goe
 
 import (
 	"context"
-	"fmt"
 	"iter"
-	"log"
 	"math"
 	"reflect"
 	"strings"
@@ -66,9 +64,9 @@ func SelectContext[T any](ctx context.Context, t *T, tx ...Transaction) *stateSe
 	db := fields[0].getDb()
 
 	if tx != nil {
-		state = createSelectState[T](tx[0], db.Config, ctx, db.Driver, nil)
+		state = createSelectState[T](tx[0], db.Config, ctx)
 	} else {
-		state = createSelectState[T](db.Driver.NewConnection(), db.Config, ctx, db.Driver, nil)
+		state = createSelectState[T](db.Driver.NewConnection(), db.Config, ctx)
 	}
 
 	state.builder.fieldsSelect = fields
@@ -76,7 +74,7 @@ func SelectContext[T any](ctx context.Context, t *T, tx ...Transaction) *stateSe
 }
 
 // Where creates a where SQL using the operations
-func (s *stateSelect[T]) Where(brs ...query.Operator) *stateSelect[T] {
+func (s *stateSelect[T]) Where(brs ...query.Operation) *stateSelect[T] {
 	if s.err != nil {
 		return s
 	}
@@ -94,7 +92,7 @@ func (s *stateSelect[T]) Where(brs ...query.Operator) *stateSelect[T] {
 //	// skips 20 and takes next 20 elements
 //	db.Select(db.Habitat).Skip(20).Take(20).Scan(&h)
 func (s *stateSelect[T]) Take(i uint) *stateSelect[T] {
-	s.builder.limit = i
+	s.builder.query.Limit = i
 	return s
 }
 
@@ -108,7 +106,7 @@ func (s *stateSelect[T]) Take(i uint) *stateSelect[T] {
 //	// skips 20 and takes next 20 elements
 //	db.Select(db.Habitat).Skip(20).Take(20).Scan(&h)
 func (s *stateSelect[T]) Skip(i uint) *stateSelect[T] {
-	s.builder.offset = i
+	s.builder.query.Offset = i
 	return s
 }
 
@@ -128,7 +126,6 @@ func (s *stateSelect[T]) OrderByAsc(arg any) *stateSelect[T] {
 		return s
 	}
 	s.builder.query.OrderBy = &OrderBy{Attribute: Attribute{Name: field.getAttributeName(), Table: field.table()}}
-	s.builder.orderBy = fmt.Sprintf("\nORDER BY %v ASC", field.getSelect())
 	return s
 }
 
@@ -150,7 +147,6 @@ func (s *stateSelect[T]) OrderByDesc(arg any) *stateSelect[T] {
 	s.builder.query.OrderBy = &OrderBy{
 		Attribute: Attribute{Name: field.getAttributeName(), Table: field.table()},
 		Desc:      true}
-	s.builder.orderBy = fmt.Sprintf("\nORDER BY %v DESC", field.getSelect())
 	return s
 }
 
@@ -161,14 +157,13 @@ func (s *stateSelect[T]) From(tables ...any) *stateSelect[T] {
 	}
 
 	s.builder.tables = make([]int, len(tables))
-	args, err := getArgsTables(s.builder, addrMap, s.builder.tables, tables...)
+	err := getArgsTables(s.builder, addrMap, s.builder.tables, tables...)
 	if err != nil {
 		s.err = err
 		return s
 	}
 	//TODO add query tables
 	s.tables = tables
-	s.builder.froms = args
 	return s
 }
 
@@ -190,7 +185,7 @@ func (s *stateSelect[T]) Joins(joins ...query.Joins) *stateSelect[T] {
 }
 
 func (s *stateSelect[T]) RowsAsSlice() ([]T, error) {
-	rows := make([]T, 0, s.builder.limit)
+	rows := make([]T, 0, s.builder.query.Limit)
 	for row, err := range s.Rows() {
 		if err != nil {
 			return nil, err
@@ -241,7 +236,6 @@ func (s *stateSelect[T]) AsPagination(page, size uint) (*Pagination[T], error) {
 	stateCount.builder.joinsArgs = s.builder.joinsArgs
 	stateCount.builder.tables = make([]int, len(s.builder.tables))
 	copy(stateCount.builder.tables, s.builder.tables)
-	stateCount.builder.froms = s.builder.froms
 	stateCount.builder.query.Tables = s.builder.query.Tables
 
 	// copy wheres
@@ -256,8 +250,8 @@ func (s *stateSelect[T]) AsPagination(page, size uint) (*Pagination[T], error) {
 		break
 	}
 
-	s.builder.offset = size * (page - 1)
-	s.builder.limit = size
+	s.builder.query.Offset = size * (page - 1)
+	s.builder.query.Limit = size
 
 	p := new(Pagination[T])
 
@@ -316,11 +310,6 @@ func (s *stateSelect[T]) Rows() iter.Seq2[T, error] {
 		}
 	}
 
-	sql := s.builder.sql.String()
-	if s.config.LogQuery {
-		log.Println("\n" + sql)
-	}
-
 	return handlerResult[T](s.conn, s.builder.query, len(s.builder.fieldsSelect), s.ctx)
 }
 
@@ -331,8 +320,8 @@ func SafeGet[T any](v *T) T {
 	return *v
 }
 
-func createSelectState[T any](conn Connection, c *Config, ctx context.Context, d Driver, e error) *stateSelect[T] {
-	return &stateSelect[T]{conn: conn, builder: createBuilder(d, SelectQuery), config: c, ctx: ctx, err: e}
+func createSelectState[T any](conn Connection, config *Config, ctx context.Context) *stateSelect[T] {
+	return &stateSelect[T]{conn: conn, builder: createBuilder(SelectQuery), config: config, ctx: ctx}
 }
 
 type list[T any] struct {
@@ -424,7 +413,7 @@ func equalsOrLike(f field, a any) query.Operation {
 
 	if !ok {
 		return query.Operation{
-			Arg:       f.getSelect(),
+			Type:      query.OperationWhere,
 			Attribute: f.getAttributeName(),
 			Table:     f.table(),
 			Operator:  "=",
@@ -433,7 +422,7 @@ func equalsOrLike(f field, a any) query.Operation {
 
 	if strings.Contains(v, "%") {
 		return query.Operation{
-			Arg:       fmt.Sprintf("UPPER(%v)", f.getSelect()),
+			Type:      query.OperationWhere,
 			Attribute: f.getAttributeName(),
 			Table:     f.table(),
 			Function:  UpperFunction,
@@ -442,7 +431,7 @@ func equalsOrLike(f field, a any) query.Operation {
 	}
 
 	return query.Operation{
-		Arg:       fmt.Sprintf("UPPER(%v)", f.getSelect()),
+		Type:      query.OperationWhere,
 		Attribute: f.getAttributeName(),
 		Table:     f.table(),
 		Operator:  "=",
@@ -511,10 +500,10 @@ func getArgsSelectAno(addrMap map[uintptr]field, valueOf reflect.Value) ([]field
 }
 
 func createAggregate(field field, a any) fieldSelect {
-	switch ag := a.(type) {
+	//TODO: update to a agreg type uint value
+	switch a.(type) {
 	case query.Count:
 		return &aggregate{
-			selectName:    ag.Aggregate(field.getSelect()),
 			table:         field.table(),
 			db:            field.getDb(),
 			attributeName: field.getAttributeName(),
@@ -545,13 +534,12 @@ func getArgsJoin(addrMap map[uintptr]field, args ...any) ([]field, error) {
 	return fields, nil
 }
 
-func getArgsTables(builder *builder, addrMap map[uintptr]field, tables []int, args ...any) ([]byte, error) {
+func getArgsTables(builder *builder, addrMap map[uintptr]field, tables []int, args ...any) error {
 	if reflect.ValueOf(args[0]).Kind() != reflect.Pointer {
 		//TODO: add ErrInvalidTable
-		return nil, ErrInvalidArg
+		return ErrInvalidArg
 	}
 
-	from := make([]byte, 0)
 	var ptr uintptr
 	var i int
 
@@ -561,33 +549,30 @@ func getArgsTables(builder *builder, addrMap map[uintptr]field, tables []int, ar
 	ptr = uintptr(valueOf.Addr().UnsafePointer())
 	if addrMap[ptr] == nil {
 		//TODO: add ErrInvalidTable
-		return nil, ErrInvalidArg
+		return ErrInvalidArg
 	}
 	tables[i] = addrMap[ptr].getTableId()
 	i++
-	from = append(from, addrMap[ptr].table()...)
 	builder.query.Tables = append(builder.query.Tables, addrMap[ptr].table())
 
 	for _, a := range args[1:] {
 		if reflect.ValueOf(a).Kind() != reflect.Pointer {
 			//TODO: add ErrInvalidTable
-			return nil, ErrInvalidArg
+			return ErrInvalidArg
 		}
 
 		valueOf = reflect.ValueOf(a).Elem()
 		ptr = uintptr(valueOf.Addr().UnsafePointer())
 		if addrMap[ptr] == nil {
 			//TODO: add ErrInvalidTable
-			return nil, ErrInvalidArg
+			return ErrInvalidArg
 		}
 		tables[i] = addrMap[ptr].getTableId()
 		i++
-		from = append(from, ',')
-		from = append(from, addrMap[ptr].table()...)
 		builder.query.Tables = append(builder.query.Tables, addrMap[ptr].table())
 	}
 
-	return from, nil
+	return nil
 }
 
 func getArg(arg any, addrMap map[uintptr]field) field {
@@ -603,13 +588,11 @@ func getArg(arg any, addrMap map[uintptr]field) field {
 	return nil
 }
 
-func helperWhere(builder *builder, addrMap map[uintptr]field, brs ...query.Operator) error {
-	for i := range brs {
-		switch br := brs[i].(type) {
-		case query.Operation:
+func helperWhere(builder *builder, addrMap map[uintptr]field, brs ...query.Operation) error {
+	for _, br := range brs {
+		switch br.Type {
+		case query.OperationWhere:
 			if a := getArg(br.Arg, addrMap); a != nil {
-				br.Arg = a.getSelect()
-
 				br.Table = a.table()
 				br.Attribute = a.getAttributeName()
 
@@ -617,22 +600,19 @@ func helperWhere(builder *builder, addrMap map[uintptr]field, brs ...query.Opera
 				continue
 			}
 			return ErrInvalidWhere
-		case query.OperationArg:
-			if a, b := getArg(br.Op.Arg, addrMap), getArg(br.Op.Value, addrMap); a != nil && b != nil {
-				br.Op.Arg = a.getSelect()
+		case query.OperationAttributeWhere:
+			if a, b := getArg(br.Arg, addrMap), getArg(br.Value, addrMap); a != nil && b != nil {
+				br.Table = a.table()
+				br.Attribute = a.getAttributeName()
 
-				br.Op.Table = a.table()
-				br.Op.Attribute = a.getAttributeName()
-
-				br.Op.ValueFlag = b.getSelect()
+				br.AttributeValue = b.getAttributeName()
+				br.AttributeValueTable = b.table()
 				builder.brs = append(builder.brs, br)
 				continue
 			}
 			return ErrInvalidWhere
-		case query.OperationIs:
+		case query.OperationIsWhere:
 			if a := getArg(br.Arg, addrMap); a != nil {
-				br.Arg = a.getSelect()
-
 				br.Table = a.table()
 				br.Attribute = a.getAttributeName()
 

@@ -2,7 +2,6 @@ package goe
 
 import (
 	"context"
-	"log"
 
 	"github.com/olauro/goe/query"
 )
@@ -52,16 +51,16 @@ func DeleteContext[T any](ctx context.Context, table *T, tx ...Transaction) *sta
 	db := fields[0].getDb()
 
 	if tx != nil {
-		state = createDeleteState(tx[0], db.Config, ctx, db.Driver, err)
+		state = createDeleteState(tx[0], db.Config, ctx)
 	} else {
-		state = createDeleteState(db.Driver.NewConnection(), db.Config, ctx, db.Driver, err)
+		state = createDeleteState(db.Driver.NewConnection(), db.Config, ctx)
 	}
 
 	state.builder.fields = fields
 	return state
 }
 
-func (s *stateDelete) Where(Brs ...query.Operator) error {
+func (s *stateDelete) Where(Brs ...query.Operation) error {
 	if s.err != nil {
 		return s.err
 	}
@@ -76,14 +75,9 @@ func (s *stateDelete) Where(Brs ...query.Operator) error {
 		return s.err
 	}
 
-	sql := s.builder.sql.String()
-	if s.config.LogQuery {
-		log.Println("\n" + sql)
-	}
-	s.builder.query.Arguments = s.builder.argsAny
 	return handlerValues(s.conn, s.builder.query, s.ctx)
 }
 
-func createDeleteState(conn Connection, c *Config, ctx context.Context, d Driver, e error) *stateDelete {
-	return &stateDelete{conn: conn, builder: createBuilder(d, DeleteQuery), config: c, ctx: ctx, err: e}
+func createDeleteState(conn Connection, config *Config, ctx context.Context) *stateDelete {
+	return &stateDelete{conn: conn, builder: createBuilder(DeleteQuery), config: config, ctx: ctx}
 }

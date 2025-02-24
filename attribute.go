@@ -1,7 +1,6 @@
 package goe
 
 import (
-	"fmt"
 	"reflect"
 
 	"github.com/olauro/goe/utils"
@@ -109,7 +108,6 @@ type attributeStrings struct {
 	db            *DB
 	tableId       int
 	tableName     string
-	selectName    string
 	attributeName string
 	fieldId       int
 }
@@ -120,7 +118,6 @@ func createAttributeStrings(db *DB, table string, attributeName string, tableId,
 		tableName:     table,
 		tableId:       tableId,
 		fieldId:       fieldId,
-		selectName:    fmt.Sprintf("%v.%v", table, Driver.KeywordHandler(utils.ColumnNamePattern(attributeName))),
 		attributeName: Driver.KeywordHandler(utils.ColumnNamePattern(attributeName)),
 	}
 }
@@ -187,7 +184,6 @@ func createAtt(db *DB, attributeName string, table string, tableId, fieldId int,
 }
 
 func (p *pk) buildAttributeSelect(b *builder) {
-	b.sql.WriteString(p.selectName)
 	b.query.Attributes = append(b.query.Attributes, Attribute{
 		Table: p.tableName,
 		Name:  p.attributeName,
@@ -195,7 +191,6 @@ func (p *pk) buildAttributeSelect(b *builder) {
 }
 
 func (a *att) buildAttributeSelect(b *builder) {
-	b.sql.WriteString(a.selectName)
 	b.query.Attributes = append(b.query.Attributes, Attribute{
 		Table: a.tableName,
 		Name:  a.attributeName,
@@ -203,7 +198,6 @@ func (a *att) buildAttributeSelect(b *builder) {
 }
 
 func (m *manyToOne) buildAttributeSelect(b *builder) {
-	b.sql.WriteString(m.selectName)
 	b.query.Attributes = append(b.query.Attributes, Attribute{
 		Table: m.tableName,
 		Name:  m.attributeName,
@@ -211,7 +205,6 @@ func (m *manyToOne) buildAttributeSelect(b *builder) {
 }
 
 func (o *oneToOne) buildAttributeSelect(b *builder) {
-	b.sql.WriteString(o.selectName)
 	b.query.Attributes = append(b.query.Attributes, Attribute{
 		Table: o.tableName,
 		Name:  o.attributeName,
@@ -225,7 +218,6 @@ func (p *pk) buildAttributeInsert(b *builder) {
 		return
 	}
 	b.query.ReturningId = &Attribute{Name: p.getAttributeName()}
-	b.returning = b.driver.Returning([]byte(p.attributeName))
 	b.pkFieldId = p.fieldId
 }
 
@@ -278,33 +270,30 @@ func (o *oneToOne) buildAttributeUpdate(b *builder) {
 	b.fieldIds = append(b.fieldIds, o.fieldId)
 }
 
-func (p *pk) getSelect() string {
-	return p.selectName
+func (p *pk) getFieldId() int {
+	return p.fieldId
 }
 
-func (a *att) getSelect() string {
-	return a.selectName
+func (a *att) getFieldId() int {
+	return a.fieldId
 }
 
-func (m *manyToOne) getSelect() string {
-	return m.selectName
+func (m *manyToOne) getFieldId() int {
+	return m.fieldId
 }
 
-func (o *oneToOne) getSelect() string {
-	return o.selectName
+func (o *oneToOne) getFieldId() int {
+	return o.fieldId
 }
 
 type aggregate struct {
 	attributeName string
 	table         string
 	aggregateType uint
-	selectName    string
 	db            *DB
 }
 
 func (a *aggregate) buildAttributeSelect(b *builder) {
-	//TODO: update to write bytes
-	b.sql.WriteString(a.selectName)
 	b.query.Attributes = append(b.query.Attributes, Attribute{
 		Table:         a.table,
 		Name:          a.attributeName,

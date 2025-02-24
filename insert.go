@@ -2,7 +2,6 @@ package goe
 
 import (
 	"context"
-	"log"
 	"reflect"
 )
 
@@ -35,9 +34,9 @@ func InsertContext[T any](ctx context.Context, table *T, tx ...Transaction) *sta
 	db := fields[0].getDb()
 
 	if tx != nil {
-		state = createInsertState[T](tx[0], db.Config, ctx, db.Driver, err)
+		state = createInsertState[T](tx[0], db.Config, ctx)
 	} else {
-		state = createInsertState[T](db.Driver.NewConnection(), db.Config, ctx, db.Driver, err)
+		state = createInsertState[T](db.Driver.NewConnection(), db.Config, ctx)
 	}
 	state.builder.fields = fields
 	return state
@@ -56,11 +55,7 @@ func (s *stateInsert[T]) One(value *T) error {
 
 	pkFieldId := s.builder.buildSqlInsert(v)
 
-	sql := s.builder.sql.String()
-	if s.config.LogQuery {
-		log.Println("\n" + sql)
-	}
-	if s.builder.returning != nil {
+	if s.builder.query.ReturningId != nil {
 		return handlerValuesReturning(s.conn, s.builder.query, v, pkFieldId, s.ctx)
 	}
 	return handlerValues(s.conn, s.builder.query, s.ctx)
@@ -75,16 +70,11 @@ func (s *stateInsert[T]) All(value []T) error {
 
 	pkFieldId := s.builder.buildSqlInsertBatch(valueOf)
 
-	Sql := s.builder.sql.String()
-	if s.config.LogQuery {
-		log.Println("\n" + Sql)
-	}
-	s.builder.query.RawSql = Sql
 	return handlerValuesReturningBatch(s.conn, s.builder.query, valueOf, pkFieldId, s.ctx)
 }
 
-func createInsertState[T any](conn Connection, c *Config, ctx context.Context, d Driver, e error) *stateInsert[T] {
-	return &stateInsert[T]{conn: conn, builder: createBuilder(d, InsertQuery), config: c, ctx: ctx, err: e}
+func createInsertState[T any](conn Connection, config *Config, ctx context.Context) *stateInsert[T] {
+	return &stateInsert[T]{conn: conn, builder: createBuilder(InsertQuery), config: config, ctx: ctx}
 }
 
 func getArgsTable[T any](AddrMap map[uintptr]field, table *T) ([]field, error) {

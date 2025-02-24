@@ -2,7 +2,6 @@ package goe
 
 import (
 	"context"
-	"log"
 	"reflect"
 	"slices"
 
@@ -84,7 +83,7 @@ func (s *save[T]) Value(v T) error {
 	for i := range s.includes {
 		if !slices.ContainsFunc(includes, func(f field) bool {
 			//TODO: Add Id to compare
-			return f.getSelect() == s.includes[i].getSelect()
+			return f.getFieldId() == s.includes[i].getFieldId()
 		}) {
 			includes = append(includes, s.includes[i])
 		}
@@ -124,9 +123,9 @@ func UpdateContext[T any](ctx context.Context, table *T, tx ...Transaction) *sta
 	db := f.getDb()
 
 	if tx != nil {
-		state = createUpdateState[T](tx[0], db.Config, ctx, db.Driver, nil)
+		state = createUpdateState[T](tx[0], db.Config, ctx)
 	} else {
-		state = createUpdateState[T](db.Driver.NewConnection(), db.Config, ctx, db.Driver, nil)
+		state = createUpdateState[T](db.Driver.NewConnection(), db.Config, ctx)
 	}
 
 	return state
@@ -148,7 +147,7 @@ func (s *stateUpdate[T]) Includes(args ...any) *stateUpdate[T] {
 	return s
 }
 
-func (s *stateUpdate[T]) Where(brs ...query.Operator) *stateUpdate[T] {
+func (s *stateUpdate[T]) Where(brs ...query.Operation) *stateUpdate[T] {
 	if s.err != nil {
 		return s
 	}
@@ -173,10 +172,6 @@ func (s *stateUpdate[T]) Value(value T) error {
 		return s.err
 	}
 
-	sql := s.builder.sql.String()
-	if s.config.LogQuery {
-		log.Println("\n" + sql)
-	}
 	return handlerValues(s.conn, s.builder.query, s.ctx)
 }
 
@@ -272,7 +267,7 @@ func getPksField[T any](addrMap map[uintptr]field, table *T, value T) ([]field, 
 
 func helperOperation(builder *builder, pks []field, pksValue []any) {
 	builder.brs = append(builder.brs, query.Operation{
-		Arg:       pks[0].getSelect(),
+		Type:      query.OperationWhere,
 		Table:     pks[0].table(),
 		Attribute: pks[0].getAttributeName(),
 		Operator:  "=",
@@ -281,7 +276,7 @@ func helperOperation(builder *builder, pks []field, pksValue []any) {
 	for _, pk := range pks[1:] {
 		builder.brs = append(builder.brs, query.And())
 		builder.brs = append(builder.brs, query.Operation{
-			Arg:       pk.getSelect(),
+			Type:      query.OperationWhere,
 			Table:     pk.table(),
 			Attribute: pk.getAttributeName(),
 			Operator:  "=",
@@ -291,9 +286,8 @@ func helperOperation(builder *builder, pks []field, pksValue []any) {
 }
 
 func createUpdateState[T any](
-	conn Connection, c *Config,
-	ctx context.Context,
-	d Driver,
-	e error) *stateUpdate[T] {
-	return &stateUpdate[T]{conn: conn, builder: createBuilder(d, UpdateQuery), config: c, ctx: ctx, err: e}
+	conn Connection,
+	config *Config,
+	ctx context.Context) *stateUpdate[T] {
+	return &stateUpdate[T]{conn: conn, builder: createBuilder(UpdateQuery), config: config, ctx: ctx}
 }
