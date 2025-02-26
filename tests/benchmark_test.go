@@ -43,7 +43,7 @@ func BenchmarkSelectRaw(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		rows, _ := goeDb.RawConnection().QueryContext(context.Background(), "select a.id, a.name, a.idinfo, a.idhabitat from animals a;")
+		rows, _ := goeDb.RawQueryContext(context.Background(), "select a.id, a.name, a.idinfo, a.idhabitat from animals a;")
 		defer rows.Close()
 
 		var a Animal
@@ -132,10 +132,10 @@ func BenchmarkJoinSql(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 
-		rows, _ := goeDb.RawConnection().QueryContext(context.Background(), `select f.id, f.name from foods f
+		rows, _ := goeDb.RawQueryContext(context.Background(), `select f.id, f.name from foods f
 						join animalfoods af on f.id = af.idfood
-						join animals a on af.idanimal = a.id 
-						join habitats h on a.idhabitat = h.id 
+						join animals a on af.idanimal = a.id
+						join habitats h on a.idhabitat = h.id
 						join weathers w on h.idweather = w.id
 						where f.id = $1 and f.name = $2;`, f.Id, f.Name)
 		defer rows.Close()

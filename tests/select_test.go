@@ -892,6 +892,28 @@ func TestSelect(t *testing.T) {
 			},
 		},
 		{
+			desc: "Select_Benchmark_Joins",
+			testCase: func(t *testing.T) {
+				for _, err := range goe.Select(db.Food).From(db.Food).
+					Joins(
+						query.Join[uuid.UUID](&db.Food.Id, &db.AnimalFood.IdFood),
+						query.Join[int](&db.AnimalFood.IdAnimal, &db.Animal.Id),
+						query.Join[uuid.UUID](&db.Animal.IdHabitat, &db.Habitat.Id),
+						query.Join[int](&db.Habitat.IdWeather, &db.Weather.Id),
+					).
+					Where(
+						query.Equals(&db.Food.Id, foods[0].Id),
+						query.And(),
+						query.Equals(&db.Food.Name, foods[0].Name),
+					).
+					Rows() {
+					if err != nil {
+						t.Fatal(err)
+					}
+				}
+			},
+		},
+		{
 			desc: "Select_User_And_Roles",
 			testCase: func(t *testing.T) {
 				var q []struct {
