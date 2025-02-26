@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"slices"
 
+	"github.com/olauro/goe/enum"
 	"github.com/olauro/goe/query"
 )
 
@@ -25,9 +26,9 @@ type builder struct {
 	brs          []query.Operation
 }
 
-func createBuilder(queryType uint) *builder {
+func createBuilder(typeQuery enum.QueryType) *builder {
 	return &builder{
-		query: Query{Type: queryType},
+		query: Query{Type: typeQuery},
 	}
 }
 
@@ -100,7 +101,7 @@ func (b *builder) buildWhere() error {
 	b.query.WhereIndex = len(b.query.Arguments) + 1
 	for _, v := range b.brs {
 		switch v.Type {
-		case query.OperationWhere:
+		case enum.OperationWhere:
 			b.query.Arguments = append(b.query.Arguments, v.Value)
 
 			b.query.WhereOperations = append(b.query.WhereOperations, Where{
@@ -113,7 +114,7 @@ func (b *builder) buildWhere() error {
 				Type:     v.Type,
 			})
 			argsCount++
-		case query.OperationAttributeWhere:
+		case enum.OperationAttributeWhere:
 			b.query.WhereOperations = append(b.query.WhereOperations, Where{
 				Attribute: Attribute{
 					Name:  v.Attribute,
@@ -124,7 +125,7 @@ func (b *builder) buildWhere() error {
 				Type:           v.Type,
 			})
 
-		case query.OperationIsWhere:
+		case enum.OperationIsWhere:
 			b.query.WhereOperations = append(b.query.WhereOperations, Where{
 				Attribute: Attribute{
 					Name:  v.Attribute,
@@ -134,7 +135,7 @@ func (b *builder) buildWhere() error {
 				Type:     v.Type,
 			})
 
-		case query.LogicalWhere:
+		case enum.LogicalWhere:
 			b.query.WhereOperations = append(b.query.WhereOperations, Where{
 				Operator: v.Operator,
 				Type:     v.Type,
@@ -158,7 +159,7 @@ func (b *builder) buildTables() (err error) {
 }
 
 func buildJoins(b *builder, join string, f1, f2 field, tables []int, tableIndice int) {
-	if !slices.Contains(tables, f2.getTableId()) {
+	if slices.Contains(tables, f1.getTableId()) {
 		b.query.Joins = append(b.query.Joins, Join{
 			Table:          f2.table(),
 			FirstArgument:  JoinArgument{Table: f1.table(), Name: f1.getAttributeName()},

@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/olauro/goe/enum"
 	"github.com/olauro/goe/query"
 )
 
@@ -321,7 +322,7 @@ func SafeGet[T any](v *T) T {
 }
 
 func createSelectState[T any](conn Connection, config *Config, ctx context.Context) *stateSelect[T] {
-	return &stateSelect[T]{conn: conn, builder: createBuilder(SelectQuery), config: config, ctx: ctx}
+	return &stateSelect[T]{conn: conn, builder: createBuilder(enum.SelectQuery), config: config, ctx: ctx}
 }
 
 type list[T any] struct {
@@ -413,7 +414,7 @@ func equalsOrLike(f field, a any) query.Operation {
 
 	if !ok {
 		return query.Operation{
-			Type:      query.OperationWhere,
+			Type:      enum.OperationWhere,
 			Attribute: f.getAttributeName(),
 			Table:     f.table(),
 			Operator:  "=",
@@ -422,16 +423,16 @@ func equalsOrLike(f field, a any) query.Operation {
 
 	if strings.Contains(v, "%") {
 		return query.Operation{
-			Type:      query.OperationWhere,
+			Type:      enum.OperationWhere,
 			Attribute: f.getAttributeName(),
 			Table:     f.table(),
-			Function:  UpperFunction,
+			Function:  enum.UpperFunction,
 			Operator:  "LIKE",
 			Value:     strings.ToUpper(v)}
 	}
 
 	return query.Operation{
-		Type:      query.OperationWhere,
+		Type:      enum.OperationWhere,
 		Attribute: f.getAttributeName(),
 		Table:     f.table(),
 		Operator:  "=",
@@ -507,7 +508,7 @@ func createAggregate(field field, a any) fieldSelect {
 			table:         field.table(),
 			db:            field.getDb(),
 			attributeName: field.getAttributeName(),
-			aggregateType: CountAggregate}
+			aggregateType: enum.CountAggregate}
 	}
 
 	return nil
@@ -591,7 +592,7 @@ func getArg(arg any, addrMap map[uintptr]field) field {
 func helperWhere(builder *builder, addrMap map[uintptr]field, brs ...query.Operation) error {
 	for _, br := range brs {
 		switch br.Type {
-		case query.OperationWhere:
+		case enum.OperationWhere:
 			if a := getArg(br.Arg, addrMap); a != nil {
 				br.Table = a.table()
 				br.Attribute = a.getAttributeName()
@@ -600,7 +601,7 @@ func helperWhere(builder *builder, addrMap map[uintptr]field, brs ...query.Opera
 				continue
 			}
 			return ErrInvalidWhere
-		case query.OperationAttributeWhere:
+		case enum.OperationAttributeWhere:
 			if a, b := getArg(br.Arg, addrMap), getArg(br.Value, addrMap); a != nil && b != nil {
 				br.Table = a.table()
 				br.Attribute = a.getAttributeName()
@@ -611,7 +612,7 @@ func helperWhere(builder *builder, addrMap map[uintptr]field, brs ...query.Opera
 				continue
 			}
 			return ErrInvalidWhere
-		case query.OperationIsWhere:
+		case enum.OperationIsWhere:
 			if a := getArg(br.Arg, addrMap); a != nil {
 				br.Table = a.table()
 				br.Attribute = a.getAttributeName()

@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"slices"
 
+	"github.com/olauro/goe/enum"
 	"github.com/olauro/goe/query"
 )
 
@@ -82,7 +83,6 @@ func (s *save[T]) Value(v T) error {
 
 	for i := range s.includes {
 		if !slices.ContainsFunc(includes, func(f field) bool {
-			//TODO: Add Id to compare
 			return f.getFieldId() == s.includes[i].getFieldId()
 		}) {
 			includes = append(includes, s.includes[i])
@@ -267,7 +267,7 @@ func getPksField[T any](addrMap map[uintptr]field, table *T, value T) ([]field, 
 
 func helperOperation(builder *builder, pks []field, pksValue []any) {
 	builder.brs = append(builder.brs, query.Operation{
-		Type:      query.OperationWhere,
+		Type:      enum.OperationWhere,
 		Table:     pks[0].table(),
 		Attribute: pks[0].getAttributeName(),
 		Operator:  "=",
@@ -276,7 +276,7 @@ func helperOperation(builder *builder, pks []field, pksValue []any) {
 	for _, pk := range pks[1:] {
 		builder.brs = append(builder.brs, query.And())
 		builder.brs = append(builder.brs, query.Operation{
-			Type:      query.OperationWhere,
+			Type:      enum.OperationWhere,
 			Table:     pk.table(),
 			Attribute: pk.getAttributeName(),
 			Operator:  "=",
@@ -289,5 +289,5 @@ func createUpdateState[T any](
 	conn Connection,
 	config *Config,
 	ctx context.Context) *stateUpdate[T] {
-	return &stateUpdate[T]{conn: conn, builder: createBuilder(UpdateQuery), config: config, ctx: ctx}
+	return &stateUpdate[T]{conn: conn, builder: createBuilder(enum.UpdateQuery), config: config, ctx: ctx}
 }

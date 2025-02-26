@@ -32,15 +32,19 @@ func Open[T any](driver Driver, config Config) (*T, error) {
 
 	var err error
 	// init Fields
-	for i := 0; i < valueOf.NumField(); i++ {
-		err = initField(valueOf, valueOf.Field(i).Elem(), dbTarget, i, driver)
+	for tableId := range valueOf.NumField() {
+		err = initField(valueOf, valueOf.Field(tableId).Elem(), dbTarget, tableId+1, driver)
 		if err != nil {
 			return nil, err
 		}
 	}
 
+	err = driver.Init()
+	if err != nil {
+		return nil, err
+	}
+
 	dbTarget.Driver = driver
-	dbTarget.Driver.Init()
 	dbTarget.Config = &config
 	return db, nil
 }

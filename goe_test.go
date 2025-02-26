@@ -33,47 +33,12 @@ func (md *MockDriver) RenameColumn(string, string, string) (string, error) {
 	return "", nil
 }
 
-func (md *MockDriver) Init() {
+func (md *MockDriver) Init() error {
+	return nil
 }
 
 func (md *MockDriver) KeywordHandler(s string) string {
 	return fmt.Sprintf(`"%s"`, s)
-}
-
-func (md *MockDriver) Returning([]byte) []byte {
-	return nil
-}
-
-func (md *MockDriver) Select() []byte {
-	return nil
-}
-
-func (md *MockDriver) From() []byte {
-	return nil
-}
-
-func (md *MockDriver) Where() []byte {
-	return nil
-}
-
-func (md *MockDriver) Insert() []byte {
-	return nil
-}
-
-func (md *MockDriver) Values() []byte {
-	return nil
-}
-
-func (md *MockDriver) Update() []byte {
-	return nil
-}
-
-func (md *MockDriver) Set() []byte {
-	return nil
-}
-
-func (md *MockDriver) Delete() []byte {
-	return nil
 }
 
 func (md *MockDriver) NewConnection() goe.Connection {

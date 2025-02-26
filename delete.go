@@ -3,6 +3,7 @@ package goe
 import (
 	"context"
 
+	"github.com/olauro/goe/enum"
 	"github.com/olauro/goe/query"
 )
 
@@ -79,5 +80,5 @@ func (s *stateDelete) Where(Brs ...query.Operation) error {
 }
 
 func createDeleteState(conn Connection, config *Config, ctx context.Context) *stateDelete {
-	return &stateDelete{conn: conn, builder: createBuilder(DeleteQuery), config: config, ctx: ctx}
+	return &stateDelete{conn: conn, builder: createBuilder(enum.DeleteQuery), config: config, ctx: ctx}
 }

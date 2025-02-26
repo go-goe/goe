@@ -3,6 +3,7 @@ package goe
 import (
 	"reflect"
 
+	"github.com/olauro/goe/enum"
 	"github.com/olauro/goe/utils"
 )
 
@@ -289,7 +290,7 @@ func (o *oneToOne) getFieldId() int {
 type aggregate struct {
 	attributeName string
 	table         string
-	aggregateType uint
+	aggregateType enum.AggregateType
 	db            *DB
 }
 

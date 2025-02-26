@@ -3,6 +3,8 @@ package goe
 import (
 	"context"
 	"database/sql"
+
+	"github.com/olauro/goe/enum"
 )
 
 type field interface {
@@ -33,12 +35,11 @@ type Driver interface {
 	DropTable(string) (string, error)
 	DropColumn(table, column string) (string, error)
 	RenameColumn(table, oldColumn, newColumn string) (string, error)
-	Init()
+	Init() error
 	KeywordHandler(string) string
 	NewConnection() Connection
 	NewTransaction(ctx context.Context, opts *sql.TxOptions) (Transaction, error)
 	Stats() sql.DBStats
-	Sql
 }
 
 type Connection interface {
@@ -63,41 +64,11 @@ type Row interface {
 	Scan(dest ...any) error
 }
 
-// TODO: Remove this
-type Sql interface {
-	Select() []byte
-	From() []byte
-	Where() []byte
-	Insert() []byte
-	Values() []byte
-	Returning([]byte) []byte
-	Update() []byte
-	Set() []byte
-	Delete() []byte
-}
-
-const (
-	SelectQuery uint = iota
-	InsertQuery
-	UpdateQuery
-	DeleteQuery
-)
-
-const (
-	_                   = iota
-	CountAggregate uint = 1
-)
-
-const (
-	_                  = iota
-	UpperFunction uint = 1
-)
-
 type Attribute struct {
 	Table         string
 	Name          string
-	AggregateType uint
-	FunctionType  uint
+	AggregateType enum.AggregateType
+	FunctionType  enum.FunctionType
 }
 
 type JoinArgument struct {
@@ -113,7 +84,7 @@ type Join struct {
 }
 
 type Where struct {
-	Type           uint
+	Type           enum.WhereType
 	Attribute      Attribute
 	Operator       string
 	AttributeValue Attribute
@@ -125,7 +96,7 @@ type OrderBy struct {
 }
 
 type Query struct {
-	Type       uint
+	Type       enum.QueryType
 	Attributes []Attribute
 	Tables     []string
 

@@ -3,6 +3,8 @@ package goe
 import (
 	"context"
 	"reflect"
+
+	"github.com/olauro/goe/enum"
 )
 
 type stateInsert[T any] struct {
@@ -74,7 +76,7 @@ func (s *stateInsert[T]) All(value []T) error {
 }
 
 func createInsertState[T any](conn Connection, config *Config, ctx context.Context) *stateInsert[T] {
-	return &stateInsert[T]{conn: conn, builder: createBuilder(InsertQuery), config: config, ctx: ctx}
+	return &stateInsert[T]{conn: conn, builder: createBuilder(enum.InsertQuery), config: config, ctx: ctx}
 }
 
 func getArgsTable[T any](AddrMap map[uintptr]field, table *T) ([]field, error) {
