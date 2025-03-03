@@ -102,7 +102,7 @@ func (b *builder) buildWhere() error {
 	for _, v := range b.brs {
 		switch v.Type {
 		case enum.OperationWhere:
-			b.query.Arguments = append(b.query.Arguments, v.Value)
+			b.query.Arguments = append(b.query.Arguments, v.Value.GetValue())
 
 			b.query.WhereOperations = append(b.query.WhereOperations, Where{
 				Attribute: Attribute{

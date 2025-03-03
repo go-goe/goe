@@ -10,11 +10,11 @@ import (
 )
 
 type save[T any] struct {
-	table    *T
-	pks      []field
-	pksValue []any
-	includes []field
-	update   *stateUpdate[T]
+	table         *T
+	argsReplace   []any
+	valuesReplace []any
+	includes      []field
+	update        *stateUpdate[T]
 }
 
 func Save[T any](table *T, tx ...Transaction) *save[T] {
@@ -50,7 +50,7 @@ func (s *save[T]) Replace(replace T) *save[T] {
 		return s
 	}
 
-	s.pks, s.pksValue, s.update.err = getPksField(addrMap, s.table, replace)
+	s.argsReplace, s.valuesReplace, s.update.err = getArgsPks(addrMap, s.table, replace)
 	return s
 }
 
@@ -59,37 +59,43 @@ func (s *save[T]) Value(v T) error {
 		return s.update.err
 	}
 
-	includes, pks, pksValue, err := getArgsSave(addrMap, s.table, v)
-	if err != nil {
-		return err
+	argsSave := getArgsSave(addrMap, s.table, v)
+	if argsSave.err != nil {
+		return argsSave.err
 	}
 
-	if s.pks != nil {
-		for i := range pks {
-			if pksValue[i] != s.pksValue[i] {
-				includes = append(includes, pks[i])
+	// used for replace primary key model
+	if s.argsReplace != nil {
+		for i := range argsSave.pks {
+			// includes the pk for update if the values are different from replace model
+			if !slices.Contains(s.valuesReplace, argsSave.valuesWhere[i]) {
+				argsSave.includes = append(argsSave.includes, argsSave.pks[i])
 			}
 		}
-		pks = s.pks
-		pksValue = s.pksValue
+		argsSave.argsWhere = s.argsReplace
+		argsSave.valuesWhere = s.valuesReplace
 	}
 
-	if len(includes) == 0 {
+	if len(argsSave.includes) == 0 {
 		//TODO: error inclues empty
 		return ErrInvalidArg
 	}
 
-	helperOperation(s.update.builder, pks, pksValue)
-
 	for i := range s.includes {
-		if !slices.ContainsFunc(includes, func(f field) bool {
+		if !slices.ContainsFunc(argsSave.includes, func(f field) bool {
 			return f.getFieldId() == s.includes[i].getFieldId()
 		}) {
-			includes = append(includes, s.includes[i])
+			argsSave.includes = append(argsSave.includes, s.includes[i])
 		}
 	}
 
-	s.update.builder.fields = includes
+	s.update.Where(query.Equals(&argsSave.argsWhere[0], argsSave.valuesWhere[0]))
+	for i := 1; i < len(argsSave.argsWhere); i++ {
+		s.update.Where(query.And())
+		s.update.Where(query.Equals(&argsSave.argsWhere[i], argsSave.valuesWhere[i]))
+	}
+
+	s.update.builder.fields = argsSave.includes
 	return s.update.Value(v)
 }
 
@@ -111,7 +117,7 @@ func Update[T any](table *T, tx ...Transaction) *stateUpdate[T] {
 
 // UpdateContext creates a update state for table
 func UpdateContext[T any](ctx context.Context, table *T, tx ...Transaction) *stateUpdate[T] {
-	f := getArg(table, addrMap)
+	f := getArg(table, addrMap, nil)
 
 	var state *stateUpdate[T]
 	if f == nil {
@@ -202,20 +208,30 @@ func getArgsUpdate(addrMap map[uintptr]field, args ...any) ([]field, error) {
 	return fields, nil
 }
 
-func getArgsSave[T any](addrMap map[uintptr]field, table *T, value T) ([]field, []field, []any, error) {
+type argSave struct {
+	includes    []field
+	pks         []field
+	argsWhere   []any
+	valuesWhere []any
+	err         error
+}
+
+func getArgsSave[T any](addrMap map[uintptr]field, table *T, value T) argSave {
 	if table == nil {
-		return nil, nil, nil, ErrInvalidArg
+		return argSave{err: ErrInvalidArg}
 	}
 
 	tableOf := reflect.ValueOf(table).Elem()
 
-	args, pks, pksValue := make([]field, 0), make([]field, 0), make([]any, 0)
-
 	if tableOf.Kind() != reflect.Struct {
-		return nil, nil, nil, ErrInvalidArg
+		return argSave{err: ErrInvalidArg}
 	}
 
 	valueOf := reflect.ValueOf(value)
+
+	includes, pks := make([]field, 0), make([]field, 0)
+	args, values := make([]any, 0, valueOf.NumField()), make([]any, 0, valueOf.NumField())
+
 	var addr uintptr
 	for i := 0; i < valueOf.NumField(); i++ {
 		if !valueOf.Field(i).IsZero() {
@@ -223,66 +239,50 @@ func getArgsSave[T any](addrMap map[uintptr]field, table *T, value T) ([]field, 
 			if addrMap[addr] != nil {
 				if addrMap[addr].isPrimaryKey() {
 					pks = append(pks, addrMap[addr])
-					pksValue = append(pksValue, valueOf.Field(i).Interface())
+					args = append(args, tableOf.Field(i).Addr().Interface())
+					values = append(values, valueOf.Field(i).Interface())
 					continue
 				}
-				args = append(args, addrMap[addr])
+				includes = append(includes, addrMap[addr])
 			}
 		}
 	}
 
-	if len(args) == 0 && len(pks) == 0 {
-		return nil, nil, nil, ErrInvalidArg
-	}
-	return args, pks, pksValue, nil
+	return argSave{includes: includes, pks: pks, argsWhere: args, valuesWhere: values}
 }
 
-func getPksField[T any](addrMap map[uintptr]field, table *T, value T) ([]field, []any, error) {
-	pks, pksValue := make([]field, 0), make([]any, 0)
+func getArgsPks[T any](addrMap map[uintptr]field, table *T, value T) ([]any, []any, error) {
+	if table == nil {
+		return nil, nil, ErrInvalidArg
+	}
 
 	tableOf := reflect.ValueOf(table).Elem()
+
 	if tableOf.Kind() != reflect.Struct {
 		return nil, nil, ErrInvalidArg
 	}
 
 	valueOf := reflect.ValueOf(value)
+
+	args, values := make([]any, 0, valueOf.NumField()), make([]any, 0, valueOf.NumField())
 	var addr uintptr
 	for i := 0; i < valueOf.NumField(); i++ {
 		if !valueOf.Field(i).IsZero() {
 			addr = uintptr(tableOf.Field(i).Addr().UnsafePointer())
 			if addrMap[addr] != nil {
 				if addrMap[addr].isPrimaryKey() {
-					pks = append(pks, addrMap[addr])
-					pksValue = append(pksValue, valueOf.Field(i).Interface())
+					args = append(args, tableOf.Field(i).Addr().Interface())
+					values = append(values, valueOf.Field(i).Interface())
+					continue
 				}
 			}
 		}
 	}
 
-	if len(pks) == 0 {
+	if len(args) == 0 && len(values) == 0 {
 		return nil, nil, ErrInvalidArg
 	}
-	return pks, pksValue, nil
-}
-
-func helperOperation(builder *builder, pks []field, pksValue []any) {
-	builder.brs = append(builder.brs, query.Operation{
-		Type:      enum.OperationWhere,
-		Table:     pks[0].table(),
-		Attribute: pks[0].getAttributeName(),
-		Operator:  "=",
-		Value:     pksValue[0]})
-	pkCount := 1
-	for _, pk := range pks[1:] {
-		builder.brs = append(builder.brs, query.And())
-		builder.brs = append(builder.brs, query.Operation{
-			Type:      enum.OperationWhere,
-			Table:     pk.table(),
-			Attribute: pk.getAttributeName(),
-			Operator:  "=",
-			Value:     pksValue[pkCount]})
-		pkCount++
-	}
+	return args, values, nil
 }
 
 func createUpdateState[T any](

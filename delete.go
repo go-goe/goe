@@ -20,14 +20,21 @@ func Remove[T any](table *T, value T, tx ...Transaction) error {
 }
 
 func RemoveContext[T any](ctx context.Context, table *T, value T, tx ...Transaction) error {
-	pks, pksValue, err := getPksField(addrMap, table, value)
+	pks, valuesPks, err := getArgsPks(addrMap, table, value)
 	if err != nil {
 		return err
 	}
 
 	s := DeleteContext(ctx, table, tx...)
-	helperOperation(s.builder, pks, pksValue)
-	return s.Where()
+
+	brs := make([]query.Operation, 0, len(pks))
+	brs = append(brs, query.Equals(&pks[0], valuesPks[0]))
+	for i := 1; i < len(pks); i++ {
+		brs = append(brs, query.And())
+		brs = append(brs, query.Equals(&pks[i], valuesPks[i]))
+	}
+
+	return s.Where(brs...)
 }
 
 // Delete uses [context.Background] internally;

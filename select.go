@@ -24,15 +24,19 @@ func Find[T any](t *T, v T, tx ...Transaction) (*T, error) {
 	return FindContext(context.Background(), t, v, tx...)
 }
 
-func FindContext[T any](ctx context.Context, t *T, v T, tx ...Transaction) (*T, error) {
-	pks, pksValue, err := getPksField(addrMap, t, v)
-
+func FindContext[T any](ctx context.Context, table *T, value T, tx ...Transaction) (*T, error) {
+	pks, valuesPks, err := getArgsPks(addrMap, table, value)
 	if err != nil {
 		return nil, err
 	}
 
-	s := SelectContext(ctx, t, tx...).From(t)
-	helperOperation(s.builder, pks, pksValue)
+	s := SelectContext(ctx, table, tx...).From(table)
+
+	s.Where(query.Equals(&pks[0], valuesPks[0]))
+	for i := 1; i < len(pks); i++ {
+		s.Where(query.And())
+		s.Where(query.Equals(&pks[i], valuesPks[i]))
+	}
 
 	for row, err := range s.Rows() {
 		if err != nil {
@@ -121,7 +125,7 @@ func (s *stateSelect[T]) Skip(i uint) *stateSelect[T] {
 //	// same query
 //	db.Select(db.Habitat).OrderByAsc(&db.Habitat.Name).Page(1, 20).Scan(&h)
 func (s *stateSelect[T]) OrderByAsc(arg any) *stateSelect[T] {
-	field := getArg(arg, addrMap)
+	field := getArg(arg, addrMap, nil)
 	if field == nil {
 		s.err = ErrInvalidOrderBy
 		return s
@@ -140,7 +144,7 @@ func (s *stateSelect[T]) OrderByAsc(arg any) *stateSelect[T] {
 //	// same query
 //	db.Select(db.Habitat).OrderByDesc(&db.Habitat.Id).Take(1).Scan(&h)
 func (s *stateSelect[T]) OrderByDesc(arg any) *stateSelect[T] {
-	field := getArg(arg, addrMap)
+	field := getArg(arg, addrMap, nil)
 	if field == nil {
 		s.err = ErrInvalidOrderBy
 		return s
@@ -350,13 +354,13 @@ func (l *list[T]) OrderByDesc(a any) *list[T] {
 }
 
 func (l *list[T]) Filter(v T) *list[T] {
-	fields, fieldsValue, err := getNonZeroFields(addrMap, l.table, v)
-
+	args, values, err := getNonZeroFields(addrMap, l.table, v)
 	if err != nil {
 		l.err = err
 		return l
 	}
-	helperNonZeroOperation(l.sSelect.builder, fields, fieldsValue)
+
+	helperNonZeroOperation(l.sSelect, args, values)
 	return l
 }
 
@@ -375,8 +379,8 @@ func (l *list[T]) AsPagination(page, size uint) (*Pagination[T], error) {
 	return l.sSelect.AsPagination(page, size)
 }
 
-func getNonZeroFields[T any](addrMap map[uintptr]field, table *T, value T) ([]field, []any, error) {
-	fields, fieldsValue := make([]field, 0), make([]any, 0)
+func getNonZeroFields[T any](addrMap map[uintptr]field, table *T, value T) ([]any, []any, error) {
+	args, values := make([]any, 0), make([]any, 0)
 
 	tableOf := reflect.ValueOf(table).Elem()
 	if tableOf.Kind() != reflect.Struct {
@@ -389,54 +393,38 @@ func getNonZeroFields[T any](addrMap map[uintptr]field, table *T, value T) ([]fi
 		if !valueOf.Field(i).IsZero() {
 			addr = uintptr(tableOf.Field(i).Addr().UnsafePointer())
 			if addrMap[addr] != nil {
-				fields = append(fields, addrMap[addr])
-				fieldsValue = append(fieldsValue, valueOf.Field(i).Interface())
+				args = append(args, tableOf.Field(i).Addr().Interface())
+				values = append(values, valueOf.Field(i).Interface())
 			}
 		}
 	}
 
-	if len(fields) == 0 {
+	if len(args) == 0 {
 		return nil, nil, ErrInvalidArg
 	}
-	return fields, fieldsValue, nil
+	return args, values, nil
 }
 
-func helperNonZeroOperation(builder *builder, fields []field, fieldsValue []any) {
-	builder.brs = append(builder.brs, equalsOrLike(fields[0], fieldsValue[0]))
-	for i := 1; i < len(fields); i++ {
-		builder.brs = append(builder.brs, query.Or())
-		builder.brs = append(builder.brs, equalsOrLike(fields[i], fieldsValue[i]))
+func helperNonZeroOperation[T any](stateSelect *stateSelect[T], args []any, values []any) {
+	stateSelect.Where(equalsOrLike(args[0], values[0]))
+	for i := 1; i < len(args); i++ {
+		stateSelect.Where(query.Or())
+		stateSelect.Where(equalsOrLike(args[i], values[i]))
 	}
 }
 
-func equalsOrLike(f field, a any) query.Operation {
+func equalsOrLike(f any, a any) query.Operation {
 	v, ok := a.(string)
 
 	if !ok {
-		return query.Operation{
-			Type:      enum.OperationWhere,
-			Attribute: f.getAttributeName(),
-			Table:     f.table(),
-			Operator:  "=",
-			Value:     a}
+		return query.Equals(&f, a)
 	}
 
 	if strings.Contains(v, "%") {
-		return query.Operation{
-			Type:      enum.OperationWhere,
-			Attribute: f.getAttributeName(),
-			Table:     f.table(),
-			Function:  enum.UpperFunction,
-			Operator:  "LIKE",
-			Value:     strings.ToUpper(v)}
+		return query.Like(query.ToUpper(f.(*string)), strings.ToUpper(v))
 	}
 
-	return query.Operation{
-		Type:      enum.OperationWhere,
-		Attribute: f.getAttributeName(),
-		Table:     f.table(),
-		Operator:  "=",
-		Value:     strings.ToUpper(v)}
+	return query.Equals(&f, a)
 }
 
 func getArgsSelect(addrMap map[uintptr]field, arg any) ([]fieldSelect, error) {
@@ -478,19 +466,31 @@ func getArgsSelectAno(addrMap map[uintptr]field, valueOf reflect.Value) ([]field
 	fields := make([]fieldSelect, 0)
 	var fieldOf reflect.Value
 	for i := 0; i < valueOf.NumField(); i++ {
+		if valueOf.Field(i).Kind() != reflect.Pointer {
+			//TODO: update to get value from one column query
+			return nil, ErrInvalidArg
+		}
 		fieldOf = valueOf.Field(i).Elem()
 		addr := uintptr(fieldOf.Addr().UnsafePointer())
 		if addrMap[addr] != nil {
 			fields = append(fields, addrMap[addr])
 			continue
 		}
-		// check if is aggregate
+
 		if fieldOf.Kind() == reflect.Struct {
-			addr := uintptr(fieldOf.Field(0).Elem().UnsafePointer())
+			// check if is aggregate
+			addr = uintptr(fieldOf.Field(0).Elem().UnsafePointer())
 			if addrMap[addr] != nil {
 				fields = append(fields, createAggregate(addrMap[addr], fieldOf.Interface()))
 				continue
 			}
+			// check if is function
+			addr := uintptr(fieldOf.Field(0).UnsafePointer())
+			if addrMap[addr] != nil {
+				fields = append(fields, createFunction(addrMap[addr], fieldOf.Interface()))
+				continue
+			}
+
 		}
 		return nil, ErrInvalidArg
 	}
@@ -500,8 +500,20 @@ func getArgsSelectAno(addrMap map[uintptr]field, valueOf reflect.Value) ([]field
 	return fields, nil
 }
 
+func createFunction(field field, a any) fieldSelect {
+	switch a.(type) {
+	case query.Function[string]:
+		return &function{
+			table:         field.table(),
+			db:            field.getDb(),
+			attributeName: field.getAttributeName(),
+			functionType:  enum.UpperFunction}
+	}
+
+	return nil
+}
+
 func createAggregate(field field, a any) fieldSelect {
-	//TODO: update to a agreg type uint value
 	switch a.(type) {
 	case query.Count:
 		return &aggregate{
@@ -576,13 +588,49 @@ func getArgsTables(builder *builder, addrMap map[uintptr]field, tables []int, ar
 	return nil
 }
 
-func getArg(arg any, addrMap map[uintptr]field) field {
+func getArgFunction(arg any, addrMap map[uintptr]field, operation *query.Operation) field {
+	value := reflect.ValueOf(arg)
+	if value.IsNil() {
+		return nil
+	}
+
+	if function, ok := value.Elem().Interface().(query.Function[string]); ok {
+		operation.Function = function.Type
+		return getArg(function.Field, addrMap, nil)
+	}
+	return getArg(arg, addrMap, nil)
+}
+
+func getArg(arg any, addrMap map[uintptr]field, operation *query.Operation) field {
 	v := reflect.ValueOf(arg)
 	if v.Kind() != reflect.Pointer {
 		return nil
 	}
 
+	if operation != nil {
+		return getArgFunction(arg, addrMap, operation)
+	}
+
 	addr := uintptr(v.UnsafePointer())
+	if addrMap[addr] != nil {
+		return addrMap[addr]
+	}
+	// any as pointer, used on save, find, remove and list
+	return getAnyArg(v, addrMap)
+}
+
+// used only inside getArg
+func getAnyArg(value reflect.Value, addrMap map[uintptr]field) field {
+	if value.IsNil() {
+		return nil
+	}
+
+	value = reflect.ValueOf(value.Elem().Interface())
+	if value.Kind() != reflect.Pointer {
+		return nil
+	}
+
+	addr := uintptr(value.UnsafePointer())
 	if addrMap[addr] != nil {
 		return addrMap[addr]
 	}
@@ -593,7 +641,7 @@ func helperWhere(builder *builder, addrMap map[uintptr]field, brs ...query.Opera
 	for _, br := range brs {
 		switch br.Type {
 		case enum.OperationWhere:
-			if a := getArg(br.Arg, addrMap); a != nil {
+			if a := getArg(br.Arg, addrMap, &br); a != nil {
 				br.Table = a.table()
 				br.Attribute = a.getAttributeName()
 
@@ -602,7 +650,7 @@ func helperWhere(builder *builder, addrMap map[uintptr]field, brs ...query.Opera
 			}
 			return ErrInvalidWhere
 		case enum.OperationAttributeWhere:
-			if a, b := getArg(br.Arg, addrMap), getArg(br.Value, addrMap); a != nil && b != nil {
+			if a, b := getArg(br.Arg, addrMap, nil), getArg(br.Value.GetValue(), addrMap, nil); a != nil && b != nil {
 				br.Table = a.table()
 				br.Attribute = a.getAttributeName()
 
@@ -613,7 +661,7 @@ func helperWhere(builder *builder, addrMap map[uintptr]field, brs ...query.Opera
 			}
 			return ErrInvalidWhere
 		case enum.OperationIsWhere:
-			if a := getArg(br.Arg, addrMap); a != nil {
+			if a := getArg(br.Arg, addrMap, nil); a != nil {
 				br.Table = a.table()
 				br.Attribute = a.getAttributeName()
 

@@ -304,3 +304,21 @@ func (a *aggregate) buildAttributeSelect(b *builder) {
 func (a *aggregate) getDb() *DB {
 	return a.db
 }
+
+type function struct {
+	attributeName string
+	table         string
+	functionType  enum.FunctionType
+	db            *DB
+}
+
+func (f *function) buildAttributeSelect(b *builder) {
+	b.query.Attributes = append(b.query.Attributes, Attribute{
+		Table:        f.table,
+		Name:         f.attributeName,
+		FunctionType: f.functionType})
+}
+
+func (f *function) getDb() *DB {
+	return f.db
+}
