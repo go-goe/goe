@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"iter"
+	"strings"
 	"testing"
 	"time"
 
@@ -293,6 +294,51 @@ func TestSelect(t *testing.T) {
 				}
 				if len(a) != 3 {
 					t.Errorf("Expected 3, got %v", len(a))
+				}
+			},
+		},
+		{
+			desc: "Select_ToUpper",
+			testCase: func(t *testing.T) {
+				for row, err := range goe.Select(&struct {
+					Name      *string
+					UpperName *query.Function[string]
+				}{
+					Name:      &db.Animal.Name,
+					UpperName: query.ToUpper(&db.Animal.Name),
+				}).From(db.Animal).Rows() {
+					if err != nil {
+						t.Fatalf("Expected select, got error: %v", err)
+					}
+					if strings.ToUpper(goe.SafeGet(row.Name)) != row.UpperName.Value {
+						t.Fatalf("Expected %v, got: %v", strings.ToUpper(goe.SafeGet(row.Name)), row.UpperName.Value)
+					}
+				}
+			},
+		},
+		{
+			desc: "Select_Like_ToUpper",
+			testCase: func(t *testing.T) {
+				var a []Animal
+				a, err = goe.Select(db.Animal).From(db.Animal).Where(query.Like(query.ToUpper(&db.Animal.Name), "%CAT%")).RowsAsSlice()
+				if err != nil {
+					t.Fatalf("Expected select, got error: %v", err)
+				}
+				if len(a) != 3 {
+					t.Errorf("Expected 3, got %v", len(a))
+				}
+			},
+		},
+		{
+			desc: "Select_Equals_ToUpper",
+			testCase: func(t *testing.T) {
+				var a []Animal
+				a, err = goe.Select(db.Animal).From(db.Animal).Where(query.Equals(query.ToUpper(&db.Animal.Name), query.Argument("CAT"))).RowsAsSlice()
+				if err != nil {
+					t.Fatalf("Expected select, got error: %v", err)
+				}
+				if strings.ToUpper(a[0].Name) != "CAT" {
+					t.Errorf("Expected CAT, got %v", strings.ToUpper(a[0].Name))
 				}
 			},
 		},
