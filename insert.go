@@ -8,7 +8,6 @@ import (
 )
 
 type stateInsert[T any] struct {
-	config  *Config
 	conn    Connection
 	builder builder
 	ctx     context.Context
@@ -20,7 +19,7 @@ type stateInsert[T any] struct {
 //
 // # Example
 func Insert[T any](table *T, tx ...Transaction) *stateInsert[T] {
-	return InsertContext[T](context.Background(), table, tx...)
+	return InsertContext(context.Background(), table, tx...)
 }
 
 // InsertContext creates a insert state for table
@@ -36,9 +35,9 @@ func InsertContext[T any](ctx context.Context, table *T, tx ...Transaction) *sta
 	db := fields[0].getDb()
 
 	if tx != nil {
-		state = createInsertState[T](tx[0], db.Config, ctx)
+		state = createInsertState[T](tx[0], ctx)
 	} else {
-		state = createInsertState[T](db.Driver.NewConnection(), db.Config, ctx)
+		state = createInsertState[T](db.Driver.NewConnection(), ctx)
 	}
 	state.builder.fields = fields
 	return state
@@ -75,8 +74,8 @@ func (s *stateInsert[T]) All(value []T) error {
 	return handlerValuesReturningBatch(s.conn, s.builder.query, valueOf, pkFieldId, s.ctx)
 }
 
-func createInsertState[T any](conn Connection, config *Config, ctx context.Context) *stateInsert[T] {
-	return &stateInsert[T]{conn: conn, builder: createBuilder(enum.InsertQuery), config: config, ctx: ctx}
+func createInsertState[T any](conn Connection, ctx context.Context) *stateInsert[T] {
+	return &stateInsert[T]{conn: conn, builder: createBuilder(enum.InsertQuery), ctx: ctx}
 }
 
 func getArgsTable[T any](AddrMap map[uintptr]field, table *T) ([]field, error) {

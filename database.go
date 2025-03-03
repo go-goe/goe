@@ -27,14 +27,9 @@ var ErrInvalidUpdateValue = errors.New("goe: invalid update value. try sending a
 
 var ErrNotFound = errors.New("goe: not found any element on result set")
 
-type Config struct {
-	LogQuery bool
-}
-
 var addrMap map[uintptr]field
 
 type DB struct {
-	Config *Config
 	Driver Driver
 }
 

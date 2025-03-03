@@ -8,7 +8,6 @@ import (
 )
 
 type stateDelete struct {
-	config  *Config
 	conn    Connection
 	builder builder
 	ctx     context.Context
@@ -59,9 +58,9 @@ func DeleteContext[T any](ctx context.Context, table *T, tx ...Transaction) *sta
 	db := fields[0].getDb()
 
 	if tx != nil {
-		state = createDeleteState(tx[0], db.Config, ctx)
+		state = createDeleteState(tx[0], ctx)
 	} else {
-		state = createDeleteState(db.Driver.NewConnection(), db.Config, ctx)
+		state = createDeleteState(db.Driver.NewConnection(), ctx)
 	}
 
 	state.builder.fields = fields
@@ -86,6 +85,6 @@ func (s *stateDelete) Where(Brs ...query.Operation) error {
 	return handlerValues(s.conn, s.builder.query, s.ctx)
 }
 
-func createDeleteState(conn Connection, config *Config, ctx context.Context) *stateDelete {
-	return &stateDelete{conn: conn, builder: createBuilder(enum.DeleteQuery), config: config, ctx: ctx}
+func createDeleteState(conn Connection, ctx context.Context) *stateDelete {
+	return &stateDelete{conn: conn, builder: createBuilder(enum.DeleteQuery), ctx: ctx}
 }

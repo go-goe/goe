@@ -31,10 +31,10 @@ type fieldSelect interface {
 
 type Driver interface {
 	Name() string
-	MigrateContext(context.Context, *Migrator) (string, error)
-	DropTable(string) (string, error)
-	DropColumn(table, column string) (string, error)
-	RenameColumn(table, oldColumn, newColumn string) (string, error)
+	MigrateContext(context.Context, *Migrator) error
+	DropTable(string) error
+	DropColumn(table, column string) error
+	RenameColumn(table, oldColumn, newColumn string) error
 	Init() error
 	KeywordHandler(string) string
 	NewConnection() Connection

@@ -17,20 +17,20 @@ func (md *MockDriver) Name() string {
 	return "Mock"
 }
 
-func (md *MockDriver) MigrateContext(context.Context, *goe.Migrator) (string, error) {
-	return "", nil
+func (md *MockDriver) MigrateContext(context.Context, *goe.Migrator) error {
+	return nil
 }
 
-func (md *MockDriver) DropTable(string) (string, error) {
-	return "", nil
+func (md *MockDriver) DropTable(string) error {
+	return nil
 }
 
-func (md *MockDriver) DropColumn(string, string) (string, error) {
-	return "", nil
+func (md *MockDriver) DropColumn(string, string) error {
+	return nil
 }
 
-func (md *MockDriver) RenameColumn(string, string, string) (string, error) {
-	return "", nil
+func (md *MockDriver) RenameColumn(string, string, string) error {
+	return nil
 }
 
 func (md *MockDriver) Init() error {
@@ -70,7 +70,7 @@ func TestMapDatabase(t *testing.T) {
 		UserLog *UserLog
 	}
 
-	_, err := goe.Open[Database](&MockDriver{}, goe.Config{})
+	_, err := goe.Open[Database](&MockDriver{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -86,7 +86,7 @@ func TestMapDatabaseErrorPrimaryKey(t *testing.T) {
 		User *User
 	}
 
-	_, err := goe.Open[Database](&MockDriver{}, goe.Config{})
+	_, err := goe.Open[Database](&MockDriver{})
 	if !errors.Is(err, goe.ErrStructWithoutPrimaryKey) {
 		t.Fatal("Was expected a goe.ErrStructWithoutPrimaryKey but get:", err)
 	}

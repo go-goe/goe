@@ -2,7 +2,6 @@ package goe
 
 import (
 	"context"
-	"log"
 
 	"github.com/olauro/goe/utils"
 )
@@ -22,11 +21,7 @@ func AutoMigrateContext(ctx context.Context, dbTarget any) error {
 		return m.Error
 	}
 
-	sql, err := db.Driver.MigrateContext(ctx, m)
-	if db.Config.LogQuery {
-		log.Println("\n" + sql)
-	}
-	return err
+	return db.Driver.MigrateContext(ctx, m)
 }
 
 func DropTable(dbTarget any, table string) error {
@@ -34,12 +29,7 @@ func DropTable(dbTarget any, table string) error {
 	if err != nil {
 		return err
 	}
-
-	sql, err := db.Driver.DropTable(db.Driver.KeywordHandler(utils.TableNamePattern(table)))
-	if db.Config.LogQuery {
-		log.Println("\n" + sql)
-	}
-	return err
+	return db.Driver.DropTable(db.Driver.KeywordHandler(utils.TableNamePattern(table)))
 }
 
 func DropColumn(dbTarget any, table, column string) error {
@@ -51,11 +41,7 @@ func DropColumn(dbTarget any, table, column string) error {
 	table = db.Driver.KeywordHandler(utils.TableNamePattern(table))
 	column = db.Driver.KeywordHandler(utils.ColumnNamePattern(column))
 
-	sql, err := db.Driver.DropColumn(table, column)
-	if db.Config.LogQuery {
-		log.Println("\n" + sql)
-	}
-	return err
+	return db.Driver.DropColumn(table, column)
 }
 
 func RenameColumn(dbTarget any, table, oldColumn, newColumn string) error {
@@ -68,9 +54,5 @@ func RenameColumn(dbTarget any, table, oldColumn, newColumn string) error {
 	oldColumn = db.Driver.KeywordHandler(utils.ColumnNamePattern(oldColumn))
 	newColumn = db.Driver.KeywordHandler(utils.ColumnNamePattern(newColumn))
 
-	sql, err := db.Driver.RenameColumn(table, oldColumn, newColumn)
-	if db.Config.LogQuery {
-		log.Println("\n" + sql)
-	}
-	return err
+	return db.Driver.RenameColumn(table, oldColumn, newColumn)
 }

@@ -152,7 +152,7 @@ func SetupPostgres() (*Database, error) {
 		return db, nil
 	}
 	var err error
-	db, err = goe.Open[Database](postgres.Open("user=postgres password=postgres host=localhost port=5432 database=postgres"), goe.Config{})
+	db, err = goe.Open[Database](postgres.Open("user=postgres password=postgres host=localhost port=5432 database=postgres", postgres.Config{}))
 	if err != nil {
 		return nil, err
 	}

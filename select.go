@@ -12,7 +12,6 @@ import (
 )
 
 type stateSelect[T any] struct {
-	config  *Config
 	conn    Connection
 	builder builder
 	tables  []any
@@ -69,9 +68,9 @@ func SelectContext[T any](ctx context.Context, t *T, tx ...Transaction) *stateSe
 	db := fields[0].getDb()
 
 	if tx != nil {
-		state = createSelectState[T](tx[0], db.Config, ctx)
+		state = createSelectState[T](tx[0], ctx)
 	} else {
-		state = createSelectState[T](db.Driver.NewConnection(), db.Config, ctx)
+		state = createSelectState[T](db.Driver.NewConnection(), ctx)
 	}
 
 	state.builder.fieldsSelect = fields
@@ -329,8 +328,8 @@ func SafeGet[T any](v *T) T {
 	return *v
 }
 
-func createSelectState[T any](conn Connection, config *Config, ctx context.Context) *stateSelect[T] {
-	return &stateSelect[T]{conn: conn, builder: createBuilder(enum.SelectQuery), config: config, ctx: ctx}
+func createSelectState[T any](conn Connection, ctx context.Context) *stateSelect[T] {
+	return &stateSelect[T]{conn: conn, builder: createBuilder(enum.SelectQuery), ctx: ctx}
 }
 
 type list[T any] struct {

@@ -100,7 +100,6 @@ func (s *save[T]) Value(v T) error {
 }
 
 type stateUpdate[T any] struct {
-	config  *Config
 	conn    Connection
 	builder builder
 	ctx     context.Context
@@ -129,9 +128,9 @@ func UpdateContext[T any](ctx context.Context, table *T, tx ...Transaction) *sta
 	db := f.getDb()
 
 	if tx != nil {
-		state = createUpdateState[T](tx[0], db.Config, ctx)
+		state = createUpdateState[T](tx[0], ctx)
 	} else {
-		state = createUpdateState[T](db.Driver.NewConnection(), db.Config, ctx)
+		state = createUpdateState[T](db.Driver.NewConnection(), ctx)
 	}
 
 	return state
@@ -287,7 +286,6 @@ func getArgsPks[T any](addrMap map[uintptr]field, table *T, value T) ([]any, []a
 
 func createUpdateState[T any](
 	conn Connection,
-	config *Config,
 	ctx context.Context) *stateUpdate[T] {
-	return &stateUpdate[T]{conn: conn, builder: createBuilder(enum.UpdateQuery), config: config, ctx: ctx}
+	return &stateUpdate[T]{conn: conn, builder: createBuilder(enum.UpdateQuery), ctx: ctx}
 }

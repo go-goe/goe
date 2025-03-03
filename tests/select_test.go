@@ -1118,13 +1118,11 @@ func TestSelect(t *testing.T) {
 		{
 			desc: "Select_Invalid_Arg",
 			testCase: func(t *testing.T) {
-				goeDb.Config.LogQuery = true
 				for _, err := range goe.Select(&struct{}{}).Rows() {
 					if !errors.Is(err, goe.ErrInvalidArg) {
 						t.Errorf("Expected goe.ErrInvalidArg, got error: %v", err)
 					}
 				}
-				goeDb.Config.LogQuery = false
 				for _, err := range goe.Select[any](nil).Rows() {
 					if !errors.Is(err, goe.ErrInvalidArg) {
 						t.Errorf("Expected goe.ErrInvalidArg, got error: %v", err)

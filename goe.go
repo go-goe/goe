@@ -10,7 +10,7 @@ import (
 
 var ErrStructWithoutPrimaryKey = errors.New("goe")
 
-func Open[T any](driver Driver, config Config) (*T, error) {
+func Open[T any](driver Driver) (*T, error) {
 	db := new(T)
 	valueOf := reflect.ValueOf(db)
 	if valueOf.Kind() != reflect.Ptr {
@@ -45,7 +45,6 @@ func Open[T any](driver Driver, config Config) (*T, error) {
 	}
 
 	dbTarget.Driver = driver
-	dbTarget.Config = &config
 	return db, nil
 }
 
