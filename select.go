@@ -189,7 +189,7 @@ func (s *stateSelect[T]) Joins(joins ...query.Joins) *stateSelect[T] {
 	return s
 }
 
-func (s *stateSelect[T]) RowsAsSlice() ([]T, error) {
+func (s *stateSelect[T]) AsSlice() ([]T, error) {
 	rows := make([]T, 0, s.builder.query.Limit)
 	for row, err := range s.Rows() {
 		if err != nil {
@@ -223,11 +223,15 @@ func (s *stateSelect[T]) AsPagination(page, size uint) (*Pagination[T], error) {
 		return nil, s.err
 	}
 
+	if size == 0 {
+		// zero results for size equals 0
+		return new(Pagination[T]), nil
+	}
+
 	var err error
-	if page == 0 || size == 0 {
-		p := new(Pagination[T])
-		p.Values, err = s.RowsAsSlice()
-		return p, err
+	if page == 0 {
+		// page 0 equals page 1
+		page = 1
 	}
 
 	stateCount := Select(&struct {
@@ -260,7 +264,7 @@ func (s *stateSelect[T]) AsPagination(page, size uint) (*Pagination[T], error) {
 
 	p := new(Pagination[T])
 
-	p.Values, err = s.RowsAsSlice()
+	p.Values, err = s.AsSlice()
 	if err != nil {
 		return nil, err
 	}
@@ -368,7 +372,7 @@ func (l *list[T]) AsSlice() ([]T, error) {
 	if l.err != nil {
 		return nil, l.err
 	}
-	return l.sSelect.RowsAsSlice()
+	return l.sSelect.AsSlice()
 }
 
 func (l *list[T]) AsPagination(page, size uint) (*Pagination[T], error) {

@@ -320,7 +320,7 @@ func TestSelect(t *testing.T) {
 			desc: "Select_Like_ToUpper",
 			testCase: func(t *testing.T) {
 				var a []Animal
-				a, err = goe.Select(db.Animal).From(db.Animal).Where(query.Like(query.ToUpper(&db.Animal.Name), "%CAT%")).RowsAsSlice()
+				a, err = goe.Select(db.Animal).From(db.Animal).Where(query.Like(query.ToUpper(&db.Animal.Name), "%CAT%")).AsSlice()
 				if err != nil {
 					t.Fatalf("Expected select, got error: %v", err)
 				}
@@ -333,7 +333,7 @@ func TestSelect(t *testing.T) {
 			desc: "Select_Equals_ToUpper",
 			testCase: func(t *testing.T) {
 				var a []Animal
-				a, err = goe.Select(db.Animal).From(db.Animal).Where(query.Equals(query.ToUpper(&db.Animal.Name), query.Argument("CAT"))).RowsAsSlice()
+				a, err = goe.Select(db.Animal).From(db.Animal).Where(query.Equals(query.ToUpper(&db.Animal.Name), query.Argument("CAT"))).AsSlice()
 				if err != nil {
 					t.Fatalf("Expected select, got error: %v", err)
 				}
@@ -501,8 +501,8 @@ func TestSelect(t *testing.T) {
 					t.Fatalf("Expected pagination, got: %v", err)
 				}
 
-				if len(p.Values) != len(animals) {
-					t.Fatalf("Expected %v, got: %v", len(animals), len(p.Values))
+				if p.CurrentPage != 1 {
+					t.Errorf("Expected 1, got: %v", p.CurrentPage)
 				}
 			},
 		},
@@ -515,8 +515,8 @@ func TestSelect(t *testing.T) {
 					t.Fatalf("Expected pagination, got: %v", err)
 				}
 
-				if len(p.Values) != len(animals) {
-					t.Fatalf("Expected %v, got: %v", len(animals), len(p.Values))
+				if len(p.Values) != 0 {
+					t.Fatalf("Expected 0, got: %v", len(p.Values))
 				}
 			},
 		},
