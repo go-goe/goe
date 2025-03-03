@@ -14,7 +14,7 @@ import (
 type stateSelect[T any] struct {
 	config  *Config
 	conn    Connection
-	builder *builder
+	builder builder
 	tables  []any
 	ctx     context.Context
 	err     error
@@ -83,7 +83,7 @@ func (s *stateSelect[T]) Where(brs ...query.Operation) *stateSelect[T] {
 	if s.err != nil {
 		return s
 	}
-	s.err = helperWhere(s.builder, addrMap, brs...)
+	s.err = helperWhere(&s.builder, addrMap, brs...)
 	return s
 }
 
@@ -162,7 +162,7 @@ func (s *stateSelect[T]) From(tables ...any) *stateSelect[T] {
 	}
 
 	s.builder.tables = make([]int, len(tables))
-	err := getArgsTables(s.builder, addrMap, s.builder.tables, tables...)
+	err := getArgsTables(&s.builder, addrMap, s.builder.tables, tables...)
 	if err != nil {
 		s.err = err
 		return s

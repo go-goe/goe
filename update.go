@@ -102,7 +102,7 @@ func (s *save[T]) Value(v T) error {
 type stateUpdate[T any] struct {
 	config  *Config
 	conn    Connection
-	builder *builder
+	builder builder
 	ctx     context.Context
 	err     error
 }
@@ -157,7 +157,7 @@ func (s *stateUpdate[T]) Where(brs ...query.Operation) *stateUpdate[T] {
 	if s.err != nil {
 		return s
 	}
-	s.err = helperWhere(s.builder, addrMap, brs...)
+	s.err = helperWhere(&s.builder, addrMap, brs...)
 	return s
 }
 

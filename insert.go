@@ -10,7 +10,7 @@ import (
 type stateInsert[T any] struct {
 	config  *Config
 	conn    Connection
-	builder *builder
+	builder builder
 	ctx     context.Context
 	err     error
 }

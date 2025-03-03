@@ -10,7 +10,7 @@ import (
 type stateDelete struct {
 	config  *Config
 	conn    Connection
-	builder *builder
+	builder builder
 	ctx     context.Context
 	err     error
 }
@@ -73,7 +73,7 @@ func (s *stateDelete) Where(Brs ...query.Operation) error {
 		return s.err
 	}
 
-	s.err = helperWhere(s.builder, addrMap, Brs...)
+	s.err = helperWhere(&s.builder, addrMap, Brs...)
 	if s.err != nil {
 		return s.err
 	}

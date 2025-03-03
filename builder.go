@@ -26,8 +26,8 @@ type builder struct {
 	brs          []query.Operation
 }
 
-func createBuilder(typeQuery enum.QueryType) *builder {
-	return &builder{
+func createBuilder(typeQuery enum.QueryType) builder {
+	return builder{
 		query: Query{Type: typeQuery},
 	}
 }
