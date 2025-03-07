@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 
-	"github.com/olauro/goe/enum"
+	"github.com/olauro/goe/model"
 )
 
 type field interface {
@@ -43,9 +43,9 @@ type Driver interface {
 }
 
 type Connection interface {
-	ExecContext(ctx context.Context, query Query) error
-	QueryRowContext(ctx context.Context, query Query) Row
-	QueryContext(ctx context.Context, query Query) (Rows, error)
+	ExecContext(ctx context.Context, query model.Query) error
+	QueryRowContext(ctx context.Context, query model.Query) Row
+	QueryContext(ctx context.Context, query model.Query) (Rows, error)
 }
 
 type Transaction interface {
@@ -62,56 +62,4 @@ type Rows interface {
 
 type Row interface {
 	Scan(dest ...any) error
-}
-
-type Attribute struct {
-	Table         string
-	Name          string
-	AggregateType enum.AggregateType
-	FunctionType  enum.FunctionType
-}
-
-type JoinArgument struct {
-	Table string
-	Name  string
-}
-
-type Join struct {
-	Table          string
-	FirstArgument  JoinArgument
-	JoinOperation  string
-	SecondArgument JoinArgument
-}
-
-type Where struct {
-	Type           enum.WhereType
-	Attribute      Attribute
-	Operator       string
-	AttributeValue Attribute
-}
-
-type OrderBy struct {
-	Desc      bool
-	Attribute Attribute
-}
-
-type Query struct {
-	Type       enum.QueryType
-	Attributes []Attribute
-	Tables     []string
-
-	Joins   []Join   //Select
-	Limit   uint     //Select
-	Offset  uint     //Select
-	OrderBy *OrderBy //Select
-
-	WhereOperations []Where //Select, Update and Delete
-	WhereIndex      int     //Start of where operations on slice arguments
-	Arguments       []any
-
-	ReturningId    *Attribute //Insert
-	BatchSizeQuery int        //Insert
-	SizeArguments  int        //Insert
-
-	RawSql string
 }

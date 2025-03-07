@@ -8,6 +8,7 @@ const (
 	OperationWhere
 	OperationAttributeWhere
 	OperationIsWhere
+	OperationInWhere
 )
 
 type QueryType uint

@@ -6,6 +6,7 @@ import (
 	"slices"
 
 	"github.com/olauro/goe/enum"
+	"github.com/olauro/goe/model"
 	"github.com/olauro/goe/query"
 )
 
@@ -14,7 +15,7 @@ var ErrNoMatchesTables = errors.New("don't have any relationship")
 var ErrNotManyToMany = errors.New("don't have a many to many relationship")
 
 type builder struct {
-	query        Query
+	query        model.Query
 	pkFieldId    int //insert
 	inserts      []field
 	fields       []field
@@ -28,12 +29,12 @@ type builder struct {
 
 func createBuilder(typeQuery enum.QueryType) builder {
 	return builder{
-		query: Query{Type: typeQuery},
+		query: model.Query{Type: typeQuery},
 	}
 }
 
 func (b *builder) buildSelect() {
-	b.query.Attributes = make([]Attribute, 0, len(b.fieldsSelect))
+	b.query.Attributes = make([]model.Attribute, 0, len(b.fieldsSelect))
 
 	len := len(b.fieldsSelect)
 	if len == 0 {
@@ -95,17 +96,16 @@ func (b *builder) buildWhere() error {
 	if len(b.brs) == 0 {
 		return nil
 	}
-	b.query.WhereOperations = make([]Where, 0, len(b.brs))
+	b.query.WhereOperations = make([]model.Where, 0, len(b.brs))
 
-	argsCount := len(b.query.Arguments) + 1
 	b.query.WhereIndex = len(b.query.Arguments) + 1
 	for _, v := range b.brs {
 		switch v.Type {
 		case enum.OperationWhere:
 			b.query.Arguments = append(b.query.Arguments, v.Value.GetValue())
 
-			b.query.WhereOperations = append(b.query.WhereOperations, Where{
-				Attribute: Attribute{
+			b.query.WhereOperations = append(b.query.WhereOperations, model.Where{
+				Attribute: model.Attribute{
 					Name:         v.Attribute,
 					Table:        v.Table,
 					FunctionType: v.Function,
@@ -113,30 +113,53 @@ func (b *builder) buildWhere() error {
 				Operator: v.Operator,
 				Type:     v.Type,
 			})
-			argsCount++
 		case enum.OperationAttributeWhere:
-			b.query.WhereOperations = append(b.query.WhereOperations, Where{
-				Attribute: Attribute{
+			b.query.WhereOperations = append(b.query.WhereOperations, model.Where{
+				Attribute: model.Attribute{
 					Name:  v.Attribute,
 					Table: v.Table,
 				},
 				Operator:       v.Operator,
-				AttributeValue: Attribute{Name: v.AttributeValue, Table: v.AttributeValueTable},
+				AttributeValue: model.Attribute{Name: v.AttributeValue, Table: v.AttributeValueTable},
 				Type:           v.Type,
 			})
-
 		case enum.OperationIsWhere:
-			b.query.WhereOperations = append(b.query.WhereOperations, Where{
-				Attribute: Attribute{
+			b.query.WhereOperations = append(b.query.WhereOperations, model.Where{
+				Attribute: model.Attribute{
 					Name:  v.Attribute,
 					Table: v.Table,
 				},
 				Operator: v.Operator,
 				Type:     v.Type,
 			})
+		case enum.OperationInWhere:
+			where := model.Where{
+				Attribute: model.Attribute{
+					Name:         v.Attribute,
+					Table:        v.Table,
+					FunctionType: v.Function,
+				},
+				Operator: v.Operator,
+				Type:     v.Type,
+			}
 
+			valueOf := reflect.ValueOf(v.Value.GetValue())
+			switch valueOf.Kind() {
+			case reflect.Slice:
+				for i := range valueOf.Len() {
+					b.query.Arguments = append(b.query.Arguments, valueOf.Index(i))
+					where.SizeIn++
+				}
+			case reflect.Array:
+				for i := range valueOf.Len() {
+					b.query.Arguments = append(b.query.Arguments, valueOf.Index(i))
+					where.SizeIn++
+				}
+			}
+
+			b.query.WhereOperations = append(b.query.WhereOperations, where)
 		case enum.LogicalWhere:
-			b.query.WhereOperations = append(b.query.WhereOperations, Where{
+			b.query.WhereOperations = append(b.query.WhereOperations, model.Where{
 				Operator: v.Operator,
 				Type:     v.Type,
 			})
@@ -148,7 +171,7 @@ func (b *builder) buildWhere() error {
 
 func (b *builder) buildTables() (err error) {
 	if len(b.joins) != 0 {
-		b.query.Joins = make([]Join, 0, len(b.joins))
+		b.query.Joins = make([]model.Join, 0, len(b.joins))
 	}
 	c := 1
 	for i := range b.joins {
@@ -160,20 +183,20 @@ func (b *builder) buildTables() (err error) {
 
 func buildJoins(b *builder, join string, f1, f2 field, tables []int, tableIndice int) {
 	if slices.Contains(tables, f1.getTableId()) {
-		b.query.Joins = append(b.query.Joins, Join{
+		b.query.Joins = append(b.query.Joins, model.Join{
 			Table:          f2.table(),
-			FirstArgument:  JoinArgument{Table: f1.table(), Name: f1.getAttributeName()},
+			FirstArgument:  model.JoinArgument{Table: f1.table(), Name: f1.getAttributeName()},
 			JoinOperation:  join,
-			SecondArgument: JoinArgument{Table: f2.table(), Name: f2.getAttributeName()}})
+			SecondArgument: model.JoinArgument{Table: f2.table(), Name: f2.getAttributeName()}})
 
 		tables[tableIndice] = f2.getTableId()
 		return
 	}
-	b.query.Joins = append(b.query.Joins, Join{
+	b.query.Joins = append(b.query.Joins, model.Join{
 		Table:          f1.table(),
-		FirstArgument:  JoinArgument{Table: f1.table(), Name: f1.getAttributeName()},
+		FirstArgument:  model.JoinArgument{Table: f1.table(), Name: f1.getAttributeName()},
 		JoinOperation:  join,
-		SecondArgument: JoinArgument{Table: f2.table(), Name: f2.getAttributeName()}})
+		SecondArgument: model.JoinArgument{Table: f2.table(), Name: f2.getAttributeName()}})
 
 	tables[tableIndice] = f1.getTableId()
 }
@@ -181,7 +204,7 @@ func buildJoins(b *builder, join string, f1, f2 field, tables []int, tableIndice
 func (b *builder) buildInsert() {
 
 	b.fieldIds = make([]int, 0, len(b.fields))
-	b.query.Attributes = make([]Attribute, 0, len(b.fields))
+	b.query.Attributes = make([]model.Attribute, 0, len(b.fields))
 
 	f := b.fields[0]
 	b.query.Tables = make([]string, 1)
@@ -243,7 +266,7 @@ func buildBatchValues(value reflect.Value, b *builder, c *int) {
 func (b *builder) buildUpdate() {
 
 	b.fieldIds = make([]int, 0, len(b.fields))
-	b.query.Attributes = make([]Attribute, 0, len(b.fields))
+	b.query.Attributes = make([]model.Attribute, 0, len(b.fields))
 	b.query.Tables = make([]string, 1)
 	b.query.Tables[0] = b.fields[0].table()
 
@@ -267,7 +290,7 @@ func (b *builder) buildSet(value reflect.Value) {
 }
 
 func buildSetField(valueField reflect.Value, attributeName string, b *builder, c uint16) {
-	b.query.Attributes = append(b.query.Attributes, Attribute{Name: attributeName})
+	b.query.Attributes = append(b.query.Attributes, model.Attribute{Name: attributeName})
 	b.query.Arguments = append(b.query.Arguments, valueField.Interface())
 	c++
 }

@@ -4,9 +4,11 @@ import (
 	"context"
 	"iter"
 	"reflect"
+
+	"github.com/olauro/goe/model"
 )
 
-func handlerValues(conn Connection, query Query, ctx context.Context) error {
+func handlerValues(conn Connection, query model.Query, ctx context.Context) error {
 	err := conn.ExecContext(ctx, query)
 	if err != nil {
 		return err
@@ -14,7 +16,7 @@ func handlerValues(conn Connection, query Query, ctx context.Context) error {
 	return nil
 }
 
-func handlerValuesReturning(conn Connection, query Query, value reflect.Value, pkFieldId int, ctx context.Context) error {
+func handlerValuesReturning(conn Connection, query model.Query, value reflect.Value, pkFieldId int, ctx context.Context) error {
 	row := conn.QueryRowContext(ctx, query)
 
 	err := row.Scan(value.Field(pkFieldId).Addr().Interface())
@@ -24,7 +26,7 @@ func handlerValuesReturning(conn Connection, query Query, value reflect.Value, p
 	return nil
 }
 
-func handlerValuesReturningBatch(conn Connection, query Query, value reflect.Value, pkFieldId int, ctx context.Context) error {
+func handlerValuesReturningBatch(conn Connection, query model.Query, value reflect.Value, pkFieldId int, ctx context.Context) error {
 	rows, err := conn.QueryContext(ctx, query)
 	if err != nil {
 		return err
@@ -42,7 +44,7 @@ func handlerValuesReturningBatch(conn Connection, query Query, value reflect.Val
 	return nil
 }
 
-func handlerResult[T any](conn Connection, query Query, numFields int, ctx context.Context) iter.Seq2[T, error] {
+func handlerResult[T any](conn Connection, query model.Query, numFields int, ctx context.Context) iter.Seq2[T, error] {
 	rows, err := conn.QueryContext(ctx, query)
 
 	var v T

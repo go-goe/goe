@@ -5,6 +5,7 @@ import (
 
 	"github.com/olauro/goe/enum"
 	"github.com/olauro/goe/query"
+	"github.com/olauro/goe/query/where"
 )
 
 type stateDelete struct {
@@ -27,10 +28,10 @@ func RemoveContext[T any](ctx context.Context, table *T, value T, tx ...Transact
 	s := DeleteContext(ctx, table, tx...)
 
 	brs := make([]query.Operation, 0, len(pks))
-	brs = append(brs, query.Equals(&pks[0], valuesPks[0]))
+	brs = append(brs, where.Equals(&pks[0], valuesPks[0]))
 	for i := 1; i < len(pks); i++ {
-		brs = append(brs, query.And())
-		brs = append(brs, query.Equals(&pks[i], valuesPks[i]))
+		brs = append(brs, where.And())
+		brs = append(brs, where.Equals(&pks[i], valuesPks[i]))
 	}
 
 	return s.Where(brs...)

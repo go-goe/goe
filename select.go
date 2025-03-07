@@ -8,7 +8,11 @@ import (
 	"strings"
 
 	"github.com/olauro/goe/enum"
+	"github.com/olauro/goe/model"
 	"github.com/olauro/goe/query"
+	"github.com/olauro/goe/query/aggregate"
+	"github.com/olauro/goe/query/function"
+	"github.com/olauro/goe/query/where"
 )
 
 type stateSelect[T any] struct {
@@ -31,10 +35,10 @@ func FindContext[T any](ctx context.Context, table *T, value T, tx ...Transactio
 
 	s := SelectContext(ctx, table, tx...).From(table)
 
-	s.Where(query.Equals(&pks[0], valuesPks[0]))
+	s.Where(where.Equals(&pks[0], valuesPks[0]))
 	for i := 1; i < len(pks); i++ {
-		s.Where(query.And())
-		s.Where(query.Equals(&pks[i], valuesPks[i]))
+		s.Where(where.And())
+		s.Where(where.Equals(&pks[i], valuesPks[i]))
 	}
 
 	for row, err := range s.Rows() {
@@ -129,7 +133,7 @@ func (s *stateSelect[T]) OrderByAsc(arg any) *stateSelect[T] {
 		s.err = ErrInvalidOrderBy
 		return s
 	}
-	s.builder.query.OrderBy = &OrderBy{Attribute: Attribute{Name: field.getAttributeName(), Table: field.table()}}
+	s.builder.query.OrderBy = &model.OrderBy{Attribute: model.Attribute{Name: field.getAttributeName(), Table: field.table()}}
 	return s
 }
 
@@ -148,8 +152,8 @@ func (s *stateSelect[T]) OrderByDesc(arg any) *stateSelect[T] {
 		s.err = ErrInvalidOrderBy
 		return s
 	}
-	s.builder.query.OrderBy = &OrderBy{
-		Attribute: Attribute{Name: field.getAttributeName(), Table: field.table()},
+	s.builder.query.OrderBy = &model.OrderBy{
+		Attribute: model.Attribute{Name: field.getAttributeName(), Table: field.table()},
 		Desc:      true}
 	return s
 }
@@ -236,7 +240,7 @@ func (s *stateSelect[T]) AsPagination(page, size uint) (*Pagination[T], error) {
 	stateCount := Select(&struct {
 		*query.Count
 	}{
-		Count: query.GetCount(s.tables[0]),
+		Count: aggregate.Count(s.tables[0]),
 	})
 
 	// copy joins
@@ -411,7 +415,7 @@ func getNonZeroFields[T any](addrMap map[uintptr]field, table *T, value T) ([]an
 func helperNonZeroOperation[T any](stateSelect *stateSelect[T], args []any, values []any) {
 	stateSelect.Where(equalsOrLike(args[0], values[0]))
 	for i := 1; i < len(args); i++ {
-		stateSelect.Where(query.Or())
+		stateSelect.Where(where.Or())
 		stateSelect.Where(equalsOrLike(args[i], values[i]))
 	}
 }
@@ -420,14 +424,14 @@ func equalsOrLike(f any, a any) query.Operation {
 	v, ok := a.(string)
 
 	if !ok {
-		return query.Equals(&f, a)
+		return where.Equals(&f, a)
 	}
 
 	if strings.Contains(v, "%") {
-		return query.Like(query.ToUpper(f.(*string)), strings.ToUpper(v))
+		return where.Like(function.ToUpper(f.(*string)), strings.ToUpper(v))
 	}
 
-	return query.Equals(&f, a)
+	return where.Equals(&f, a)
 }
 
 func getArgsSelect(addrMap map[uintptr]field, arg any) ([]fieldSelect, error) {
@@ -506,7 +510,7 @@ func getArgsSelectAno(addrMap map[uintptr]field, valueOf reflect.Value) ([]field
 func createFunction(field field, a any) fieldSelect {
 	switch a.(type) {
 	case query.Function[string]:
-		return &function{
+		return &functionResult{
 			table:         field.table(),
 			db:            field.getDb(),
 			attributeName: field.getAttributeName(),
@@ -519,7 +523,7 @@ func createFunction(field field, a any) fieldSelect {
 func createAggregate(field field, a any) fieldSelect {
 	switch a.(type) {
 	case query.Count:
-		return &aggregate{
+		return &aggregateResult{
 			table:         field.table(),
 			db:            field.getDb(),
 			attributeName: field.getAttributeName(),
@@ -659,6 +663,15 @@ func helperWhere(builder *builder, addrMap map[uintptr]field, brs ...query.Opera
 
 				br.AttributeValue = b.getAttributeName()
 				br.AttributeValueTable = b.table()
+				builder.brs = append(builder.brs, br)
+				continue
+			}
+			return ErrInvalidWhere
+		case enum.OperationInWhere:
+			if a := getArg(br.Arg, addrMap, &br); a != nil {
+				br.Table = a.table()
+				br.Attribute = a.getAttributeName()
+
 				builder.brs = append(builder.brs, br)
 				continue
 			}

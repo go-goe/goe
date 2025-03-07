@@ -4,6 +4,7 @@ import (
 	"reflect"
 
 	"github.com/olauro/goe/enum"
+	"github.com/olauro/goe/model"
 	"github.com/olauro/goe/utils"
 )
 
@@ -185,28 +186,28 @@ func createAtt(db *DB, attributeName string, table string, tableId, fieldId int,
 }
 
 func (p *pk) buildAttributeSelect(b *builder) {
-	b.query.Attributes = append(b.query.Attributes, Attribute{
+	b.query.Attributes = append(b.query.Attributes, model.Attribute{
 		Table: p.tableName,
 		Name:  p.attributeName,
 	})
 }
 
 func (a *att) buildAttributeSelect(b *builder) {
-	b.query.Attributes = append(b.query.Attributes, Attribute{
+	b.query.Attributes = append(b.query.Attributes, model.Attribute{
 		Table: a.tableName,
 		Name:  a.attributeName,
 	})
 }
 
 func (m *manyToOne) buildAttributeSelect(b *builder) {
-	b.query.Attributes = append(b.query.Attributes, Attribute{
+	b.query.Attributes = append(b.query.Attributes, model.Attribute{
 		Table: m.tableName,
 		Name:  m.attributeName,
 	})
 }
 
 func (o *oneToOne) buildAttributeSelect(b *builder) {
-	b.query.Attributes = append(b.query.Attributes, Attribute{
+	b.query.Attributes = append(b.query.Attributes, model.Attribute{
 		Table: o.tableName,
 		Name:  o.attributeName,
 	})
@@ -215,10 +216,10 @@ func (o *oneToOne) buildAttributeSelect(b *builder) {
 func (p *pk) buildAttributeInsert(b *builder) {
 	if !p.autoIncrement {
 		b.inserts = append(b.inserts, p)
-		b.query.Attributes = append(b.query.Attributes, Attribute{Name: p.getAttributeName()})
+		b.query.Attributes = append(b.query.Attributes, model.Attribute{Name: p.getAttributeName()})
 		return
 	}
-	b.query.ReturningId = &Attribute{Name: p.getAttributeName()}
+	b.query.ReturningId = &model.Attribute{Name: p.getAttributeName()}
 	b.pkFieldId = p.fieldId
 }
 
@@ -228,7 +229,7 @@ func (p *pk) writeAttributeInsert(b *builder) {
 
 func (a *att) buildAttributeInsert(b *builder) {
 	b.inserts = append(b.inserts, a)
-	b.query.Attributes = append(b.query.Attributes, Attribute{Name: a.getAttributeName()})
+	b.query.Attributes = append(b.query.Attributes, model.Attribute{Name: a.getAttributeName()})
 }
 
 func (a *att) writeAttributeInsert(b *builder) {
@@ -237,7 +238,7 @@ func (a *att) writeAttributeInsert(b *builder) {
 
 func (m *manyToOne) buildAttributeInsert(b *builder) {
 	b.inserts = append(b.inserts, m)
-	b.query.Attributes = append(b.query.Attributes, Attribute{Name: m.getAttributeName()})
+	b.query.Attributes = append(b.query.Attributes, model.Attribute{Name: m.getAttributeName()})
 }
 
 func (m *manyToOne) writeAttributeInsert(b *builder) {
@@ -246,7 +247,7 @@ func (m *manyToOne) writeAttributeInsert(b *builder) {
 
 func (o *oneToOne) buildAttributeInsert(b *builder) {
 	b.inserts = append(b.inserts, o)
-	b.query.Attributes = append(b.query.Attributes, Attribute{Name: o.getAttributeName()})
+	b.query.Attributes = append(b.query.Attributes, model.Attribute{Name: o.getAttributeName()})
 }
 
 func (o *oneToOne) writeAttributeInsert(b *builder) {
@@ -287,38 +288,38 @@ func (o *oneToOne) getFieldId() int {
 	return o.fieldId
 }
 
-type aggregate struct {
+type aggregateResult struct {
 	attributeName string
 	table         string
 	aggregateType enum.AggregateType
 	db            *DB
 }
 
-func (a *aggregate) buildAttributeSelect(b *builder) {
-	b.query.Attributes = append(b.query.Attributes, Attribute{
+func (a *aggregateResult) buildAttributeSelect(b *builder) {
+	b.query.Attributes = append(b.query.Attributes, model.Attribute{
 		Table:         a.table,
 		Name:          a.attributeName,
 		AggregateType: a.aggregateType})
 }
 
-func (a *aggregate) getDb() *DB {
+func (a *aggregateResult) getDb() *DB {
 	return a.db
 }
 
-type function struct {
+type functionResult struct {
 	attributeName string
 	table         string
 	functionType  enum.FunctionType
 	db            *DB
 }
 
-func (f *function) buildAttributeSelect(b *builder) {
-	b.query.Attributes = append(b.query.Attributes, Attribute{
+func (f *functionResult) buildAttributeSelect(b *builder) {
+	b.query.Attributes = append(b.query.Attributes, model.Attribute{
 		Table:        f.table,
 		Name:         f.attributeName,
 		FunctionType: f.functionType})
 }
 
-func (f *function) getDb() *DB {
+func (f *functionResult) getDb() *DB {
 	return f.db
 }

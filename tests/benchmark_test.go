@@ -6,7 +6,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/olauro/goe"
-	"github.com/olauro/goe/query"
+	"github.com/olauro/goe/query/join"
+	"github.com/olauro/goe/query/where"
 )
 
 var animals []Animal
@@ -87,15 +88,15 @@ func BenchmarkJoin(b *testing.B) {
 
 		for row := range goe.Select(db.Food).From(db.Food).
 			Joins(
-				query.Join[uuid.UUID](&db.Food.Id, &db.AnimalFood.IdFood),
-				query.Join[int](&db.AnimalFood.IdAnimal, &db.Animal.Id),
-				query.Join[uuid.UUID](&db.Animal.IdHabitat, &db.Habitat.Id),
-				query.Join[int](&db.Habitat.IdWeather, &db.Weather.Id),
+				join.Join[uuid.UUID](&db.Food.Id, &db.AnimalFood.IdFood),
+				join.Join[int](&db.AnimalFood.IdAnimal, &db.Animal.Id),
+				join.Join[uuid.UUID](&db.Animal.IdHabitat, &db.Habitat.Id),
+				join.Join[int](&db.Habitat.IdWeather, &db.Weather.Id),
 			).
 			Where(
-				query.Equals(&db.Food.Id, f.Id),
-				query.And(),
-				query.Equals(&db.Food.Name, f.Name),
+				where.Equals(&db.Food.Id, f.Id),
+				where.And(),
+				where.Equals(&db.Food.Name, f.Name),
 			).
 			Rows() {
 			foods = append(foods, row)

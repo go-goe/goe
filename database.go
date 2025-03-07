@@ -8,6 +8,7 @@ import (
 	"reflect"
 
 	"github.com/olauro/goe/enum"
+	"github.com/olauro/goe/model"
 )
 
 var ErrInvalidArg = errors.New("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
@@ -38,11 +39,11 @@ func (db *DB) Stats() sql.DBStats {
 }
 
 func (db *DB) RawQueryContext(ctx context.Context, query string, args ...any) (Rows, error) {
-	return db.Driver.NewConnection().QueryContext(ctx, Query{Type: enum.RawQuery, RawSql: query, Arguments: args})
+	return db.Driver.NewConnection().QueryContext(ctx, model.Query{Type: enum.RawQuery, RawSql: query, Arguments: args})
 }
 
 func (db *DB) RawExecContext(ctx context.Context, query string, args ...any) error {
-	return db.Driver.NewConnection().ExecContext(ctx, Query{Type: enum.RawQuery, RawSql: query, Arguments: args})
+	return db.Driver.NewConnection().ExecContext(ctx, model.Query{Type: enum.RawQuery, RawSql: query, Arguments: args})
 }
 
 func GetGoeDatabase(dbTarget any) (db *DB, err error) {

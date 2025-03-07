@@ -1,10 +1,6 @@
-package query
+package join
 
-type Joins interface {
-	FirstArg() any
-	Join() string
-	SecondArg() any
-}
+import "github.com/olauro/goe/query"
 
 type join struct {
 	t1   any
@@ -30,7 +26,7 @@ func (j join) SecondArg() any {
 //
 //	db.Select(db.Food).From(db.Food).
 //	Joins(query.Join(&db.Animal.Id, &db.Food.IdAnimal)).Scan(&a)
-func Join[T any, U, V *T | **T](t1 U, t2 V) Joins {
+func Join[T any, U, V *T | **T](t1 U, t2 V) query.Joins {
 	return join{t1: t1, join: "JOIN", t2: t2}
 }
 
@@ -40,7 +36,7 @@ func Join[T any, U, V *T | **T](t1 U, t2 V) Joins {
 //
 //	db.Select(db.Food).From(db.Food).
 //	Joins(query.LeftJoin(&db.Animal.Id, &db.Food.IdAnimal)).Scan(&a)
-func LeftJoin[T any, U, V *T | **T](t1 U, t2 V) Joins {
+func LeftJoin[T any, U, V *T | **T](t1 U, t2 V) query.Joins {
 	return join{t1: t1, join: "LEFT JOIN", t2: t2}
 }
 
@@ -50,10 +46,10 @@ func LeftJoin[T any, U, V *T | **T](t1 U, t2 V) Joins {
 //
 //	db.Select(db.Food).From(db.Food).
 //	Joins(query.RightJoin(&db.Animal.Id, &db.Food.IdAnimal)).Scan(&a)
-func RightJoin[T any, U, V *T | **T](t1 U, t2 V) Joins {
+func RightJoin[T any, U, V *T | **T](t1 U, t2 V) query.Joins {
 	return join{t1: t1, join: "RIGHT JOIN", t2: t2}
 }
 
-func CustomJoin(t1 any, j string, t2 any) Joins {
+func CustomJoin(t1 any, j string, t2 any) query.Joins {
 	return join{t1: t1, join: j, t2: t2}
 }

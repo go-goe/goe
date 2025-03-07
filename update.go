@@ -7,6 +7,7 @@ import (
 
 	"github.com/olauro/goe/enum"
 	"github.com/olauro/goe/query"
+	"github.com/olauro/goe/query/where"
 )
 
 type save[T any] struct {
@@ -89,10 +90,10 @@ func (s *save[T]) Value(v T) error {
 		}
 	}
 
-	s.update.Where(query.Equals(&argsSave.argsWhere[0], argsSave.valuesWhere[0]))
+	s.update.Where(where.Equals(&argsSave.argsWhere[0], argsSave.valuesWhere[0]))
 	for i := 1; i < len(argsSave.argsWhere); i++ {
-		s.update.Where(query.And())
-		s.update.Where(query.Equals(&argsSave.argsWhere[i], argsSave.valuesWhere[i]))
+		s.update.Where(where.And())
+		s.update.Where(where.Equals(&argsSave.argsWhere[i], argsSave.valuesWhere[i]))
 	}
 
 	s.update.builder.fields = argsSave.includes
