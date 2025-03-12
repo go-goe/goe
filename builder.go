@@ -11,8 +11,7 @@ import (
 )
 
 var ErrInvalidWhere = errors.New("goe: invalid where operation. try sending a pointer as parameter")
-var ErrNoMatchesTables = errors.New("don't have any relationship")
-var ErrNotManyToMany = errors.New("don't have a many to many relationship")
+var ErrNoTables = errors.New("goe: none table specified, use From() function to specify")
 
 type builder struct {
 	query        model.Query
@@ -58,6 +57,9 @@ func (b *builder) buildSelectJoins(join string, fields []field) {
 }
 
 func (b *builder) buildSqlSelect() (err error) {
+	if b.query.Tables == nil {
+		return ErrNoTables
+	}
 	b.buildSelect()
 	err = b.buildTables()
 	if err != nil {
@@ -154,6 +156,10 @@ func (b *builder) buildWhere() error {
 				for i := range valueOf.Len() {
 					b.query.Arguments = append(b.query.Arguments, valueOf.Index(i))
 					where.SizeIn++
+				}
+			default:
+				if modelQuery, ok := valueOf.Interface().(*model.Query); ok {
+					where.QueryIn = modelQuery
 				}
 			}
 

@@ -203,6 +203,14 @@ func (s *stateSelect[T]) AsSlice() ([]T, error) {
 	return rows, nil
 }
 
+func (s *stateSelect[T]) AsQuery() (*model.Query, error) {
+	if s.err != nil {
+		return nil, s.err
+	}
+
+	return &s.builder.query, s.builder.buildSqlSelect()
+}
+
 type Pagination[T any] struct {
 	TotalValues int64
 	TotalPages  uint

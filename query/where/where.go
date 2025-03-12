@@ -4,6 +4,7 @@ import (
 	"reflect"
 
 	"github.com/olauro/goe/enum"
+	"github.com/olauro/goe/model"
 	"github.com/olauro/goe/query"
 )
 
@@ -126,7 +127,7 @@ func Not(o query.Operation) query.Operation {
 	return o
 }
 
-func In[T any](a *T, mq []T) query.Operation {
+func In[T any, V []T | *model.Query](a *T, mq V) query.Operation {
 	return query.Operation{Arg: a, Value: valueOperation{value: mq}, Operator: "IN", Type: enum.OperationInWhere}
 }
 

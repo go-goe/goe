@@ -27,6 +27,7 @@ type Where struct {
 	Operator       string
 	AttributeValue Attribute
 	SizeIn         uint
+	QueryIn        *Query
 }
 
 type OrderBy struct {
@@ -45,7 +46,7 @@ type Query struct {
 	OrderBy *OrderBy //Select
 
 	WhereOperations []Where //Select, Update and Delete
-	WhereIndex      int     //Start of where operations on slice arguments
+	WhereIndex      int     //Start of where position arguments $1, $2...
 	Arguments       []any
 
 	ReturningId    *Attribute //Insert
