@@ -390,6 +390,85 @@ func TestSelect(t *testing.T) {
 			},
 		},
 		{
+			desc: "Select_Where_In_Query_No_Values",
+			testCase: func(t *testing.T) {
+				querySelect, err := goe.Select(&struct{ Name *string }{Name: &db.Animal.Name}).
+					From(db.Animal).AsQuery()
+				if err != nil {
+					t.Fatalf("Expected a query, got error: %v", err)
+				}
+
+				//whereIn as the first where argument
+				a, err := goe.Select(db.Animal).From(db.Animal).Where(
+					where.In(&db.Animal.Name, querySelect),
+					where.And(),
+					where.LessEquals(&db.Animal.Id, animals[1].Id)).AsSlice()
+				if err != nil {
+					t.Fatalf("Expected a select where in, got error: %v", err)
+				}
+
+				if len(a) != 2 {
+					t.Errorf("Expected 2, got %v", len(a))
+				}
+			},
+		},
+		{
+			desc: "Select_Where_In_Query",
+			testCase: func(t *testing.T) {
+				querySelect, err := goe.Select(&struct{ Name *string }{Name: &db.Animal.Name}).
+					From(db.Animal).
+					Where(where.Equals(&db.Animal.Name, "Cat")).
+					Joins(
+						join.Join[int](&db.Animal.Id, &db.AnimalFood.IdAnimal),
+						join.Join[uuid.UUID](&db.AnimalFood.IdFood, &db.Food.Id)).
+					Where(where.Or(), where.In(&db.Food.Name, []string{foods[0].Name, foods[1].Name})).
+					AsQuery()
+				if err != nil {
+					t.Fatalf("Expected a query, got error: %v", err)
+				}
+
+				//whereIn as the first where argument
+				a, err := goe.Select(db.Animal).From(db.Animal).Where(
+					where.In(&db.Animal.Name, querySelect),
+					where.And(),
+					where.LessEquals(&db.Animal.Id, animals[1].Id)).AsSlice()
+				if err != nil {
+					t.Fatalf("Expected a select where in, got error: %v", err)
+				}
+
+				if len(a) != 2 {
+					t.Errorf("Expected 2, got %v", len(a))
+				}
+
+				//whereIn as the last where argument
+				a, err = goe.Select(db.Animal).From(db.Animal).Where(
+					where.LessEquals(&db.Animal.Id, animals[1].Id),
+					where.And(),
+					where.In(&db.Animal.Name, querySelect)).AsSlice()
+				if err != nil {
+					t.Fatalf("Expected a select where in, got error: %v", err)
+				}
+				if len(a) != 2 {
+					t.Errorf("Expected 2, got %v", len(a))
+				}
+
+				//whereIn as the middle where argument
+				a, err = goe.Select(db.Animal).From(db.Animal).Where(
+					where.NotEquals(&db.Animal.Id, animals[2].Id),
+					where.And(),
+					where.In(&db.Animal.Name, querySelect),
+					where.And(),
+					where.LessEquals(&db.Animal.Id, animals[2].Id)).AsSlice()
+				if err != nil {
+					t.Fatalf("Expected a select where in, got error: %v", err)
+				}
+
+				if len(a) != 2 {
+					t.Errorf("Expected 2, got %v", len(a))
+				}
+			},
+		},
+		{
 			desc: "List_As_Pagination",
 			testCase: func(t *testing.T) {
 				var p *goe.Pagination[Animal]
