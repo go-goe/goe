@@ -20,7 +20,7 @@ func Remove[T any](table *T, value T, tx ...Transaction) error {
 }
 
 func RemoveContext[T any](ctx context.Context, table *T, value T, tx ...Transaction) error {
-	pks, valuesPks, err := getArgsPks(addrMap, table, value)
+	pks, valuesPks, err := getArgsPks(addrMap.mapField, table, value)
 	if err != nil {
 		return err
 	}
@@ -47,7 +47,7 @@ func Delete[T any](table *T, tx ...Transaction) *stateDelete {
 
 // DeleteContext creates a delete state for table
 func DeleteContext[T any](ctx context.Context, table *T, tx ...Transaction) *stateDelete {
-	fields, err := getArgsTable(addrMap, table)
+	fields, err := getArgsTable(addrMap.mapField, table)
 
 	var state *stateDelete
 	if err != nil {
@@ -73,7 +73,7 @@ func (s *stateDelete) Where(Brs ...query.Operation) error {
 		return s.err
 	}
 
-	s.err = helperWhere(&s.builder, addrMap, Brs...)
+	s.err = helperWhere(&s.builder, addrMap.mapField, Brs...)
 	if s.err != nil {
 		return s.err
 	}

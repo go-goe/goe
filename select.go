@@ -28,7 +28,7 @@ func Find[T any](t *T, v T, tx ...Transaction) (*T, error) {
 }
 
 func FindContext[T any](ctx context.Context, table *T, value T, tx ...Transaction) (*T, error) {
-	pks, valuesPks, err := getArgsPks(addrMap, table, value)
+	pks, valuesPks, err := getArgsPks(addrMap.mapField, table, value)
 	if err != nil {
 		return nil, err
 	}
@@ -60,7 +60,7 @@ func Select[T any](t *T, tx ...Transaction) *stateSelect[T] {
 }
 
 func SelectContext[T any](ctx context.Context, t *T, tx ...Transaction) *stateSelect[T] {
-	fields, err := getArgsSelect(addrMap, t)
+	fields, err := getArgsSelect(addrMap.mapField, t)
 
 	var state *stateSelect[T]
 	if err != nil {
@@ -86,7 +86,7 @@ func (s *stateSelect[T]) Where(brs ...query.Operation) *stateSelect[T] {
 	if s.err != nil {
 		return s
 	}
-	s.err = helperWhere(&s.builder, addrMap, brs...)
+	s.err = helperWhere(&s.builder, addrMap.mapField, brs...)
 	return s
 }
 
@@ -128,7 +128,7 @@ func (s *stateSelect[T]) Skip(i uint) *stateSelect[T] {
 //	// same query
 //	db.Select(db.Habitat).OrderByAsc(&db.Habitat.Name).Page(1, 20).Scan(&h)
 func (s *stateSelect[T]) OrderByAsc(arg any) *stateSelect[T] {
-	field := getArg(arg, addrMap, nil)
+	field := getArg(arg, addrMap.mapField, nil)
 	if field == nil {
 		s.err = ErrInvalidOrderBy
 		return s
@@ -147,7 +147,7 @@ func (s *stateSelect[T]) OrderByAsc(arg any) *stateSelect[T] {
 //	// same query
 //	db.Select(db.Habitat).OrderByDesc(&db.Habitat.Id).Take(1).Scan(&h)
 func (s *stateSelect[T]) OrderByDesc(arg any) *stateSelect[T] {
-	field := getArg(arg, addrMap, nil)
+	field := getArg(arg, addrMap.mapField, nil)
 	if field == nil {
 		s.err = ErrInvalidOrderBy
 		return s
@@ -165,7 +165,7 @@ func (s *stateSelect[T]) From(tables ...any) *stateSelect[T] {
 	}
 
 	s.builder.tables = make([]int, len(tables))
-	err := getArgsTables(&s.builder, addrMap, s.builder.tables, tables...)
+	err := getArgsTables(&s.builder, addrMap.mapField, s.builder.tables, tables...)
 	if err != nil {
 		s.err = err
 		return s
@@ -182,7 +182,7 @@ func (s *stateSelect[T]) Joins(joins ...query.Joins) *stateSelect[T] {
 	}
 
 	for _, j := range joins {
-		fields, err := getArgsJoin(addrMap, j.FirstArg(), j.SecondArg())
+		fields, err := getArgsJoin(addrMap.mapField, j.FirstArg(), j.SecondArg())
 		if err != nil {
 			s.err = err
 			return s
@@ -369,7 +369,7 @@ func (l *list[T]) OrderByDesc(a any) *list[T] {
 }
 
 func (l *list[T]) Filter(v T) *list[T] {
-	args, values, err := getNonZeroFields(addrMap, l.table, v)
+	args, values, err := getNonZeroFields(addrMap.mapField, l.table, v)
 	if err != nil {
 		l.err = err
 		return l

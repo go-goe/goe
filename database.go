@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"sync"
 
 	"github.com/olauro/goe/enum"
 	"github.com/olauro/goe/model"
@@ -28,7 +29,24 @@ var ErrInvalidUpdateValue = errors.New("goe: invalid update value. try sending a
 
 var ErrNotFound = errors.New("goe: not found any element on result set")
 
-var addrMap map[uintptr]field
+type goeMap struct {
+	mu       sync.Mutex
+	mapField map[uintptr]field
+}
+
+func (am *goeMap) Get(key uintptr) field {
+	am.mu.Lock()
+	defer am.mu.Unlock()
+	return am.mapField[key]
+}
+
+func (am *goeMap) Set(key uintptr, value field) {
+	am.mu.Lock()
+	defer am.mu.Unlock()
+	am.mapField[key] = value
+}
+
+var addrMap *goeMap
 
 type DB struct {
 	Driver Driver
@@ -51,7 +69,7 @@ func GetGoeDatabase(dbTarget any) (db *DB, err error) {
 	if dbValueOf.NumField() == 0 {
 		return nil, fmt.Errorf("goe: Database %v with no structs", dbValueOf.Type().Name())
 	}
-	goeDb := addrMap[uintptr(dbValueOf.Field(0).UnsafePointer())]
+	goeDb := addrMap.Get(uintptr(dbValueOf.Field(0).UnsafePointer()))
 
 	if goeDb == nil {
 		return nil, fmt.Errorf("goe: Database %v with no structs", dbValueOf.Type().Name())

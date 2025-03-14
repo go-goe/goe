@@ -8,6 +8,10 @@ import (
 	"strings"
 )
 
+func init() {
+	addrMap = &goeMap{mapField: make(map[uintptr]field)}
+}
+
 var ErrStructWithoutPrimaryKey = errors.New("goe")
 
 func Open[T any](driver Driver) (*T, error) {
@@ -18,10 +22,6 @@ func Open[T any](driver Driver) (*T, error) {
 	}
 	dbTarget := new(DB)
 	valueOf = valueOf.Elem()
-
-	if addrMap == nil {
-		addrMap = make(map[uintptr]field)
-	}
 
 	// set value for Fields
 	for i := 0; i < valueOf.NumField(); i++ {
@@ -55,7 +55,7 @@ func initField(tables reflect.Value, valueOf reflect.Value, db *DB, tableId int,
 	}
 
 	for i := range pks {
-		addrMap[uintptr(valueOf.Field(fieldIds[i]).Addr().UnsafePointer())] = pks[i]
+		addrMap.Set(uintptr(valueOf.Field(fieldIds[i]).Addr().UnsafePointer()), pks[i])
 	}
 	var field reflect.StructField
 
@@ -109,7 +109,7 @@ func newAttr(valueOf reflect.Value, i int, table string, addr uintptr, db *DB, t
 		fieldId,
 		d,
 	)
-	addrMap[addr] = at
+	addrMap.Set(addr, at)
 }
 
 func getPk(db *DB, typeOf reflect.Type, tableId int, driver Driver) ([]*pk, []int, error) {
@@ -264,8 +264,8 @@ func helperAttribute(tables reflect.Value, valueOf reflect.Value, i int, db *DB,
 					newAttr(valueOf, i, pks[0].tableName, ptr, db, tableId, fieldId, driver)
 					return
 				}
-				if addrMap[ptr] == nil {
-					addrMap[ptr] = v
+				if addrMap.Get(ptr) == nil {
+					addrMap.Set(ptr, v)
 					return
 				}
 				for _, pk := range pks {
@@ -279,8 +279,8 @@ func helperAttribute(tables reflect.Value, valueOf reflect.Value, i int, db *DB,
 					newAttr(valueOf, i, pks[0].tableName, ptr, db, tableId, fieldId, driver)
 					return
 				}
-				if addrMap[ptr] == nil {
-					addrMap[ptr] = v
+				if addrMap.Get(ptr) == nil {
+					addrMap.Set(ptr, v)
 				}
 			}
 			return

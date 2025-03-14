@@ -36,7 +36,7 @@ func SaveContext[T any](ctx context.Context, table *T, tx ...Transaction) *save[
 }
 
 func (s *save[T]) Includes(args ...any) *save[T] {
-	ptrArgs, err := getArgsUpdate(addrMap, args...)
+	ptrArgs, err := getArgsUpdate(addrMap.mapField, args...)
 	if err != nil {
 		s.update.err = err
 		return s
@@ -51,7 +51,7 @@ func (s *save[T]) Replace(replace T) *save[T] {
 		return s
 	}
 
-	s.argsReplace, s.valuesReplace, s.update.err = getArgsPks(addrMap, s.table, replace)
+	s.argsReplace, s.valuesReplace, s.update.err = getArgsPks(addrMap.mapField, s.table, replace)
 	return s
 }
 
@@ -60,7 +60,7 @@ func (s *save[T]) Value(v T) error {
 		return s.update.err
 	}
 
-	argsSave := getArgsSave(addrMap, s.table, v)
+	argsSave := getArgsSave(addrMap.mapField, s.table, v)
 	if argsSave.err != nil {
 		return argsSave.err
 	}
@@ -117,7 +117,7 @@ func Update[T any](table *T, tx ...Transaction) *stateUpdate[T] {
 
 // UpdateContext creates a update state for table
 func UpdateContext[T any](ctx context.Context, table *T, tx ...Transaction) *stateUpdate[T] {
-	f := getArg(table, addrMap, nil)
+	f := getArg(table, addrMap.mapField, nil)
 
 	var state *stateUpdate[T]
 	if f == nil {
@@ -142,7 +142,7 @@ func (s *stateUpdate[T]) Includes(args ...any) *stateUpdate[T] {
 		return s
 	}
 
-	fields, err := getArgsUpdate(addrMap, args...)
+	fields, err := getArgsUpdate(addrMap.mapField, args...)
 
 	if err != nil {
 		s.err = err
@@ -157,7 +157,7 @@ func (s *stateUpdate[T]) Where(brs ...query.Operation) *stateUpdate[T] {
 	if s.err != nil {
 		return s
 	}
-	s.err = helperWhere(&s.builder, addrMap, brs...)
+	s.err = helperWhere(&s.builder, addrMap.mapField, brs...)
 	return s
 }
 

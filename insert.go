@@ -24,7 +24,7 @@ func Insert[T any](table *T, tx ...Transaction) *stateInsert[T] {
 
 // InsertContext creates a insert state for table
 func InsertContext[T any](ctx context.Context, table *T, tx ...Transaction) *stateInsert[T] {
-	fields, err := getArgsTable(addrMap, table)
+	fields, err := getArgsTable(addrMap.mapField, table)
 
 	var state *stateInsert[T]
 	if err != nil {
