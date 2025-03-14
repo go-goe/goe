@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -232,4 +233,16 @@ func TestMigrate(t *testing.T) {
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("Expected context.Canceled, got %v", err)
 	}
+}
+
+func TestRace(t *testing.T) {
+	var wg sync.WaitGroup
+	for range 10 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			goe.Open[Database](postgres.Open("user=postgres password=postgres host=localhost port=5432 database=postgres", postgres.Config{}))
+		}()
+	}
+	wg.Wait()
 }

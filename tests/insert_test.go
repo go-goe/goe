@@ -3,6 +3,7 @@ package tests_test
 import (
 	"context"
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -119,6 +120,21 @@ func TestInsert(t *testing.T) {
 				if a.Id == 0 {
 					t.Errorf("Expected a Id value, got : %v", a.Id)
 				}
+			},
+		},
+		{
+			desc: "Insert_Race",
+			testCase: func(t *testing.T) {
+				var wg sync.WaitGroup
+				for range 10 {
+					wg.Add(1)
+					go func() {
+						defer wg.Done()
+						a := Animal{Name: "Cat"}
+						goe.Insert(db.Animal).One(&a)
+					}()
+				}
+				wg.Wait()
 			},
 		},
 		{

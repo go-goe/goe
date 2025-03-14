@@ -5,6 +5,7 @@ import (
 	"errors"
 	"iter"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -260,6 +261,20 @@ func TestSelect(t *testing.T) {
 				if len(a) != len(animals) {
 					t.Errorf("Expected %v animals, got %v", len(animals), len(a))
 				}
+			},
+		},
+		{
+			desc: "Select_Race",
+			testCase: func(t *testing.T) {
+				var wg sync.WaitGroup
+				for range 10 {
+					wg.Add(1)
+					go func() {
+						defer wg.Done()
+						goe.List(db.Animal).AsSlice()
+					}()
+				}
+				wg.Wait()
 			},
 		},
 		{

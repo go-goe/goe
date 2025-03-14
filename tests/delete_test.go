@@ -3,6 +3,7 @@ package tests_test
 import (
 	"context"
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -246,6 +247,20 @@ func TestDelete(t *testing.T) {
 				if len(animals) != 0 {
 					t.Fatalf(`Expected delete all "Cat" animals, got: %v`, len(animals))
 				}
+			},
+		},
+		{
+			desc: "Delete_Race",
+			testCase: func(t *testing.T) {
+				var wg sync.WaitGroup
+				for range 10 {
+					wg.Add(1)
+					go func() {
+						defer wg.Done()
+						goe.Delete(db.PersonJobTitle)
+					}()
+				}
+				wg.Wait()
 			},
 		},
 		{

@@ -3,6 +3,7 @@ package tests_test
 import (
 	"context"
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -84,6 +85,29 @@ func TestUpdate(t *testing.T) {
 				if len(fselect.Byte) != len(ff.Byte) {
 					t.Errorf("Expected a update on byte, got : %v", len(fselect.Byte))
 				}
+			},
+		},
+		{
+			desc: "Update_Race",
+			testCase: func(t *testing.T) {
+				a := Animal{
+					Name: "Cat",
+				}
+				err = goe.Insert(db.Animal).One(&a)
+				if err != nil {
+					t.Fatalf("Expected a insert animal, got error: %v", err)
+				}
+				var wg sync.WaitGroup
+				for range 10 {
+					wg.Add(1)
+					go func() {
+						defer wg.Done()
+						au := Animal{Id: a.Id}
+						au.Name = "Update Cat"
+						goe.Save(db.Animal).Value(au)
+					}()
+				}
+				wg.Wait()
 			},
 		},
 		{
