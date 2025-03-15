@@ -39,9 +39,9 @@ func (vo valueOperation) GetValue() any {
 //	Where(wh.Equals(&db.Animal.IdHabitat, nil)).Scan(&a)
 func Equals[T any, A *T | **T](a A, v T) query.Operation {
 	if reflect.ValueOf(v).Kind() == reflect.Pointer && reflect.ValueOf(v).IsNil() {
-		return query.Operation{Arg: a, Operator: "IS", Type: enum.OperationIsWhere}
+		return query.Operation{Arg: a, Operator: enum.Is, Type: enum.OperationIsWhere}
 	}
-	return query.Operation{Arg: a, Value: valueOperation{value: v}, Operator: "=", Type: enum.OperationWhere}
+	return query.Operation{Arg: a, Value: valueOperation{value: v}, Operator: enum.Equals, Type: enum.OperationWhere}
 }
 
 // NotEquals creates a "<>" to value inside a where clause
@@ -56,9 +56,9 @@ func Equals[T any, A *T | **T](a A, v T) query.Operation {
 //	Where(wh.NotEquals(&db.Animal.IdHabitat, nil)).Scan(&a)
 func NotEquals[T any, A *T | **T](a A, v T) query.Operation {
 	if reflect.ValueOf(v).Kind() == reflect.Pointer && reflect.ValueOf(v).IsNil() {
-		return query.Operation{Arg: a, Operator: "IS NOT", Type: enum.OperationIsWhere}
+		return query.Operation{Arg: a, Operator: enum.IsNot, Type: enum.OperationIsWhere}
 	}
-	return query.Operation{Arg: a, Value: valueOperation{value: v}, Operator: "<>", Type: enum.OperationWhere}
+	return query.Operation{Arg: a, Value: valueOperation{value: v}, Operator: enum.NotEquals, Type: enum.OperationWhere}
 }
 
 // Greater creates a ">" to value inside a where clause
@@ -69,7 +69,7 @@ func NotEquals[T any, A *T | **T](a A, v T) query.Operation {
 //	db.Select(db.Animal).From(db.Animal).
 //	Where(wh.Greater(&db.Animal.CreateAt, time.Date(2024, time.October, 9, 11, 50, 00, 00, time.Local))).Scan(&a)
 func Greater[T any, A *T | **T](a A, v T) query.Operation {
-	return query.Operation{Arg: a, Value: valueOperation{value: v}, Operator: ">", Type: enum.OperationWhere}
+	return query.Operation{Arg: a, Value: valueOperation{value: v}, Operator: enum.Greater, Type: enum.OperationWhere}
 }
 
 // GreaterEquals creates a ">=" to value inside a where clause
@@ -80,7 +80,7 @@ func Greater[T any, A *T | **T](a A, v T) query.Operation {
 //	db.Select(db.Animal).From(db.Animal).
 //	Where(wh.GreaterEquals(&db.Animal.CreateAt, time.Date(2024, time.October, 9, 11, 50, 00, 00, time.Local))).Scan(&a)
 func GreaterEquals[T any, A *T | **T](a A, v T) query.Operation {
-	return query.Operation{Arg: a, Value: valueOperation{value: v}, Operator: ">=", Type: enum.OperationWhere}
+	return query.Operation{Arg: a, Value: valueOperation{value: v}, Operator: enum.GreaterEquals, Type: enum.OperationWhere}
 }
 
 // Less creates a "<" to value inside a where clause
@@ -91,7 +91,7 @@ func GreaterEquals[T any, A *T | **T](a A, v T) query.Operation {
 //	db.Select(db.Animal).From(db.Animal).
 //	Where(wh.Less(&db.Animal.UpdateAt, time.Date(2024, time.October, 9, 11, 50, 00, 00, time.Local))).Scan(&a)
 func Less[T any, A *T | **T](a A, v T) query.Operation {
-	return query.Operation{Arg: a, Value: valueOperation{value: v}, Operator: "<", Type: enum.OperationWhere}
+	return query.Operation{Arg: a, Value: valueOperation{value: v}, Operator: enum.Less, Type: enum.OperationWhere}
 }
 
 // LessEquals creates a "<=" to value inside a where clause
@@ -102,7 +102,7 @@ func Less[T any, A *T | **T](a A, v T) query.Operation {
 //	db.Select(db.Animal).From(db.Animal).
 //	Where(wh.LessEquals(&db.Animal.UpdateAt, time.Date(2024, time.October, 9, 11, 50, 00, 00, time.Local))).Scan(&a)
 func LessEquals[T any, A *T | **T](a A, v T) query.Operation {
-	return query.Operation{Arg: a, Value: valueOperation{value: v}, Operator: "<=", Type: enum.OperationWhere}
+	return query.Operation{Arg: a, Value: valueOperation{value: v}, Operator: enum.LessEquals, Type: enum.OperationWhere}
 }
 
 // Like creates a "LIKE" to value inside a where clause
@@ -112,27 +112,11 @@ func LessEquals[T any, A *T | **T](a A, v T) query.Operation {
 //	// get all animals that has a "at" in his name
 //	db.Select(db.Animal).From(db.Animal).Where(wh.Like(&db.Animal.Name, "%at%")).Scan(&a)
 func Like[T any](a *T, v string) query.Operation {
-	return query.Operation{Arg: a, Value: valueOperation{value: v}, Operator: "LIKE", Type: enum.OperationWhere}
-}
-
-// Not creates a "NOT" inside a where clause
-//
-// # Example
-//
-//	// get all animals that not has a "at" in his name
-//	db.Select(db.Animal).From(db.Animal).Where(wh.Not(wh.Like(&db.Animal.Name, "%at%"))).Scan(&a)
-func Not(o query.Operation) query.Operation {
-	//TODO: Check this
-	o.Operator = "NOT " + o.Operator
-	return o
+	return query.Operation{Arg: a, Value: valueOperation{value: v}, Operator: enum.Like, Type: enum.OperationWhere}
 }
 
 func In[T any, V []T | *model.Query](a *T, mq V) query.Operation {
-	return query.Operation{Arg: a, Value: valueOperation{value: mq}, Operator: "IN", Type: enum.OperationInWhere}
-}
-
-func NewOperator[T any](a *T, operator string, v T) query.Operation {
-	return query.Operation{Arg: a, Value: valueOperation{value: v}, Operator: operator, Type: enum.OperationWhere}
+	return query.Operation{Arg: a, Value: valueOperation{value: mq}, Operator: enum.In, Type: enum.OperationInWhere}
 }
 
 // And creates a "AND" inside a where clause
@@ -146,7 +130,7 @@ func NewOperator[T any](a *T, operator string, v T) query.Operation {
 //		wh.Like(&db.Animal.Name, "%Cat%")).
 //		Value(a)
 func And() query.Operation {
-	return query.Operation{Operator: "AND", Type: enum.LogicalWhere}
+	return query.Operation{Operator: enum.And, Type: enum.LogicalWhere}
 }
 
 // Or creates a "OR" inside a where clause
@@ -160,47 +144,47 @@ func And() query.Operation {
 //		wh.Like(&db.Animal.Name, "%Cat%")).
 //		Value(a)
 func Or() query.Operation {
-	return query.Operation{Operator: "OR", Type: enum.LogicalWhere}
+	return query.Operation{Operator: enum.Or, Type: enum.LogicalWhere}
 }
 
 // # Example
 //
 //	Where(wh.EqualsArg(&db.Job.Id, &db.Person.Id))
 func EqualsArg(a any, v any) query.Operation {
-	return query.Operation{Arg: a, Value: valueOperation{value: v}, Operator: "=", Type: enum.OperationAttributeWhere}
+	return query.Operation{Arg: a, Value: valueOperation{value: v}, Operator: enum.Equals, Type: enum.OperationAttributeWhere}
 }
 
 // # Example
 //
 //	Where(wh.NotEqualsArg(&db.Job.Id, &db.Person.Id))
 func NotEqualsArg(a any, v any) query.Operation {
-	return query.Operation{Arg: a, Value: valueOperation{value: v}, Operator: "<>", Type: enum.OperationAttributeWhere}
+	return query.Operation{Arg: a, Value: valueOperation{value: v}, Operator: enum.NotEquals, Type: enum.OperationAttributeWhere}
 }
 
 // # Example
 //
 //	Where(wh.GreaterArg(&db.Stock.Minimum, &db.Drinks.Stock))
 func GreaterArg(a any, v any) query.Operation {
-	return query.Operation{Arg: a, Value: valueOperation{value: v}, Operator: ">", Type: enum.OperationAttributeWhere}
+	return query.Operation{Arg: a, Value: valueOperation{value: v}, Operator: enum.Greater, Type: enum.OperationAttributeWhere}
 }
 
 // # Example
 //
 //	Where(wh.GreaterEqualsArg(&db.Drinks.Reorder, &db.Drinks.Stock))
 func GreaterEqualsArg(a any, v any) query.Operation {
-	return query.Operation{Arg: a, Value: valueOperation{value: v}, Operator: ">=", Type: enum.OperationAttributeWhere}
+	return query.Operation{Arg: a, Value: valueOperation{value: v}, Operator: enum.GreaterEquals, Type: enum.OperationAttributeWhere}
 }
 
 // # Example
 //
 //	Where(wh.LessArg(&db.Exam.Score, &db.Data.Minimum))
 func LessArg(a any, v any) query.Operation {
-	return query.Operation{Arg: a, Value: valueOperation{value: v}, Operator: "<", Type: enum.OperationAttributeWhere}
+	return query.Operation{Arg: a, Value: valueOperation{value: v}, Operator: enum.Less, Type: enum.OperationAttributeWhere}
 }
 
 // # Example
 //
 //	Where(wh.LessEqualsArg(&db.Exam.Score, &db.Data.Minimum))
 func LessEqualsArg(a any, v any) query.Operation {
-	return query.Operation{Arg: a, Value: valueOperation{value: v}, Operator: "<=", Type: enum.OperationAttributeWhere}
+	return query.Operation{Arg: a, Value: valueOperation{value: v}, Operator: enum.LessEquals, Type: enum.OperationAttributeWhere}
 }

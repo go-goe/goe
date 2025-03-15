@@ -1,10 +1,13 @@
 package join
 
-import "github.com/olauro/goe/query"
+import (
+	"github.com/olauro/goe/enum"
+	"github.com/olauro/goe/query"
+)
 
 type join struct {
 	t1   any
-	join string
+	join enum.JoinType
 	t2   any
 }
 
@@ -12,7 +15,7 @@ func (j join) FirstArg() any {
 	return j.t1
 }
 
-func (j join) Join() string {
+func (j join) Join() enum.JoinType {
 	return j.join
 }
 
@@ -27,7 +30,7 @@ func (j join) SecondArg() any {
 //	db.Select(db.Food).From(db.Food).
 //	Joins(query.Join(&db.Animal.Id, &db.Food.IdAnimal)).Scan(&a)
 func Join[T any, U, V *T | **T](t1 U, t2 V) query.Joins {
-	return join{t1: t1, join: "JOIN", t2: t2}
+	return join{t1: t1, join: enum.Join, t2: t2}
 }
 
 // LeftJoin makes a left join betwent the tables
@@ -37,7 +40,7 @@ func Join[T any, U, V *T | **T](t1 U, t2 V) query.Joins {
 //	db.Select(db.Food).From(db.Food).
 //	Joins(query.LeftJoin(&db.Animal.Id, &db.Food.IdAnimal)).Scan(&a)
 func LeftJoin[T any, U, V *T | **T](t1 U, t2 V) query.Joins {
-	return join{t1: t1, join: "LEFT JOIN", t2: t2}
+	return join{t1: t1, join: enum.LeftJoin, t2: t2}
 }
 
 // RightJoin makes a right join betwent the tables
@@ -47,9 +50,5 @@ func LeftJoin[T any, U, V *T | **T](t1 U, t2 V) query.Joins {
 //	db.Select(db.Food).From(db.Food).
 //	Joins(query.RightJoin(&db.Animal.Id, &db.Food.IdAnimal)).Scan(&a)
 func RightJoin[T any, U, V *T | **T](t1 U, t2 V) query.Joins {
-	return join{t1: t1, join: "RIGHT JOIN", t2: t2}
-}
-
-func CustomJoin(t1 any, j string, t2 any) query.Joins {
-	return join{t1: t1, join: j, t2: t2}
+	return join{t1: t1, join: enum.RightJoin, t2: t2}
 }

@@ -35,3 +35,31 @@ const (
 	_ FunctionType = iota
 	UpperFunction
 )
+
+type JoinType uint
+
+const (
+	_ JoinType = iota
+	Join
+	LeftJoin
+	RightJoin
+)
+
+type OperatorType uint
+
+const (
+	_ OperatorType = iota
+	Equals
+	NotEquals
+	Is
+	IsNot
+	Greater
+	GreaterEquals
+	Less
+	LessEquals
+	In
+	NotIn
+	Like
+	And
+	Or
+)

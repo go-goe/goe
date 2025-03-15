@@ -17,14 +17,14 @@ type JoinArgument struct {
 type Join struct {
 	Table          string
 	FirstArgument  JoinArgument
-	JoinOperation  string
+	JoinOperation  enum.JoinType
 	SecondArgument JoinArgument
 }
 
 type Where struct {
 	Type           enum.WhereType
 	Attribute      Attribute
-	Operator       string
+	Operator       enum.OperatorType
 	AttributeValue Attribute
 	SizeIn         uint
 	QueryIn        *Query

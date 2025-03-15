@@ -19,9 +19,9 @@ type builder struct {
 	inserts      []field
 	fields       []field
 	fieldsSelect []fieldSelect
-	fieldIds     []int    //insert and update
-	joins        []string //select
-	joinsArgs    []field  //select
+	fieldIds     []int           //insert and update
+	joins        []enum.JoinType //select
+	joinsArgs    []field         //select
 	tables       []int
 	brs          []query.Operation
 }
@@ -47,7 +47,7 @@ func (b *builder) buildSelect() {
 	b.fieldsSelect[len-1].buildAttributeSelect(b)
 }
 
-func (b *builder) buildSelectJoins(join string, fields []field) {
+func (b *builder) buildSelectJoins(join enum.JoinType, fields []field) {
 	j := len(b.joinsArgs)
 	b.joinsArgs = append(b.joinsArgs, make([]field, 2)...)
 	b.tables = append(b.tables, make([]int, 1)...)
@@ -187,7 +187,7 @@ func (b *builder) buildTables() (err error) {
 	return nil
 }
 
-func buildJoins(b *builder, join string, f1, f2 field, tables []int, tableIndice int) {
+func buildJoins(b *builder, join enum.JoinType, f1, f2 field, tables []int, tableIndice int) {
 	if slices.Contains(tables, f1.getTableId()) {
 		b.query.Joins = append(b.query.Joins, model.Join{
 			Table:          f2.table(),

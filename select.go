@@ -516,26 +516,24 @@ func getArgsSelectAno(addrMap map[uintptr]field, valueOf reflect.Value) ([]field
 }
 
 func createFunction(field field, a any) fieldSelect {
-	switch a.(type) {
-	case query.Function[string]:
+	if f, ok := a.(query.FunctionType); ok {
 		return &functionResult{
 			table:         field.table(),
 			db:            field.getDb(),
 			attributeName: field.getAttributeName(),
-			functionType:  enum.UpperFunction}
+			functionType:  f.GetType()}
 	}
 
 	return nil
 }
 
 func createAggregate(field field, a any) fieldSelect {
-	switch a.(type) {
-	case query.Count:
+	if ag, ok := a.(query.Aggregate); ok {
 		return &aggregateResult{
 			table:         field.table(),
 			db:            field.getDb(),
 			attributeName: field.getAttributeName(),
-			aggregateType: enum.CountAggregate}
+			aggregateType: ag.Aggregate()}
 	}
 
 	return nil
