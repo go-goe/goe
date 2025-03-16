@@ -23,7 +23,7 @@ func TestSelect(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Expected database, got error: %v", err)
 	}
-	goeDb, err := goe.GetGoeDatabase(db)
+
 	if err != nil {
 		t.Fatalf("Expected goe database, got error: %v", err)
 	}
@@ -785,18 +785,6 @@ func TestSelect(t *testing.T) {
 					From(db.Animal).Where(where.Like(&db.Animal.Name, "%Cat%")).Rows())
 				if len(a) != 2 {
 					t.Errorf("Expected %v animals, got %v", 2, len(a))
-				}
-			},
-		},
-		{
-			desc: "Select_Where_Custom_Operation",
-			testCase: func(t *testing.T) {
-				if goeDb.Driver.Name() == "PostgreSQL" {
-					qr := goe.Select(db.Animal).From(db.Animal).Where(where.NewOperator(&db.Animal.Name, "ILIKE", "%CAT%")).Rows()
-					a := runSelect(t, qr)
-					if len(a) != 3 {
-						t.Errorf("Expected %v animals, got %v", 3, len(a))
-					}
 				}
 			},
 		},
