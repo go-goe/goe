@@ -28,59 +28,59 @@ func TestSelect(t *testing.T) {
 		t.Fatalf("Expected goe database, got error: %v", err)
 	}
 
-	err = goe.Delete(db.AnimalFood).Where()
+	err = goe.Delete(db.AnimalFood).Wheres()
 	if err != nil {
 		t.Fatalf("Expected delete AnimalFood, got error: %v", err)
 	}
-	err = goe.Delete(db.Flag).Where()
+	err = goe.Delete(db.Flag).Wheres()
 	if err != nil {
 		t.Fatalf("Expected delete flags, got error: %v", err)
 	}
-	err = goe.Delete(db.Animal).Where()
+	err = goe.Delete(db.Animal).Wheres()
 	if err != nil {
 		t.Fatalf("Expected delete animals, got error: %v", err)
 	}
-	err = goe.Delete(db.Food).Where()
+	err = goe.Delete(db.Food).Wheres()
 	if err != nil {
 		t.Fatalf("Expected delete foods, got error: %v", err)
 	}
-	err = goe.Delete(db.Habitat).Where()
+	err = goe.Delete(db.Habitat).Wheres()
 	if err != nil {
 		t.Fatalf("Expected delete habitats, got error: %v", err)
 	}
-	err = goe.Delete(db.Info).Where()
+	err = goe.Delete(db.Info).Wheres()
 	if err != nil {
 		t.Fatalf("Expected delete infos, got error: %v", err)
 	}
-	err = goe.Delete(db.Status).Where()
+	err = goe.Delete(db.Status).Wheres()
 	if err != nil {
 		t.Fatalf("Expected delete status, got error: %v", err)
 	}
-	err = goe.Delete(db.UserRole).Where()
+	err = goe.Delete(db.UserRole).Wheres()
 	if err != nil {
 		t.Fatalf("Expected delete user roles, got error: %v", err)
 	}
-	err = goe.Delete(db.User).Where()
+	err = goe.Delete(db.User).Wheres()
 	if err != nil {
 		t.Fatalf("Expected delete users, got error: %v", err)
 	}
-	err = goe.Delete(db.Role).Where()
+	err = goe.Delete(db.Role).Wheres()
 	if err != nil {
 		t.Fatalf("Expected delete roles, got error: %v", err)
 	}
-	err = goe.Delete(db.PersonJobTitle).Where()
+	err = goe.Delete(db.PersonJobTitle).Wheres()
 	if err != nil {
 		t.Fatalf("Expected delete personJobs, got error: %v", err)
 	}
-	err = goe.Delete(db.JobTitle).Where()
+	err = goe.Delete(db.JobTitle).Wheres()
 	if err != nil {
 		t.Fatalf("Expected delete jobs, got error: %v", err)
 	}
-	err = goe.Delete(db.Person).Where()
+	err = goe.Delete(db.Person).Wheres()
 	if err != nil {
 		t.Fatalf("Expected delete persons, got error: %v", err)
 	}
-	err = goe.Delete(db.Exam).Where()
+	err = goe.Delete(db.Exam).Wheres()
 	if err != nil {
 		t.Fatalf("Expected delete exams, got error: %v", err)
 	}
@@ -298,7 +298,7 @@ func TestSelect(t *testing.T) {
 				if err != nil {
 					t.Fatalf("Expected List, got error: %v", err)
 				}
-				if len(a) != 2 {
+				if len(a) != 1 {
 					t.Errorf("Expected %v animal, got %v", 1, len(a))
 				}
 			},
@@ -339,7 +339,7 @@ func TestSelect(t *testing.T) {
 			desc: "Select_Like_ToUpper",
 			testCase: func(t *testing.T) {
 				var a []Animal
-				a, err = goe.Select(db.Animal).From(db.Animal).Where(where.Like(function.ToUpper(&db.Animal.Name), "%CAT%")).AsSlice()
+				a, err = goe.Select(db.Animal).From(db.Animal).Wheres(where.Like(function.ToUpper(&db.Animal.Name), "%CAT%")).AsSlice()
 				if err != nil {
 					t.Fatalf("Expected select, got error: %v", err)
 				}
@@ -352,7 +352,7 @@ func TestSelect(t *testing.T) {
 			desc: "Select_Equals_ToUpper",
 			testCase: func(t *testing.T) {
 				var a []Animal
-				a, err = goe.Select(db.Animal).From(db.Animal).Where(where.Equals(function.ToUpper(&db.Animal.Name), function.Argument("CAT"))).AsSlice()
+				a, err = goe.Select(db.Animal).From(db.Animal).Wheres(where.Equals(function.ToUpper(&db.Animal.Name), function.Argument("CAT"))).AsSlice()
 				if err != nil {
 					t.Fatalf("Expected select, got error: %v", err)
 				}
@@ -391,7 +391,7 @@ func TestSelect(t *testing.T) {
 		{
 			desc: "Select_Where_In_Slice",
 			testCase: func(t *testing.T) {
-				a, err := goe.Select(db.Animal).From(db.Animal).Where(
+				a, err := goe.Select(db.Animal).From(db.Animal).Wheres(
 					where.LessEquals(&db.Animal.Id, animals[2].Id),
 					where.And(),
 					where.In(&db.Animal.Name, []string{"Cat", "Dog"})).AsSlice()
@@ -414,7 +414,7 @@ func TestSelect(t *testing.T) {
 				}
 
 				//whereIn as the first where argument
-				a, err := goe.Select(db.Animal).From(db.Animal).Where(
+				a, err := goe.Select(db.Animal).From(db.Animal).Wheres(
 					where.In(&db.Animal.Name, querySelect),
 					where.And(),
 					where.LessEquals(&db.Animal.Id, animals[1].Id)).AsSlice()
@@ -432,18 +432,18 @@ func TestSelect(t *testing.T) {
 			testCase: func(t *testing.T) {
 				querySelect, err := goe.Select(&struct{ Name *string }{Name: &db.Animal.Name}).
 					From(db.Animal).
-					Where(where.Equals(&db.Animal.Name, "Cat")).
+					Wheres(where.Equals(&db.Animal.Name, "Cat")).
 					Joins(
 						join.Join[int](&db.Animal.Id, &db.AnimalFood.IdAnimal),
 						join.Join[uuid.UUID](&db.AnimalFood.IdFood, &db.Food.Id)).
-					Where(where.Or(), where.In(&db.Food.Name, []string{foods[0].Name, foods[1].Name})).
+					Wheres(where.Or(), where.In(&db.Food.Name, []string{foods[0].Name, foods[1].Name})).
 					AsQuery()
 				if err != nil {
 					t.Fatalf("Expected a query, got error: %v", err)
 				}
 
 				//whereIn as the first where argument
-				a, err := goe.Select(db.Animal).From(db.Animal).Where(
+				a, err := goe.Select(db.Animal).From(db.Animal).Wheres(
 					where.In(&db.Animal.Name, querySelect),
 					where.And(),
 					where.LessEquals(&db.Animal.Id, animals[1].Id)).AsSlice()
@@ -456,7 +456,7 @@ func TestSelect(t *testing.T) {
 				}
 
 				//whereIn as the last where argument
-				a, err = goe.Select(db.Animal).From(db.Animal).Where(
+				a, err = goe.Select(db.Animal).From(db.Animal).Wheres(
 					where.LessEquals(&db.Animal.Id, animals[1].Id),
 					where.And(),
 					where.In(&db.Animal.Name, querySelect)).AsSlice()
@@ -468,7 +468,7 @@ func TestSelect(t *testing.T) {
 				}
 
 				//whereIn as the middle where argument
-				a, err = goe.Select(db.Animal).From(db.Animal).Where(
+				a, err = goe.Select(db.Animal).From(db.Animal).Wheres(
 					where.NotEquals(&db.Animal.Id, animals[2].Id),
 					where.And(),
 					where.In(&db.Animal.Name, querySelect),
@@ -640,7 +640,7 @@ func TestSelect(t *testing.T) {
 				var p *goe.Pagination[Animal]
 				p, err = goe.Select(db.Animal).From(db.Animal).
 					Joins(join.Join[uuid.UUID](&db.Animal.IdHabitat, &db.Habitat.Id)).
-					Where(where.Like(&db.Animal.Name, "%at")).
+					Wheres(where.Like(&db.Animal.Name, "%at")).
 					OrderByDesc(&db.Animal.Id).
 					AsPagination(1, 10)
 				if err != nil {
@@ -714,14 +714,14 @@ func TestSelect(t *testing.T) {
 			desc: "Select_Where_Greater",
 			testCase: func(t *testing.T) {
 				e := runSelect(t, goe.Select(db.Exam).From(db.Exam).
-					Where(where.GreaterArg(&db.Exam.Score, &db.Exam.Minimum)).Rows())
+					Wheres(where.GreaterArg(&db.Exam.Score, &db.Exam.Minimum)).Rows())
 				if len(e) != 1 {
 					t.Errorf("Expected a %v, got %v", 1, len(e))
 				}
 
 				e = nil
 				e = runSelect(t, goe.Select(db.Exam).From(db.Exam).
-					Where(where.Greater(&db.Exam.Score, float32(5.5))).Rows())
+					Wheres(where.Greater(&db.Exam.Score, float32(5.5))).Rows())
 				if len(e) != 1 {
 					t.Errorf("Expected a %v, got %v", 1, len(e))
 				}
@@ -731,14 +731,14 @@ func TestSelect(t *testing.T) {
 			desc: "Select_Where_GreaterEquals",
 			testCase: func(t *testing.T) {
 				e := runSelect(t, goe.Select(db.Exam).From(db.Exam).
-					Where(where.GreaterEqualsArg(&db.Exam.Score, &db.Exam.Minimum)).Rows())
+					Wheres(where.GreaterEqualsArg(&db.Exam.Score, &db.Exam.Minimum)).Rows())
 				if len(e) != 2 {
 					t.Errorf("Expected a %v, got %v", 1, len(e))
 				}
 
 				e = nil
 				e = runSelect(t, goe.Select(db.Exam).From(db.Exam).
-					Where(where.GreaterEquals(&db.Exam.Score, float32(5.5))).Rows())
+					Wheres(where.GreaterEquals(&db.Exam.Score, float32(5.5))).Rows())
 				if len(e) != 2 {
 					t.Errorf("Expected a %v, got %v", 1, len(e))
 				}
@@ -748,14 +748,14 @@ func TestSelect(t *testing.T) {
 			desc: "Select_Where_Less",
 			testCase: func(t *testing.T) {
 				e := runSelect(t, goe.Select(db.Exam).From(db.Exam).
-					Where(where.LessArg(&db.Exam.Score, &db.Exam.Minimum)).Rows())
+					Wheres(where.LessArg(&db.Exam.Score, &db.Exam.Minimum)).Rows())
 				if len(e) != 1 {
 					t.Errorf("Expected %v, got %v", 1, len(e))
 				}
 
 				e = nil
 				e = runSelect(t, goe.Select(db.Exam).From(db.Exam).
-					Where(where.Less(&db.Exam.Score, float32(5.5))).Rows())
+					Wheres(where.Less(&db.Exam.Score, float32(5.5))).Rows())
 				if len(e) != 1 {
 					t.Errorf("Expected %v, got %v", 1, len(e))
 				}
@@ -765,14 +765,14 @@ func TestSelect(t *testing.T) {
 			desc: "Select_Where_LessEquals",
 			testCase: func(t *testing.T) {
 				e := runSelect(t, goe.Select(db.Exam).From(db.Exam).
-					Where(where.LessEqualsArg(&db.Exam.Score, &db.Exam.Minimum)).Rows())
+					Wheres(where.LessEqualsArg(&db.Exam.Score, &db.Exam.Minimum)).Rows())
 				if len(e) != 2 {
 					t.Errorf("Expected a %v, got %v", 1, len(e))
 				}
 
 				e = nil
 				e = runSelect(t, goe.Select(db.Exam).From(db.Exam).
-					Where(where.LessEquals(&db.Exam.Score, float32(5.5))).Rows())
+					Wheres(where.LessEquals(&db.Exam.Score, float32(5.5))).Rows())
 				if len(e) != 2 {
 					t.Errorf("Expected a %v, got %v", 1, len(e))
 				}
@@ -782,7 +782,7 @@ func TestSelect(t *testing.T) {
 			desc: "Select_Where_Like",
 			testCase: func(t *testing.T) {
 				a := runSelect(t, goe.Select(db.Animal).
-					From(db.Animal).Where(where.Like(&db.Animal.Name, "%Cat%")).Rows())
+					From(db.Animal).Wheres(where.Like(&db.Animal.Name, "%Cat%")).Rows())
 				if len(a) != 2 {
 					t.Errorf("Expected %v animals, got %v", 2, len(a))
 				}
@@ -791,7 +791,7 @@ func TestSelect(t *testing.T) {
 		{
 			desc: "Select_Where_Equals_Nil",
 			testCase: func(t *testing.T) {
-				qr := goe.Select(db.Animal).From(db.Animal).Where(where.Equals[*uuid.UUID](&db.Animal.IdHabitat, nil)).Rows()
+				qr := goe.Select(db.Animal).From(db.Animal).Wheres(where.Equals[*uuid.UUID](&db.Animal.IdHabitat, nil)).Rows()
 				a := runSelect(t, qr)
 				if len(a) != 24 {
 					t.Errorf("Expected %v animals, got %v", 22, len(a))
@@ -802,7 +802,7 @@ func TestSelect(t *testing.T) {
 			desc: "Select_Where_NotEquals_Nil",
 			testCase: func(t *testing.T) {
 				var bb *[]byte
-				qr := goe.Select(db.Animal).From(db.Animal).Where(where.NotEquals(&db.Animal.IdInfo, bb)).Rows()
+				qr := goe.Select(db.Animal).From(db.Animal).Wheres(where.NotEquals(&db.Animal.IdInfo, bb)).Rows()
 				a := runSelect(t, qr)
 				if len(a) != len(infos) {
 					t.Errorf("Expected %v animals, got %v", len(infos), len(a))
@@ -862,7 +862,7 @@ func TestSelect(t *testing.T) {
 			testCase: func(t *testing.T) {
 				qr := goe.Select(db.Animal).
 					From(db.Animal, db.AnimalFood, db.Food).
-					Where(
+					Wheres(
 						where.EqualsArg(&db.Animal.Id, &db.AnimalFood.IdAnimal),
 						where.And(),
 						where.EqualsArg(&db.Food.Id, &db.AnimalFood.IdFood)).Rows()
@@ -885,7 +885,7 @@ func TestSelect(t *testing.T) {
 						join.Join[uuid.UUID](&db.Food.Id, &db.AnimalFood.IdFood),
 						join.Join[int](&db.Animal.Id, &db.AnimalFood.IdAnimal),
 					).
-					Where(
+					Wheres(
 						where.Equals(&db.Animal.Name, animals[0].Name)).Rows()
 				f := runSelect(t, qr)
 
@@ -938,7 +938,7 @@ func TestSelect(t *testing.T) {
 						join.Join[int](&db.Animal.Id, &db.AnimalFood.IdAnimal),
 						join.Join[uuid.UUID](&db.Food.Id, &db.AnimalFood.IdFood),
 					).
-					Where(
+					Wheres(
 						where.Equals(&db.Food.Id, foods[0].Id),
 					).OrderByAsc(&db.Animal.Id).Rows()
 				a := runSelect(t, qr)
@@ -960,7 +960,7 @@ func TestSelect(t *testing.T) {
 						join.Join[int](&db.Animal.Id, &db.AnimalFood.IdAnimal),
 						join.Join[uuid.UUID](&db.Food.Id, &db.AnimalFood.IdFood),
 					).
-					Where(
+					Wheres(
 						where.Equals(&db.Food.Id, foods[0].Id),
 					).OrderByDesc(&db.Animal.Id).Rows()
 				a := runSelect(t, qr)
@@ -983,7 +983,7 @@ func TestSelect(t *testing.T) {
 						join.Join[int](&db.Animal.Id, &db.AnimalFood.IdAnimal),
 						join.Join[uuid.UUID](&db.Animal.IdHabitat, &db.Habitat.Id),
 					).
-					Where(where.Equals(&db.Habitat.Id, habitats[0].Id)).Rows()
+					Wheres(where.Equals(&db.Habitat.Id, habitats[0].Id)).Rows()
 				f := runSelect(t, qr)
 
 				if len(f) != 2 {
@@ -1016,7 +1016,7 @@ func TestSelect(t *testing.T) {
 						join.Join[int](&db.Animal.Id, &db.AnimalFood.IdAnimal),
 						join.Join[uuid.UUID](&db.Food.Id, &db.AnimalFood.IdFood),
 					).
-					Where(where.Equals(&db.Food.Id, foods[0].Id)).Rows()
+					Wheres(where.Equals(&db.Food.Id, foods[0].Id)).Rows()
 				s := runSelect(t, qr)
 
 				if len(s) != 2 {
@@ -1049,7 +1049,7 @@ func TestSelect(t *testing.T) {
 						join.Join[uuid.UUID](&db.Animal.IdHabitat, &db.Habitat.Id),
 						join.Join[int](&db.Habitat.IdWeather, &db.Weather.Id),
 					).
-					Where(
+					Wheres(
 						where.Equals(&db.Food.Id, foods[0].Id),
 						where.And(),
 						where.Equals(&db.Food.Name, foods[0].Name),
@@ -1210,7 +1210,7 @@ func TestSelect(t *testing.T) {
 			desc: "Select_Invalid_Where",
 			testCase: func(t *testing.T) {
 				for _, err := range goe.Select(db.Animal).
-					From(db.Animal).Where(where.Equals(db.Animal.IdHabitat, uuid.New())).Rows() {
+					From(db.Animal).Wheres(where.Equals(db.Animal.IdHabitat, uuid.New())).Rows() {
 					if !errors.Is(err, goe.ErrInvalidWhere) {
 						t.Errorf("Expected goe.ErrInvalidWhere, got error: %v", err)
 					}
