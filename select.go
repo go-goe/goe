@@ -35,10 +35,10 @@ func FindContext[T any](ctx context.Context, table *T, value T, tx ...Transactio
 
 	s := SelectContext(ctx, table, tx...).From(table)
 
-	s.Where(where.Equals(&pks[0], valuesPks[0]))
+	s.Wheres(where.Equals(&pks[0], valuesPks[0]))
 	for i := 1; i < len(pks); i++ {
-		s.Where(where.And())
-		s.Where(where.Equals(&pks[i], valuesPks[i]))
+		s.Wheres(where.And())
+		s.Wheres(where.Equals(&pks[i], valuesPks[i]))
 	}
 
 	for row, err := range s.Rows() {
@@ -52,9 +52,26 @@ func FindContext[T any](ctx context.Context, table *T, value T, tx ...Transactio
 }
 
 // Select uses [context.Background] internally;
-// to specify the context, use [query.SelectContext].
+// to specify the context, use [goe.SelectContext]
 //
 // # Example
+//
+//	// simple select
+//	goe.Select(db.Animal).From(db.Animal).AsSlice()
+//
+//	// iterator select
+//	for row, err := range goe.Select(db.Animal).From(db.Animal).Rows() { ... }
+//
+//	// select any argument
+//	goe.Select(&struct {
+//	User    *string
+//	Role    *string
+//	EndTime **time.Time
+//	}{
+//	User:    &db.User.Name,
+//	Role:    &db.Role.Name,
+//	EndTime: &db.UserRole.EndDate,
+//	}).From(db.User).AsSlice()
 func Select[T any](t *T, tx ...Transaction) *stateSelect[T] {
 	return SelectContext(context.Background(), t, tx...)
 }
@@ -81,8 +98,12 @@ func SelectContext[T any](ctx context.Context, t *T, tx ...Transaction) *stateSe
 	return state
 }
 
-// Where creates a where SQL using the operations
-func (s *stateSelect[T]) Where(brs ...query.Operation) *stateSelect[T] {
+// Wheres receives [query.Operation] as where operations from where sub package
+//
+// # Example
+//
+//	Wheres(where.Equals(&db.Food.Id, foods[0].Id), where.And(), where.Equals(&db.Food.Name, foods[0].Name))
+func (s *stateSelect[T]) Wheres(brs ...query.Operation) *stateSelect[T] {
 	if s.err != nil {
 		return s
 	}
@@ -91,28 +112,12 @@ func (s *stateSelect[T]) Where(brs ...query.Operation) *stateSelect[T] {
 }
 
 // Take takes i elements
-//
-// # Example
-//
-//	// takes frist 20 elements
-//	db.Select(db.Habitat).Take(20)
-//
-//	// skips 20 and takes next 20 elements
-//	db.Select(db.Habitat).Skip(20).Take(20).Scan(&h)
 func (s *stateSelect[T]) Take(i uint) *stateSelect[T] {
 	s.builder.query.Limit = i
 	return s
 }
 
 // Skip skips i elements
-//
-// # Example
-//
-//	// skips frist 20 elements
-//	db.Select(db.Habitat).Skip(20)
-//
-//	// skips 20 and takes next 20 elements
-//	db.Select(db.Habitat).Skip(20).Take(20).Scan(&h)
 func (s *stateSelect[T]) Skip(i uint) *stateSelect[T] {
 	s.builder.query.Offset = i
 	return s
@@ -122,11 +127,7 @@ func (s *stateSelect[T]) Skip(i uint) *stateSelect[T] {
 //
 // # Example
 //
-//	// select first page of habitats orderning by name
-//	db.Select(db.Habitat).Page(1, 20).OrderByAsc(&db.Habitat.Name).Scan(&h)
-//
-//	// same query
-//	db.Select(db.Habitat).OrderByAsc(&db.Habitat.Name).Page(1, 20).Scan(&h)
+//	goe.Select(db.Habitat).From(db.Habitat).OrderByAsc(&db.Habitat.Name).AsSlice()
 func (s *stateSelect[T]) OrderByAsc(arg any) *stateSelect[T] {
 	field := getArg(arg, addrMap.mapField, nil)
 	if field == nil {
@@ -141,11 +142,7 @@ func (s *stateSelect[T]) OrderByAsc(arg any) *stateSelect[T] {
 //
 // # Example
 //
-//	// select last inserted habitat
-//	db.Select(db.Habitat).Take(1).OrderByDesc(&db.Habitat.Id).Scan(&h)
-//
-//	// same query
-//	db.Select(db.Habitat).OrderByDesc(&db.Habitat.Id).Take(1).Scan(&h)
+//	goe.Select(db.Habitat).From(db.Habitat).OrderByDesc(&db.Habitat.Name).AsSlice()
 func (s *stateSelect[T]) OrderByDesc(arg any) *stateSelect[T] {
 	field := getArg(arg, addrMap.mapField, nil)
 	if field == nil {
@@ -158,7 +155,12 @@ func (s *stateSelect[T]) OrderByDesc(arg any) *stateSelect[T] {
 	return s
 }
 
-// TODO: Add Doc
+// From specify one or more tables for select
+//
+// # Example
+//
+//	goe.Select(db.Habitat).From(db.Habitat)
+//	goe.Select(db.Habitat).From(db.Habitat, db.Animal)
 func (s *stateSelect[T]) From(tables ...any) *stateSelect[T] {
 	if s.err != nil {
 		return s
@@ -170,12 +172,21 @@ func (s *stateSelect[T]) From(tables ...any) *stateSelect[T] {
 		s.err = err
 		return s
 	}
-	//TODO add query tables
+
 	s.tables = tables
 	return s
 }
 
-// TODO: Add Doc
+// Joins receives [query.Joins] as joins from join sub package
+//
+// # Example
+//
+//	Joins(
+//	join.Join[uuid.UUID](&db.Food.Id, &db.AnimalFood.IdFood),
+//	join.Join[int](&db.AnimalFood.IdAnimal, &db.Animal.Id),
+//	join.Join[uuid.UUID](&db.Animal.IdHabitat, &db.Habitat.Id),
+//	join.Join[int](&db.Habitat.IdWeather, &db.Weather.Id),
+//	)
 func (s *stateSelect[T]) Joins(joins ...query.Joins) *stateSelect[T] {
 	if s.err != nil {
 		return s
@@ -192,6 +203,7 @@ func (s *stateSelect[T]) Joins(joins ...query.Joins) *stateSelect[T] {
 	return s
 }
 
+// AsSlice return all the rows as a slice
 func (s *stateSelect[T]) AsSlice() ([]T, error) {
 	rows := make([]T, 0, s.builder.query.Limit)
 	for row, err := range s.Rows() {
@@ -203,6 +215,7 @@ func (s *stateSelect[T]) AsSlice() ([]T, error) {
 	return rows, nil
 }
 
+// AsQuery return a [model.Query] for use inside a [where.In]
 func (s *stateSelect[T]) AsQuery() (*model.Query, error) {
 	if s.err != nil {
 		return nil, s.err
@@ -229,6 +242,7 @@ type Pagination[T any] struct {
 	Values     []T
 }
 
+// AsPagination return a paginated query as [goe.Pagination]
 func (s *stateSelect[T]) AsPagination(page, size uint) (*Pagination[T], error) {
 	if s.err != nil {
 		return nil, s.err
@@ -313,7 +327,7 @@ func (s *stateSelect[T]) AsPagination(page, size uint) (*Pagination[T], error) {
 	return p, nil
 }
 
-// TODO: Add doc
+// Rows return a iterator on rows, see [goe.Select] for a example
 func (s *stateSelect[T]) Rows() iter.Seq2[T, error] {
 	if s.err != nil {
 		var v T
@@ -333,6 +347,35 @@ func (s *stateSelect[T]) Rows() iter.Seq2[T, error] {
 	return handlerResult[T](s.conn, s.builder.query, len(s.builder.fieldsSelect), s.ctx)
 }
 
+// SafeGet return a zero value if v is nil, is used when [goe.Select] get any argument
+//
+// # Example
+//
+//	for row, err := range goe.Select(&struct {
+//		User    *string //goe needs a pointer for store the referecent argument
+//		Role    *string //goe needs a pointer for store the referecent argument
+//		EndTime **time.Time //if the argument is already a pointer goe needs a pointer to a pointer for store the referecent argument
+//	}{
+//		User:    &db.User.Name,
+//		Role:    &db.Role.Name,
+//		EndTime: &db.UserRole.EndDate,
+//	}).
+//	From(db.User).
+//	Joins(
+//		join.LeftJoin[int](&db.User.Id, &db.UserRole.UserId),
+//		join.LeftJoin[int](&db.UserRole.RoleId, &db.Role.Id),
+//	).
+//	OrderByAsc(&db.User.Id).Rows() {
+//		q = append(q, struct {
+//			User    string //return model can be different from select model
+//			Role    string
+//			EndTime *time.Time
+//		}{
+//			User:    goe.SafeGet(row.User), //get a empty string if the database returns null
+//			Role:    goe.SafeGet(row.Role), //get a empty string if the database returns null
+//			EndTime: goe.SafeGet(row.EndTime), //EndTime can store nil/null values
+//		})
+//	}
 func SafeGet[T any](v *T) T {
 	if v == nil {
 		return reflect.New(reflect.TypeOf(v).Elem()).Elem().Interface().(T)
@@ -350,6 +393,9 @@ type list[T any] struct {
 	err     error
 }
 
+// List is a wrapper over [goe.Select] for more simple queries,
+// List uses [context.Background] internally;
+// to specify the context, use [goe.ListContext]
 func List[T any](t *T, tx ...Transaction) *list[T] {
 	return ListContext(context.Background(), t, tx...)
 }
@@ -358,16 +404,36 @@ func ListContext[T any](ctx context.Context, t *T, tx ...Transaction) *list[T] {
 	return &list[T]{sSelect: SelectContext(ctx, t, tx...).From(t), table: t}
 }
 
+// OrderByAsc makes a ordained by arg ascending query
+//
+// # Example
+//
+//	OrderByAsc(&db.Habitat.Name)
 func (l *list[T]) OrderByAsc(a any) *list[T] {
 	l.sSelect.OrderByAsc(a)
 	return l
 }
 
+// OrderByDesc makes a ordained by arg descending query
+//
+// # Example
+//
+//	OrderByDesc(&db.Habitat.Name)
 func (l *list[T]) OrderByDesc(a any) *list[T] {
 	l.sSelect.OrderByDesc(a)
 	return l
 }
 
+// Filter creates a where on non-zero values
+//
+// # Example
+//
+//	// where animals.name LIKE $1
+//	// on LIKE Filter goe uses ToUpper to match all results
+//	goe.List(db.Animal).Filter(Animal{Name: "%Cat%"}).AsSlice()
+//
+//	// where animals.name equals $1 AND animal.id = $2 AND animals.idhabitat = $3
+//	goe.List(db.Animal).Filter(Animal{Name: "Cat", Id: animals[0].Id, IdHabitat: &habitats[0].Id}).AsSlice()
 func (l *list[T]) Filter(v T) *list[T] {
 	args, values, err := getNonZeroFields(addrMap.mapField, l.table, v)
 	if err != nil {
@@ -379,6 +445,7 @@ func (l *list[T]) Filter(v T) *list[T] {
 	return l
 }
 
+// AsSlice return all the rows as a slice
 func (l *list[T]) AsSlice() ([]T, error) {
 	if l.err != nil {
 		return nil, l.err
@@ -386,6 +453,7 @@ func (l *list[T]) AsSlice() ([]T, error) {
 	return l.sSelect.AsSlice()
 }
 
+// AsPagination return a paginated query as [goe.Pagination]
 func (l *list[T]) AsPagination(page, size uint) (*Pagination[T], error) {
 	if l.err != nil {
 		return nil, l.err
@@ -421,10 +489,10 @@ func getNonZeroFields[T any](addrMap map[uintptr]field, table *T, value T) ([]an
 }
 
 func helperNonZeroOperation[T any](stateSelect *stateSelect[T], args []any, values []any) {
-	stateSelect.Where(equalsOrLike(args[0], values[0]))
+	stateSelect.Wheres(equalsOrLike(args[0], values[0]))
 	for i := 1; i < len(args); i++ {
-		stateSelect.Where(where.Or())
-		stateSelect.Where(equalsOrLike(args[i], values[i]))
+		stateSelect.Wheres(where.And())
+		stateSelect.Wheres(equalsOrLike(args[i], values[i]))
 	}
 }
 

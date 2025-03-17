@@ -14,6 +14,11 @@ func init() {
 
 var ErrStructWithoutPrimaryKey = errors.New("goe")
 
+// Open opens a database connection
+//
+// # Example
+//
+//	goe.Open[Database](postgres.Open("user=postgres password=postgres host=localhost port=5432 database=postgres", postgres.Config{}))
 func Open[T any](driver Driver) (*T, error) {
 	db := new(T)
 	valueOf := reflect.ValueOf(db)

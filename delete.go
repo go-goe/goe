@@ -15,6 +15,13 @@ type stateDelete struct {
 	err     error
 }
 
+// Remove creates a where using the values from the primary keys on the passed model;
+// Remove uses [context.Background] internally;
+// to specify the context, use [goe.RemoveContext].
+//
+// # Example
+//
+//	goe.Remove(db.Animal, Animal{Id: as.Id})
 func Remove[T any](table *T, value T, tx ...Transaction) error {
 	return RemoveContext(context.Background(), table, value, tx...)
 }
@@ -34,18 +41,19 @@ func RemoveContext[T any](ctx context.Context, table *T, value T, tx ...Transact
 		brs = append(brs, where.Equals(&pks[i], valuesPks[i]))
 	}
 
-	return s.Where(brs...)
+	return s.Wheres(brs...)
 }
 
 // Delete uses [context.Background] internally;
-// to specify the context, use [query.DeleteContext].
+// to specify the context, use [goe.DeleteContext].
 //
 // # Example
+//
+//	goe.Delete(db.UserRole).Wheres()
 func Delete[T any](table *T, tx ...Transaction) *stateDelete {
 	return DeleteContext(context.Background(), table, tx...)
 }
 
-// DeleteContext creates a delete state for table
 func DeleteContext[T any](ctx context.Context, table *T, tx ...Transaction) *stateDelete {
 	fields, err := getArgsTable(addrMap.mapField, table)
 
@@ -68,12 +76,17 @@ func DeleteContext[T any](ctx context.Context, table *T, tx ...Transaction) *sta
 	return state
 }
 
-func (s *stateDelete) Where(Brs ...query.Operation) error {
+// Wheres receives [query.Operation] as where operations from where sub package
+//
+// # Example
+//
+//	Wheres(where.Equals(&db.Food.Id, foods[0].Id), where.And(), where.Equals(&db.Food.Name, foods[0].Name))
+func (s *stateDelete) Wheres(brs ...query.Operation) error {
 	if s.err != nil {
 		return s.err
 	}
 
-	s.err = helperWhere(&s.builder, addrMap.mapField, Brs...)
+	s.err = helperWhere(&s.builder, addrMap.mapField, brs...)
 	if s.err != nil {
 		return s.err
 	}

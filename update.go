@@ -18,6 +18,12 @@ type save[T any] struct {
 	update        *stateUpdate[T]
 }
 
+// Save uses [context.Background] internally;
+// to specify the context, use [goe.SaveContext].
+//
+// # Example
+//
+//	goe.Save(db.Animal).Value(a)
 func Save[T any](table *T, tx ...Transaction) *save[T] {
 	return SaveContext(context.Background(), table, tx...)
 }
@@ -35,6 +41,13 @@ func SaveContext[T any](ctx context.Context, table *T, tx ...Transaction) *save[
 	return save
 }
 
+// By default, Save ignores zero or nil values, use Includes to update one or more args with zero or nil values
+//
+//	# Example
+//
+//	// update all non-zero values including HabitatId
+//	// HabitatId can have a zero or nil value and won't be ignored
+//	goe.Save(db.Animal).Includes(&db.Animal.HabitatId).Value(*aselect)
 func (s *save[T]) Includes(args ...any) *save[T] {
 	ptrArgs, err := getArgsUpdate(addrMap.mapField, args...)
 	if err != nil {
@@ -46,6 +59,16 @@ func (s *save[T]) Includes(args ...any) *save[T] {
 	return s
 }
 
+// Replace is for update a primary key value
+//
+// # Example
+//
+//	// replace the primary key values from the matched record
+//	// updates IdJobTitle from jobs[1].Id to jobs[0].Id
+//	goe.Save(db.PersonJobTitle).Replace(PersonJobTitle{
+//		PersonId:   persons[2].Id,
+//		IdJobTitle: jobs[1].Id}).Value(PersonJobTitle{
+//		IdJobTitle: jobs[0].Id, CreatedAt: time.Now()})
 func (s *save[T]) Replace(replace T) *save[T] {
 	if s.update.err != nil {
 		return s
@@ -90,10 +113,10 @@ func (s *save[T]) Value(v T) error {
 		}
 	}
 
-	s.update.Where(where.Equals(&argsSave.argsWhere[0], argsSave.valuesWhere[0]))
+	s.update.Wheres(where.Equals(&argsSave.argsWhere[0], argsSave.valuesWhere[0]))
 	for i := 1; i < len(argsSave.argsWhere); i++ {
-		s.update.Where(where.And())
-		s.update.Where(where.Equals(&argsSave.argsWhere[i], argsSave.valuesWhere[i]))
+		s.update.Wheres(where.And())
+		s.update.Wheres(where.Equals(&argsSave.argsWhere[i], argsSave.valuesWhere[i]))
 	}
 
 	s.update.builder.fields = argsSave.includes
@@ -108,14 +131,21 @@ type stateUpdate[T any] struct {
 }
 
 // Update uses [context.Background] internally;
-// to specify the context, use [DB.UpdateContext].
+// to specify the context, use [goe.UpdateContext].
 //
 // # Example
+//
+//	// update only the attribute IdJobTitle from PersonJobTitle with the value in jobs[0].Id
+//	// the wheres call ensures that only the records that match the query will be updated
+//	goe.Update(db.PersonJobTitle).Includes(&db.PersonJobTitle.IdJobTitle).Wheres(
+//	where.Equals(&db.PersonJobTitle.PersonId, persons[2].Id),
+//	where.And(),
+//	where.Equals(&db.PersonJobTitle.IdJobTitle, jobs[1].Id),).
+//	Value(PersonJobTitle{IdJobTitle: jobs[0].Id})
 func Update[T any](table *T, tx ...Transaction) *stateUpdate[T] {
 	return UpdateContext(context.Background(), table, tx...)
 }
 
-// UpdateContext creates a update state for table
 func UpdateContext[T any](ctx context.Context, table *T, tx ...Transaction) *stateUpdate[T] {
 	f := getArg(table, addrMap.mapField, nil)
 
@@ -137,6 +167,12 @@ func UpdateContext[T any](ctx context.Context, table *T, tx ...Transaction) *sta
 	return state
 }
 
+// Includes one or more args for update
+//
+//	# Example
+//
+//	// update will only updates IdJobTitle
+//	Includes(&db.PersonJobTitle.IdJobTitle)
 func (s *stateUpdate[T]) Includes(args ...any) *stateUpdate[T] {
 	if s.err != nil {
 		return s
@@ -153,7 +189,12 @@ func (s *stateUpdate[T]) Includes(args ...any) *stateUpdate[T] {
 	return s
 }
 
-func (s *stateUpdate[T]) Where(brs ...query.Operation) *stateUpdate[T] {
+// Wheres receives [query.Operation] as where operations from where sub package
+//
+// # Example
+//
+//	Wheres(where.Equals(&db.Food.Id, foods[0].Id), where.And(), where.Equals(&db.Food.Name, foods[0].Name))
+func (s *stateUpdate[T]) Wheres(brs ...query.Operation) *stateUpdate[T] {
 	if s.err != nil {
 		return s
 	}
