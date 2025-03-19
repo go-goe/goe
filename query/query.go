@@ -12,8 +12,8 @@ type Function[T any] struct {
 	Value T
 }
 
-func (f *Function[string]) Scan(src any) error {
-	v, ok := src.(string)
+func (f *Function[T]) Scan(src any) error {
+	v, ok := src.(T)
 	if !ok {
 		return fmt.Errorf("error scan function")
 	}

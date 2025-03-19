@@ -34,6 +34,7 @@ type FunctionType uint
 const (
 	_ FunctionType = iota
 	UpperFunction
+	LowerFunction
 )
 
 type JoinType uint

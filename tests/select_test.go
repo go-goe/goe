@@ -336,6 +336,25 @@ func TestSelect(t *testing.T) {
 			},
 		},
 		{
+			desc: "Select_ToLower",
+			testCase: func(t *testing.T) {
+				for row, err := range goe.Select(&struct {
+					Name      *string
+					LowerName *query.Function[string]
+				}{
+					Name:      &db.Animal.Name,
+					LowerName: function.ToLower(&db.Animal.Name),
+				}).From(db.Animal).Rows() {
+					if err != nil {
+						t.Fatalf("Expected select, got error: %v", err)
+					}
+					if strings.ToLower(goe.SafeGet(row.Name)) != row.LowerName.Value {
+						t.Fatalf("Expected %v, got: %v", strings.ToLower(goe.SafeGet(row.Name)), row.LowerName.Value)
+					}
+				}
+			},
+		},
+		{
 			desc: "Select_Like_ToUpper",
 			testCase: func(t *testing.T) {
 				var a []Animal
