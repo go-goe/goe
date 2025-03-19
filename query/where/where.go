@@ -5,7 +5,6 @@ import (
 
 	"github.com/olauro/goe/enum"
 	"github.com/olauro/goe/model"
-	"github.com/olauro/goe/query"
 )
 
 type valueOperation struct {
@@ -13,7 +12,7 @@ type valueOperation struct {
 }
 
 func (vo valueOperation) GetValue() any {
-	if result, ok := vo.value.(query.ValueOperation); ok {
+	if result, ok := vo.value.(model.ValueOperation); ok {
 		return result.GetValue()
 	}
 	return vo.value
@@ -37,11 +36,11 @@ func (vo valueOperation) GetValue() any {
 //
 //	// generate: WHERE "animals"."idhabitat" IS NULL
 //	Where(wh.Equals(&db.Animal.IdHabitat, nil)).Scan(&a)
-func Equals[T any, A *T | **T](a A, v T) query.Operation {
+func Equals[T any, A *T | **T](a A, v T) model.Operation {
 	if reflect.ValueOf(v).Kind() == reflect.Pointer && reflect.ValueOf(v).IsNil() {
-		return query.Operation{Arg: a, Operator: enum.Is, Type: enum.OperationIsWhere}
+		return model.Operation{Arg: a, Operator: enum.Is, Type: enum.OperationIsWhere}
 	}
-	return query.Operation{Arg: a, Value: valueOperation{value: v}, Operator: enum.Equals, Type: enum.OperationWhere}
+	return model.Operation{Arg: a, Value: valueOperation{value: v}, Operator: enum.Equals, Type: enum.OperationWhere}
 }
 
 // NotEquals creates a "<>" to value inside a where clause
@@ -54,11 +53,11 @@ func Equals[T any, A *T | **T](a A, v T) query.Operation {
 //
 //	// generate: WHERE "animals"."idhabitat" IS NOT NULL
 //	Where(wh.NotEquals(&db.Animal.IdHabitat, nil)).Scan(&a)
-func NotEquals[T any, A *T | **T](a A, v T) query.Operation {
+func NotEquals[T any, A *T | **T](a A, v T) model.Operation {
 	if reflect.ValueOf(v).Kind() == reflect.Pointer && reflect.ValueOf(v).IsNil() {
-		return query.Operation{Arg: a, Operator: enum.IsNot, Type: enum.OperationIsWhere}
+		return model.Operation{Arg: a, Operator: enum.IsNot, Type: enum.OperationIsWhere}
 	}
-	return query.Operation{Arg: a, Value: valueOperation{value: v}, Operator: enum.NotEquals, Type: enum.OperationWhere}
+	return model.Operation{Arg: a, Value: valueOperation{value: v}, Operator: enum.NotEquals, Type: enum.OperationWhere}
 }
 
 // Greater creates a ">" to value inside a where clause
@@ -68,8 +67,8 @@ func NotEquals[T any, A *T | **T](a A, v T) query.Operation {
 //	// get all animals that was created after 09 of october 2024 at 11:50AM
 //	db.Select(db.Animal).From(db.Animal).
 //	Where(wh.Greater(&db.Animal.CreateAt, time.Date(2024, time.October, 9, 11, 50, 00, 00, time.Local))).Scan(&a)
-func Greater[T any, A *T | **T](a A, v T) query.Operation {
-	return query.Operation{Arg: a, Value: valueOperation{value: v}, Operator: enum.Greater, Type: enum.OperationWhere}
+func Greater[T any, A *T | **T](a A, v T) model.Operation {
+	return model.Operation{Arg: a, Value: valueOperation{value: v}, Operator: enum.Greater, Type: enum.OperationWhere}
 }
 
 // GreaterEquals creates a ">=" to value inside a where clause
@@ -79,8 +78,8 @@ func Greater[T any, A *T | **T](a A, v T) query.Operation {
 //	// get all animals that was created in or after 09 of october 2024 at 11:50AM
 //	db.Select(db.Animal).From(db.Animal).
 //	Where(wh.GreaterEquals(&db.Animal.CreateAt, time.Date(2024, time.October, 9, 11, 50, 00, 00, time.Local))).Scan(&a)
-func GreaterEquals[T any, A *T | **T](a A, v T) query.Operation {
-	return query.Operation{Arg: a, Value: valueOperation{value: v}, Operator: enum.GreaterEquals, Type: enum.OperationWhere}
+func GreaterEquals[T any, A *T | **T](a A, v T) model.Operation {
+	return model.Operation{Arg: a, Value: valueOperation{value: v}, Operator: enum.GreaterEquals, Type: enum.OperationWhere}
 }
 
 // Less creates a "<" to value inside a where clause
@@ -90,8 +89,8 @@ func GreaterEquals[T any, A *T | **T](a A, v T) query.Operation {
 //	// get all animals that was updated before 09 of october 2024 at 11:50AM
 //	db.Select(db.Animal).From(db.Animal).
 //	Where(wh.Less(&db.Animal.UpdateAt, time.Date(2024, time.October, 9, 11, 50, 00, 00, time.Local))).Scan(&a)
-func Less[T any, A *T | **T](a A, v T) query.Operation {
-	return query.Operation{Arg: a, Value: valueOperation{value: v}, Operator: enum.Less, Type: enum.OperationWhere}
+func Less[T any, A *T | **T](a A, v T) model.Operation {
+	return model.Operation{Arg: a, Value: valueOperation{value: v}, Operator: enum.Less, Type: enum.OperationWhere}
 }
 
 // LessEquals creates a "<=" to value inside a where clause
@@ -101,8 +100,8 @@ func Less[T any, A *T | **T](a A, v T) query.Operation {
 //	// get all animals that was updated in or before 09 of october 2024 at 11:50AM
 //	db.Select(db.Animal).From(db.Animal).
 //	Where(wh.LessEquals(&db.Animal.UpdateAt, time.Date(2024, time.October, 9, 11, 50, 00, 00, time.Local))).Scan(&a)
-func LessEquals[T any, A *T | **T](a A, v T) query.Operation {
-	return query.Operation{Arg: a, Value: valueOperation{value: v}, Operator: enum.LessEquals, Type: enum.OperationWhere}
+func LessEquals[T any, A *T | **T](a A, v T) model.Operation {
+	return model.Operation{Arg: a, Value: valueOperation{value: v}, Operator: enum.LessEquals, Type: enum.OperationWhere}
 }
 
 // Like creates a "LIKE" to value inside a where clause
@@ -111,80 +110,80 @@ func LessEquals[T any, A *T | **T](a A, v T) query.Operation {
 //
 //	// get all animals that has a "at" in his name
 //	db.Select(db.Animal).From(db.Animal).Where(wh.Like(&db.Animal.Name, "%at%")).Scan(&a)
-func Like[T any](a *T, v string) query.Operation {
-	return query.Operation{Arg: a, Value: valueOperation{value: v}, Operator: enum.Like, Type: enum.OperationWhere}
+func Like[T any](a *T, v string) model.Operation {
+	return model.Operation{Arg: a, Value: valueOperation{value: v}, Operator: enum.Like, Type: enum.OperationWhere}
 }
 
-func In[T any, V []T | *model.Query](a *T, mq V) query.Operation {
-	return query.Operation{Arg: a, Value: valueOperation{value: mq}, Operator: enum.In, Type: enum.OperationInWhere}
+func In[T any, V []T | *model.Query](a *T, mq V) model.Operation {
+	return model.Operation{Arg: a, Value: valueOperation{value: mq}, Operator: enum.In, Type: enum.OperationInWhere}
 }
 
 // And creates a "AND" inside a where clause
 //
 // # Example
 //
-//	// and can connect query.operations
+//	// and can connect model.operations
 //	db.Update(db.Animal).Where(
 //		wh.Equals(&db.Animal.Status, "Eating"),
 //		wh.And(),
 //		wh.Like(&db.Animal.Name, "%Cat%")).
 //		Value(a)
-func And() query.Operation {
-	return query.Operation{Operator: enum.And, Type: enum.LogicalWhere}
+func And() model.Operation {
+	return model.Operation{Operator: enum.And, Type: enum.LogicalWhere}
 }
 
 // Or creates a "OR" inside a where clause
 //
 // # Example
 //
-//	// or can connect query.operations
+//	// or can connect model.operations
 //	db.Update(db.Animal).Where(
 //		wh.Equals(&db.Animal.Status, "Eating"),
 //		wh.Or(),
 //		wh.Like(&db.Animal.Name, "%Cat%")).
 //		Value(a)
-func Or() query.Operation {
-	return query.Operation{Operator: enum.Or, Type: enum.LogicalWhere}
+func Or() model.Operation {
+	return model.Operation{Operator: enum.Or, Type: enum.LogicalWhere}
 }
 
 // # Example
 //
 //	Where(wh.EqualsArg(&db.Job.Id, &db.Person.Id))
-func EqualsArg(a any, v any) query.Operation {
-	return query.Operation{Arg: a, Value: valueOperation{value: v}, Operator: enum.Equals, Type: enum.OperationAttributeWhere}
+func EqualsArg(a any, v any) model.Operation {
+	return model.Operation{Arg: a, Value: valueOperation{value: v}, Operator: enum.Equals, Type: enum.OperationAttributeWhere}
 }
 
 // # Example
 //
 //	Where(wh.NotEqualsArg(&db.Job.Id, &db.Person.Id))
-func NotEqualsArg(a any, v any) query.Operation {
-	return query.Operation{Arg: a, Value: valueOperation{value: v}, Operator: enum.NotEquals, Type: enum.OperationAttributeWhere}
+func NotEqualsArg(a any, v any) model.Operation {
+	return model.Operation{Arg: a, Value: valueOperation{value: v}, Operator: enum.NotEquals, Type: enum.OperationAttributeWhere}
 }
 
 // # Example
 //
 //	Where(wh.GreaterArg(&db.Stock.Minimum, &db.Drinks.Stock))
-func GreaterArg(a any, v any) query.Operation {
-	return query.Operation{Arg: a, Value: valueOperation{value: v}, Operator: enum.Greater, Type: enum.OperationAttributeWhere}
+func GreaterArg(a any, v any) model.Operation {
+	return model.Operation{Arg: a, Value: valueOperation{value: v}, Operator: enum.Greater, Type: enum.OperationAttributeWhere}
 }
 
 // # Example
 //
 //	Where(wh.GreaterEqualsArg(&db.Drinks.Reorder, &db.Drinks.Stock))
-func GreaterEqualsArg(a any, v any) query.Operation {
-	return query.Operation{Arg: a, Value: valueOperation{value: v}, Operator: enum.GreaterEquals, Type: enum.OperationAttributeWhere}
+func GreaterEqualsArg(a any, v any) model.Operation {
+	return model.Operation{Arg: a, Value: valueOperation{value: v}, Operator: enum.GreaterEquals, Type: enum.OperationAttributeWhere}
 }
 
 // # Example
 //
 //	Where(wh.LessArg(&db.Exam.Score, &db.Data.Minimum))
-func LessArg(a any, v any) query.Operation {
-	return query.Operation{Arg: a, Value: valueOperation{value: v}, Operator: enum.Less, Type: enum.OperationAttributeWhere}
+func LessArg(a any, v any) model.Operation {
+	return model.Operation{Arg: a, Value: valueOperation{value: v}, Operator: enum.Less, Type: enum.OperationAttributeWhere}
 }
 
 // # Example
 //
 //	Where(wh.LessEqualsArg(&db.Exam.Score, &db.Data.Minimum))
-func LessEqualsArg(a any, v any) query.Operation {
-	return query.Operation{Arg: a, Value: valueOperation{value: v}, Operator: enum.LessEquals, Type: enum.OperationAttributeWhere}
+func LessEqualsArg(a any, v any) model.Operation {
+	return model.Operation{Arg: a, Value: valueOperation{value: v}, Operator: enum.LessEquals, Type: enum.OperationAttributeWhere}
 }

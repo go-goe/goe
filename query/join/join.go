@@ -2,7 +2,7 @@ package join
 
 import (
 	"github.com/olauro/goe/enum"
-	"github.com/olauro/goe/query"
+	"github.com/olauro/goe/model"
 )
 
 type join struct {
@@ -27,9 +27,9 @@ func (j join) SecondArg() any {
 //
 // # Example
 //
-//	db.Select(db.Food).From(db.Food).
-//	Joins(query.Join(&db.Animal.Id, &db.Food.IdAnimal)).Scan(&a)
-func Join[T any, U, V *T | **T](t1 U, t2 V) query.Joins {
+//	goe.Select(db.Food).From(db.Food).
+//	Joins(join.Join(&db.Animal.Id, &db.Food.IdAnimal)).AsSlice()
+func Join[T any, U, V *T | **T](t1 U, t2 V) model.Joins {
 	return join{t1: t1, join: enum.Join, t2: t2}
 }
 
@@ -37,9 +37,9 @@ func Join[T any, U, V *T | **T](t1 U, t2 V) query.Joins {
 //
 // # Example
 //
-//	db.Select(db.Food).From(db.Food).
-//	Joins(query.LeftJoin(&db.Animal.Id, &db.Food.IdAnimal)).Scan(&a)
-func LeftJoin[T any, U, V *T | **T](t1 U, t2 V) query.Joins {
+//	goe.Select(db.Food).From(db.Food).
+//	Joins(join.LeftJoin(&db.Animal.Id, &db.Food.IdAnimal)).AsSlice()
+func LeftJoin[T any, U, V *T | **T](t1 U, t2 V) model.Joins {
 	return join{t1: t1, join: enum.LeftJoin, t2: t2}
 }
 
@@ -47,8 +47,8 @@ func LeftJoin[T any, U, V *T | **T](t1 U, t2 V) query.Joins {
 //
 // # Example
 //
-//	db.Select(db.Food).From(db.Food).
-//	Joins(query.RightJoin(&db.Animal.Id, &db.Food.IdAnimal)).Scan(&a)
-func RightJoin[T any, U, V *T | **T](t1 U, t2 V) query.Joins {
+//	goe.Select(db.Food).From(db.Food).
+//	Joins(join.RightJoin(&db.Animal.Id, &db.Food.IdAnimal)).AsSlice()
+func RightJoin[T any, U, V *T | **T](t1 U, t2 V) model.Joins {
 	return join{t1: t1, join: enum.RightJoin, t2: t2}
 }

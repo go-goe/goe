@@ -64,13 +64,13 @@ func FindContext[T any](ctx context.Context, table *T, value T, tx ...Transactio
 //
 //	// select any argument
 //	goe.Select(&struct {
-//	User    *string
-//	Role    *string
-//	EndTime **time.Time
+//		User    *string
+//		Role    *string
+//		EndTime **time.Time
 //	}{
-//	User:    &db.User.Name,
-//	Role:    &db.Role.Name,
-//	EndTime: &db.UserRole.EndDate,
+//		User:    &db.User.Name,
+//		Role:    &db.Role.Name,
+//		EndTime: &db.UserRole.EndDate,
 //	}).From(db.User).AsSlice()
 func Select[T any](t *T, tx ...Transaction) *stateSelect[T] {
 	return SelectContext(context.Background(), t, tx...)
@@ -98,12 +98,12 @@ func SelectContext[T any](ctx context.Context, t *T, tx ...Transaction) *stateSe
 	return state
 }
 
-// Wheres receives [query.Operation] as where operations from where sub package
+// Wheres receives [model.Operation] as where operations from where sub package
 //
 // # Example
 //
 //	Wheres(where.Equals(&db.Food.Id, foods[0].Id), where.And(), where.Equals(&db.Food.Name, foods[0].Name))
-func (s *stateSelect[T]) Wheres(brs ...query.Operation) *stateSelect[T] {
+func (s *stateSelect[T]) Wheres(brs ...model.Operation) *stateSelect[T] {
 	if s.err != nil {
 		return s
 	}
@@ -177,17 +177,17 @@ func (s *stateSelect[T]) From(tables ...any) *stateSelect[T] {
 	return s
 }
 
-// Joins receives [query.Joins] as joins from join sub package
+// Joins receives [model.Joins] as joins from join sub package
 //
 // # Example
 //
 //	Joins(
-//	join.Join[uuid.UUID](&db.Food.Id, &db.AnimalFood.IdFood),
-//	join.Join[int](&db.AnimalFood.IdAnimal, &db.Animal.Id),
-//	join.Join[uuid.UUID](&db.Animal.IdHabitat, &db.Habitat.Id),
-//	join.Join[int](&db.Habitat.IdWeather, &db.Weather.Id),
+//		join.Join[uuid.UUID](&db.Food.Id, &db.AnimalFood.IdFood),
+//		join.Join[int](&db.AnimalFood.IdAnimal, &db.Animal.Id),
+//		join.Join[uuid.UUID](&db.Animal.IdHabitat, &db.Habitat.Id),
+//		join.Join[int](&db.Habitat.IdWeather, &db.Weather.Id),
 //	)
-func (s *stateSelect[T]) Joins(joins ...query.Joins) *stateSelect[T] {
+func (s *stateSelect[T]) Joins(joins ...model.Joins) *stateSelect[T] {
 	if s.err != nil {
 		return s
 	}
@@ -496,7 +496,7 @@ func helperNonZeroOperation[T any](stateSelect *stateSelect[T], args []any, valu
 	}
 }
 
-func equalsOrLike(f any, a any) query.Operation {
+func equalsOrLike(f any, a any) model.Operation {
 	v, ok := a.(string)
 
 	if !ok {
@@ -584,7 +584,7 @@ func getArgsSelectAno(addrMap map[uintptr]field, valueOf reflect.Value) ([]field
 }
 
 func createFunction(field field, a any) fieldSelect {
-	if f, ok := a.(query.FunctionType); ok {
+	if f, ok := a.(model.FunctionType); ok {
 		return &functionResult{
 			table:         field.table(),
 			db:            field.getDb(),
@@ -596,7 +596,7 @@ func createFunction(field field, a any) fieldSelect {
 }
 
 func createAggregate(field field, a any) fieldSelect {
-	if ag, ok := a.(query.Aggregate); ok {
+	if ag, ok := a.(model.Aggregate); ok {
 		return &aggregateResult{
 			table:         field.table(),
 			db:            field.getDb(),
@@ -669,7 +669,7 @@ func getArgsTables(builder *builder, addrMap map[uintptr]field, tables []int, ar
 	return nil
 }
 
-func getArgFunction(arg any, addrMap map[uintptr]field, operation *query.Operation) field {
+func getArgFunction(arg any, addrMap map[uintptr]field, operation *model.Operation) field {
 	value := reflect.ValueOf(arg)
 	if value.IsNil() {
 		return nil
@@ -682,7 +682,7 @@ func getArgFunction(arg any, addrMap map[uintptr]field, operation *query.Operati
 	return getArg(arg, addrMap, nil)
 }
 
-func getArg(arg any, addrMap map[uintptr]field, operation *query.Operation) field {
+func getArg(arg any, addrMap map[uintptr]field, operation *model.Operation) field {
 	v := reflect.ValueOf(arg)
 	if v.Kind() != reflect.Pointer {
 		return nil
@@ -718,7 +718,7 @@ func getAnyArg(value reflect.Value, addrMap map[uintptr]field) field {
 	return nil
 }
 
-func helperWhere(builder *builder, addrMap map[uintptr]field, brs ...query.Operation) error {
+func helperWhere(builder *builder, addrMap map[uintptr]field, brs ...model.Operation) error {
 	for _, br := range brs {
 		switch br.Type {
 		case enum.OperationWhere:

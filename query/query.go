@@ -6,36 +6,6 @@ import (
 	"github.com/olauro/goe/enum"
 )
 
-type Joins interface {
-	FirstArg() any
-	Join() enum.JoinType
-	SecondArg() any
-}
-
-type Aggregate interface {
-	Aggregate() enum.AggregateType
-}
-
-type FunctionType interface {
-	GetType() enum.FunctionType
-}
-
-type ValueOperation interface {
-	GetValue() any
-}
-
-type Operation struct {
-	Type                enum.WhereType
-	Arg                 any
-	Value               ValueOperation
-	Operator            enum.OperatorType
-	Attribute           string
-	Table               string
-	Function            enum.FunctionType
-	AttributeValue      string
-	AttributeValueTable string
-}
-
 type Function[T any] struct {
 	Field *T
 	Type  enum.FunctionType

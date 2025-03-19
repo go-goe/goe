@@ -34,13 +34,13 @@ type goeMap struct {
 	mapField map[uintptr]field
 }
 
-func (am *goeMap) Get(key uintptr) field {
+func (am *goeMap) get(key uintptr) field {
 	am.mu.Lock()
 	defer am.mu.Unlock()
 	return am.mapField[key]
 }
 
-func (am *goeMap) Set(key uintptr, value field) {
+func (am *goeMap) set(key uintptr, value field) {
 	am.mu.Lock()
 	defer am.mu.Unlock()
 	am.mapField[key] = value
@@ -64,12 +64,16 @@ func (db *DB) RawExecContext(ctx context.Context, query string, args ...any) err
 	return db.Driver.NewConnection().ExecContext(ctx, model.Query{Type: enum.RawQuery, RawSql: query, Arguments: args})
 }
 
+// GetGoeDatabase retrieves the underlying *DB instance associated with the given dbTarget.
+// The dbTarget should be a pointer to a valid database struct.
+// If the dbTarget is invalid or uninitialized, it returns an error.
+// If the associated [goe.DB] instance is found, it returns the instance; otherwise, it returns an error.
 func GetGoeDatabase(dbTarget any) (db *DB, err error) {
 	dbValueOf := reflect.ValueOf(dbTarget).Elem()
 	if dbValueOf.NumField() == 0 {
 		return nil, fmt.Errorf("goe: Database %v with no structs", dbValueOf.Type().Name())
 	}
-	goeDb := addrMap.Get(uintptr(dbValueOf.Field(0).UnsafePointer()))
+	goeDb := addrMap.get(uintptr(dbValueOf.Field(0).UnsafePointer()))
 
 	if goeDb == nil {
 		return nil, fmt.Errorf("goe: Database %v with no structs", dbValueOf.Type().Name())
@@ -78,6 +82,13 @@ func GetGoeDatabase(dbTarget any) (db *DB, err error) {
 	return goeDb.getDb(), nil
 }
 
+// NewTransaction creates a new Transaction using the specified database target.
+// It sets the isolation level to sql.LevelSerializable by default.
+// The dbTarget parameter should be a valid database connection or instance.
+// If successful, it returns the created Transaction; otherwise, it returns an error.
+//
+// NewTransaction uses [context.Background] internally;
+// to specify the context, use [goe.NewTransactionContext]
 func NewTransaction(dbTarget any) (Transaction, error) {
 	return NewTransactionContext(context.Background(), dbTarget, sql.LevelSerializable)
 }

@@ -6,7 +6,7 @@ import (
 	"slices"
 
 	"github.com/olauro/goe/enum"
-	"github.com/olauro/goe/query"
+	"github.com/olauro/goe/model"
 	"github.com/olauro/goe/query/where"
 )
 
@@ -189,12 +189,12 @@ func (s *stateUpdate[T]) Includes(args ...any) *stateUpdate[T] {
 	return s
 }
 
-// Wheres receives [query.Operation] as where operations from where sub package
+// Wheres receives [model.Operation] as where operations from where sub package
 //
 // # Example
 //
 //	Wheres(where.Equals(&db.Food.Id, foods[0].Id), where.And(), where.Equals(&db.Food.Name, foods[0].Name))
-func (s *stateUpdate[T]) Wheres(brs ...query.Operation) *stateUpdate[T] {
+func (s *stateUpdate[T]) Wheres(brs ...model.Operation) *stateUpdate[T] {
 	if s.err != nil {
 		return s
 	}

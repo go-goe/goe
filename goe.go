@@ -60,7 +60,7 @@ func initField(tables reflect.Value, valueOf reflect.Value, db *DB, tableId int,
 	}
 
 	for i := range pks {
-		addrMap.Set(uintptr(valueOf.Field(fieldIds[i]).Addr().UnsafePointer()), pks[i])
+		addrMap.set(uintptr(valueOf.Field(fieldIds[i]).Addr().UnsafePointer()), pks[i])
 	}
 	var field reflect.StructField
 
@@ -114,7 +114,7 @@ func newAttr(valueOf reflect.Value, i int, table string, addr uintptr, db *DB, t
 		fieldId,
 		d,
 	)
-	addrMap.Set(addr, at)
+	addrMap.set(addr, at)
 }
 
 func getPk(db *DB, typeOf reflect.Type, tableId int, driver Driver) ([]*pk, []int, error) {
@@ -269,8 +269,8 @@ func helperAttribute(tables reflect.Value, valueOf reflect.Value, i int, db *DB,
 					newAttr(valueOf, i, pks[0].tableName, ptr, db, tableId, fieldId, driver)
 					return
 				}
-				if addrMap.Get(ptr) == nil {
-					addrMap.Set(ptr, v)
+				if addrMap.get(ptr) == nil {
+					addrMap.set(ptr, v)
 					return
 				}
 				for _, pk := range pks {
@@ -284,8 +284,8 @@ func helperAttribute(tables reflect.Value, valueOf reflect.Value, i int, db *DB,
 					newAttr(valueOf, i, pks[0].tableName, ptr, db, tableId, fieldId, driver)
 					return
 				}
-				if addrMap.Get(ptr) == nil {
-					addrMap.Set(ptr, v)
+				if addrMap.get(ptr) == nil {
+					addrMap.set(ptr, v)
 				}
 			}
 			return

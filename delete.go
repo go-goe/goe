@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/olauro/goe/enum"
-	"github.com/olauro/goe/query"
+	"github.com/olauro/goe/model"
 	"github.com/olauro/goe/query/where"
 )
 
@@ -34,7 +34,7 @@ func RemoveContext[T any](ctx context.Context, table *T, value T, tx ...Transact
 
 	s := DeleteContext(ctx, table, tx...)
 
-	brs := make([]query.Operation, 0, len(pks))
+	brs := make([]model.Operation, 0, len(pks))
 	brs = append(brs, where.Equals(&pks[0], valuesPks[0]))
 	for i := 1; i < len(pks); i++ {
 		brs = append(brs, where.And())
@@ -76,12 +76,12 @@ func DeleteContext[T any](ctx context.Context, table *T, tx ...Transaction) *sta
 	return state
 }
 
-// Wheres receives [query.Operation] as where operations from where sub package
+// Wheres receives [model.Operation] as where operations from where sub package
 //
 // # Example
 //
 //	Wheres(where.Equals(&db.Food.Id, foods[0].Id), where.And(), where.Equals(&db.Food.Name, foods[0].Name))
-func (s *stateDelete) Wheres(brs ...query.Operation) error {
+func (s *stateDelete) Wheres(brs ...model.Operation) error {
 	if s.err != nil {
 		return s.err
 	}

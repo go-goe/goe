@@ -7,7 +7,6 @@ import (
 
 	"github.com/olauro/goe/enum"
 	"github.com/olauro/goe/model"
-	"github.com/olauro/goe/query"
 )
 
 var ErrInvalidWhere = errors.New("goe: invalid where operation. try sending a pointer as parameter")
@@ -23,7 +22,7 @@ type builder struct {
 	joins        []enum.JoinType //select
 	joinsArgs    []field         //select
 	tables       []int
-	brs          []query.Operation
+	brs          []model.Operation
 }
 
 func createBuilder(typeQuery enum.QueryType) builder {
