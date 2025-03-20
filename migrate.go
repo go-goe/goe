@@ -11,10 +11,7 @@ func AutoMigrate(dbTarget any) error {
 }
 
 func AutoMigrateContext(ctx context.Context, dbTarget any) error {
-	db, err := GetGoeDatabase(dbTarget)
-	if err != nil {
-		return err
-	}
+	db := getDatabase(dbTarget)
 
 	m := migrateFrom(dbTarget, db.Driver)
 	if m.Error != nil {
@@ -25,18 +22,13 @@ func AutoMigrateContext(ctx context.Context, dbTarget any) error {
 }
 
 func DropTable(dbTarget any, table string) error {
-	db, err := GetGoeDatabase(dbTarget)
-	if err != nil {
-		return err
-	}
+	db := getDatabase(dbTarget)
+
 	return db.Driver.DropTable(db.Driver.KeywordHandler(utils.TableNamePattern(table)))
 }
 
 func DropColumn(dbTarget any, table, column string) error {
-	db, err := GetGoeDatabase(dbTarget)
-	if err != nil {
-		return err
-	}
+	db := getDatabase(dbTarget)
 
 	table = db.Driver.KeywordHandler(utils.TableNamePattern(table))
 	column = db.Driver.KeywordHandler(utils.ColumnNamePattern(column))
@@ -45,10 +37,7 @@ func DropColumn(dbTarget any, table, column string) error {
 }
 
 func RenameColumn(dbTarget any, table, oldColumn, newColumn string) error {
-	db, err := GetGoeDatabase(dbTarget)
-	if err != nil {
-		return err
-	}
+	db := getDatabase(dbTarget)
 
 	table = db.Driver.KeywordHandler(utils.TableNamePattern(table))
 	oldColumn = db.Driver.KeywordHandler(utils.ColumnNamePattern(oldColumn))

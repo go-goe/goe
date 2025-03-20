@@ -40,6 +40,7 @@ type Driver interface {
 	NewConnection() Connection
 	NewTransaction(ctx context.Context, opts *sql.TxOptions) (Transaction, error)
 	Stats() sql.DBStats
+	Close() error
 }
 
 type Connection interface {

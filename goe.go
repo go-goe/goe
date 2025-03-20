@@ -21,15 +21,21 @@ var ErrStructWithoutPrimaryKey = errors.New("goe")
 //	goe.Open[Database](postgres.Open("user=postgres password=postgres host=localhost port=5432 database=postgres", postgres.Config{}))
 func Open[T any](driver Driver) (*T, error) {
 	db := new(T)
-	valueOf := reflect.ValueOf(db)
-	if valueOf.Kind() != reflect.Ptr {
-		return nil, errors.New("goe: the target value needs to be pass as a pointer")
+	valueOf := reflect.ValueOf(db).Elem()
+	if valueOf.Kind() != reflect.Struct {
+		return nil, errors.New("goe: invalid database, the target needs to be a struct")
 	}
+
+	dbId := valueOf.NumField() - 1
+	if valueOf.Field(dbId).Type().Elem().Name() != "DB" {
+		return nil, errors.New("goe: invalid database, last struct field needs to be goe.DB")
+	}
+
 	dbTarget := new(DB)
-	valueOf = valueOf.Elem()
+	valueOf.Field(dbId).Set(reflect.ValueOf(dbTarget))
 
 	// set value for Fields
-	for i := 0; i < valueOf.NumField(); i++ {
+	for i := range dbId {
 		if valueOf.Field(i).IsNil() {
 			valueOf.Field(i).Set(reflect.ValueOf(reflect.New(valueOf.Field(i).Type().Elem()).Interface()))
 		}
@@ -37,7 +43,7 @@ func Open[T any](driver Driver) (*T, error) {
 
 	var err error
 	// init Fields
-	for tableId := range valueOf.NumField() {
+	for tableId := range dbId {
 		err = initField(valueOf, valueOf.Field(tableId).Elem(), dbTarget, tableId+1, driver)
 		if err != nil {
 			return nil, err

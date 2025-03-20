@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
 	"reflect"
 	"sync"
 
@@ -46,6 +45,12 @@ func (am *goeMap) set(key uintptr, value field) {
 	am.mapField[key] = value
 }
 
+func (am *goeMap) delete(key uintptr) {
+	am.mu.Lock()
+	defer am.mu.Unlock()
+	delete(am.mapField, key)
+}
+
 var addrMap *goeMap
 
 type DB struct {
@@ -64,24 +69,6 @@ func (db *DB) RawExecContext(ctx context.Context, query string, args ...any) err
 	return db.Driver.NewConnection().ExecContext(ctx, model.Query{Type: enum.RawQuery, RawSql: query, Arguments: args})
 }
 
-// GetGoeDatabase retrieves the underlying *DB instance associated with the given dbTarget.
-// The dbTarget should be a pointer to a valid database struct.
-// If the dbTarget is invalid or uninitialized, it returns an error.
-// If the associated [goe.DB] instance is found, it returns the instance; otherwise, it returns an error.
-func GetGoeDatabase(dbTarget any) (db *DB, err error) {
-	dbValueOf := reflect.ValueOf(dbTarget).Elem()
-	if dbValueOf.NumField() == 0 {
-		return nil, fmt.Errorf("goe: Database %v with no structs", dbValueOf.Type().Name())
-	}
-	goeDb := addrMap.get(uintptr(dbValueOf.Field(0).UnsafePointer()))
-
-	if goeDb == nil {
-		return nil, fmt.Errorf("goe: Database %v with no structs", dbValueOf.Type().Name())
-	}
-
-	return goeDb.getDb(), nil
-}
-
 // NewTransaction creates a new Transaction using the specified database target.
 // It sets the isolation level to sql.LevelSerializable by default.
 // The dbTarget parameter should be a valid database connection or instance.
@@ -94,10 +81,30 @@ func NewTransaction(dbTarget any) (Transaction, error) {
 }
 
 func NewTransactionContext(ctx context.Context, dbTarget any, isolation sql.IsolationLevel) (Transaction, error) {
-	goeDb, err := GetGoeDatabase(dbTarget)
+	goeDb := reflect.ValueOf(dbTarget).Elem().FieldByName("DB").Interface().(*DB)
+	return goeDb.Driver.NewTransaction(ctx, &sql.TxOptions{Isolation: isolation})
+}
+
+func Close(dbTarget any) error {
+	goeDb := getDatabase(dbTarget)
+	err := goeDb.Driver.Close()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return goeDb.Driver.NewTransaction(ctx, &sql.TxOptions{Isolation: isolation})
+	valueOf := reflect.ValueOf(dbTarget).Elem()
+
+	for i := range valueOf.NumField() - 1 {
+		fieldOf := valueOf.Field(i).Elem()
+		for fieldId := range fieldOf.NumField() {
+			addrMap.delete(uintptr(fieldOf.Field(fieldId).Addr().UnsafePointer()))
+		}
+	}
+
+	return nil
+}
+
+func getDatabase(dbTarget any) *DB {
+	valueOf := reflect.ValueOf(dbTarget).Elem()
+	return valueOf.Field(valueOf.NumField() - 1).Interface().(*DB)
 }

@@ -53,6 +53,10 @@ func (md *MockDriver) Stats() sql.DBStats {
 	return sql.DBStats{}
 }
 
+func (md *MockDriver) Close() error {
+	return nil
+}
+
 func TestMapDatabase(t *testing.T) {
 	type User struct {
 		Id   uint
@@ -68,6 +72,7 @@ func TestMapDatabase(t *testing.T) {
 	type Database struct {
 		User    *User
 		UserLog *UserLog
+		*goe.DB
 	}
 
 	_, err := goe.Open[Database](&MockDriver{})
@@ -84,6 +89,7 @@ func TestMapDatabaseErrorPrimaryKey(t *testing.T) {
 
 	type Database struct {
 		User *User
+		*goe.DB
 	}
 
 	_, err := goe.Open[Database](&MockDriver{})

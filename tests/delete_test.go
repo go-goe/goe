@@ -17,13 +17,12 @@ func TestDelete(t *testing.T) {
 		t.Fatalf("Expected database, got error: %v", err)
 	}
 
-	goeDb, err := goe.GetGoeDatabase(db)
 	if err != nil {
 		t.Fatalf("Expected goe database, got error: %v", err)
 	}
 
-	if goeDb.Stats().InUse != 0 {
-		t.Errorf("Expected closed connection, got: %v", goeDb.Stats().InUse)
+	if db.DB.Stats().InUse != 0 {
+		t.Errorf("Expected closed connection, got: %v", db.DB.Stats().InUse)
 	}
 	err = goe.Delete(db.AnimalFood).Wheres()
 	if err != nil {
@@ -73,8 +72,8 @@ func TestDelete(t *testing.T) {
 		{
 			desc: "Delete_One_Record",
 			testCase: func(t *testing.T) {
-				if goeDb.Stats().InUse != 0 {
-					t.Errorf("Expected closed connection, got: %v", goeDb.Stats().InUse)
+				if db.DB.Stats().InUse != 0 {
+					t.Errorf("Expected closed connection, got: %v", db.DB.Stats().InUse)
 				}
 
 				a := Animal{Name: "Dog"}
@@ -83,8 +82,8 @@ func TestDelete(t *testing.T) {
 					t.Fatalf("Expected a insert animal, got error: %v", err)
 				}
 
-				if goeDb.Stats().InUse != 0 {
-					t.Errorf("Expected closed connection, got: %v", goeDb.Stats().InUse)
+				if db.DB.Stats().InUse != 0 {
+					t.Errorf("Expected closed connection, got: %v", db.DB.Stats().InUse)
 				}
 
 				var as *Animal
@@ -93,8 +92,8 @@ func TestDelete(t *testing.T) {
 					t.Fatalf("Expected a select, got error: %v", err)
 				}
 
-				if goeDb.Stats().InUse != 0 {
-					t.Errorf("Expected closed connection, got: %v", goeDb.Stats().InUse)
+				if db.DB.Stats().InUse != 0 {
+					t.Errorf("Expected closed connection, got: %v", db.DB.Stats().InUse)
 				}
 
 				err = goe.Remove(db.Animal, Animal{Id: as.Id})
@@ -102,8 +101,8 @@ func TestDelete(t *testing.T) {
 					t.Errorf("Expected a delete animal, got error: %v", err)
 				}
 
-				if goeDb.Stats().InUse != 0 {
-					t.Errorf("Expected closed connection, got: %v", goeDb.Stats().InUse)
+				if db.DB.Stats().InUse != 0 {
+					t.Errorf("Expected closed connection, got: %v", db.DB.Stats().InUse)
 				}
 
 				_, err = goe.Find(db.Animal, Animal{Id: as.Id})

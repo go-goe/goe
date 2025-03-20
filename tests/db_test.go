@@ -144,6 +144,7 @@ type Database struct {
 	JobTitle       *JobTitle
 	Exam           *Exam
 	Select         *Select
+	*goe.DB
 }
 
 var db *Database
@@ -241,7 +242,8 @@ func TestRace(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			goe.Open[Database](postgres.Open("user=postgres password=postgres host=localhost port=5432 database=postgres", postgres.Config{}))
+			raceDb, _ := goe.Open[Database](postgres.Open("user=postgres password=postgres host=localhost port=5432 database=postgres", postgres.Config{}))
+			goe.Close(raceDb)
 		}()
 	}
 	wg.Wait()

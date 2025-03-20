@@ -67,7 +67,7 @@ func migrateFrom(db any, driver Driver) *Migrator {
 
 	migrator := new(Migrator)
 	migrator.Tables = make(map[string]*TableMigrate)
-	for i := 0; i < valueOf.NumField(); i++ {
+	for i := range valueOf.NumField() - 1 {
 		migrator.Error = typeField(valueOf, valueOf.Field(i).Elem(), migrator, driver)
 		if migrator.Error != nil {
 			return migrator
