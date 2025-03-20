@@ -7,7 +7,7 @@ docker compose up -d
 ```
 
 ```
-go test
+go test . -race -count=1
 ```
 
 ```
