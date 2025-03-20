@@ -127,7 +127,7 @@ func TestDelete(t *testing.T) {
 				}
 
 				var tx goe.Transaction
-				tx, err = goe.NewTransaction(db)
+				tx, err = db.NewTransaction()
 				if err != nil {
 					t.Fatalf("Expected tx, got error: %v", err)
 				}
@@ -209,7 +209,7 @@ func TestDelete(t *testing.T) {
 
 				var tx goe.Transaction
 
-				tx, err = goe.NewTransaction(db)
+				tx, err = db.NewTransaction()
 				if err != nil {
 					t.Fatalf("Expected tx, got error: %v", err)
 				}
@@ -260,25 +260,6 @@ func TestDelete(t *testing.T) {
 					}()
 				}
 				wg.Wait()
-			},
-		},
-		{
-			desc: "Delete_Invalid_Arg",
-			testCase: func(t *testing.T) {
-				err = goe.Delete(&struct{}{}).Wheres(where.Equals(&db.Animal.Id, 1))
-				if !errors.Is(err, goe.ErrInvalidArg) {
-					t.Errorf("Expected a goe.ErrInvalidArg, got error: %v", err)
-				}
-			},
-		},
-		{
-			desc: "Delete_Invalid_Where",
-			testCase: func(t *testing.T) {
-				b := 2
-				err = goe.Delete(db.Animal).Wheres(where.Equals(&b, b))
-				if !errors.Is(err, goe.ErrInvalidWhere) {
-					t.Errorf("Expected a goe.ErrInvalidWhere, got error: %v", err)
-				}
 			},
 		},
 		{

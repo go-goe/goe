@@ -2,6 +2,7 @@ package goe
 
 import (
 	"context"
+	"errors"
 
 	"github.com/olauro/goe/enum"
 	"github.com/olauro/goe/model"
@@ -60,7 +61,7 @@ func DeleteContext[T any](ctx context.Context, table *T, tx ...Transaction) *sta
 	var state *stateDelete
 	if err != nil {
 		state = new(stateDelete)
-		state.err = ErrInvalidArg
+		state.err = errors.New("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
 		return state
 	}
 
@@ -69,7 +70,7 @@ func DeleteContext[T any](ctx context.Context, table *T, tx ...Transaction) *sta
 	if tx != nil {
 		state = createDeleteState(tx[0], ctx)
 	} else {
-		state = createDeleteState(db.Driver.NewConnection(), ctx)
+		state = createDeleteState(db.driver.NewConnection(), ctx)
 	}
 
 	state.builder.fields = fields

@@ -144,7 +144,7 @@ func TestInsert(t *testing.T) {
 
 				var tx goe.Transaction
 				// defult level of isolation is sql.LevelSerializable
-				tx, err = goe.NewTransaction(db)
+				tx, err = db.NewTransaction()
 				if err != nil {
 					t.Fatalf("Expected a tx, got error: %v", err)
 				}
@@ -191,7 +191,7 @@ func TestInsert(t *testing.T) {
 
 				var tx goe.Transaction
 				// defult level of isolation is sql.LevelSerializable
-				tx, err = goe.NewTransaction(db)
+				tx, err = db.NewTransaction()
 				if err != nil {
 					t.Fatalf("Expected a tx, got error: %v", err)
 				}
@@ -260,39 +260,6 @@ func TestInsert(t *testing.T) {
 					if animals[i].Id == 0 {
 						t.Errorf("Expected a Id value, got : %v", animals[i].Id)
 					}
-				}
-			},
-		},
-		{
-			desc: "Insert_Invalid_Value",
-			testCase: func(t *testing.T) {
-				err = goe.Insert(db.Animal).One(nil)
-				if !errors.Is(err, goe.ErrInvalidInsertValue) {
-					t.Errorf("Expected goe.ErrInvalidInsertValue, got : %v", err)
-				}
-			},
-		},
-		{
-			desc: "Insert_Invalid_Empty_Batch",
-			testCase: func(t *testing.T) {
-				animals := []Animal{}
-				err = goe.Insert(db.Animal).All(animals)
-				if !errors.Is(err, goe.ErrEmptyBatchValue) {
-					t.Errorf("Expected goe.ErrInvalidInsertBatchValue, got : %v", err)
-				}
-			},
-		},
-		{
-			desc: "Insert_Invalid_Arg",
-			testCase: func(t *testing.T) {
-				err = goe.Insert(&struct{}{}).One(nil)
-				if !errors.Is(err, goe.ErrInvalidArg) {
-					t.Errorf("Expected goe.ErrInvalidArg, got : %v", err)
-				}
-
-				err = goe.Insert[any](nil).One(nil)
-				if !errors.Is(err, goe.ErrInvalidArg) {
-					t.Errorf("Expected goe.ErrInvalidArg, got : %v", err)
 				}
 			},
 		},

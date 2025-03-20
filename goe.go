@@ -12,8 +12,6 @@ func init() {
 	addrMap = &goeMap{mapField: make(map[uintptr]field)}
 }
 
-var ErrStructWithoutPrimaryKey = errors.New("goe")
-
 // Open opens a database connection
 //
 // # Example
@@ -55,7 +53,7 @@ func Open[T any](driver Driver) (*T, error) {
 		return nil, err
 	}
 
-	dbTarget.Driver = driver
+	dbTarget.driver = driver
 	return db, nil
 }
 
@@ -142,7 +140,7 @@ func getPk(db *DB, typeOf reflect.Type, tableId int, driver Driver) ([]*pk, []in
 
 	fields := fieldsByTags("pk", typeOf)
 	if len(fields) == 0 {
-		return nil, nil, fmt.Errorf("%w: struct %q don't have a primary key setted", ErrStructWithoutPrimaryKey, typeOf.Name())
+		return nil, nil, fmt.Errorf("goe: struct %q don't have a primary key setted", typeOf.Name())
 	}
 
 	pks = make([]*pk, len(fields))

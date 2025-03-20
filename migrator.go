@@ -241,7 +241,7 @@ func migratePk(typeOf reflect.Type, driver Driver) ([]*PrimaryKeyMigrate, []stri
 
 	fields := fieldsByTags("pk", typeOf)
 	if len(fields) == 0 {
-		return nil, nil, fmt.Errorf("%w: struct %q don't have a primary key setted", ErrStructWithoutPrimaryKey, typeOf.Name())
+		return nil, nil, fmt.Errorf("goe: struct %q don't have a primary key setted", typeOf.Name())
 	}
 
 	pks = make([]*PrimaryKeyMigrate, len(fields))

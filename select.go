@@ -2,6 +2,7 @@ package goe
 
 import (
 	"context"
+	"errors"
 	"iter"
 	"math"
 	"reflect"
@@ -91,7 +92,7 @@ func SelectContext[T any](ctx context.Context, t *T, tx ...Transaction) *stateSe
 	if tx != nil {
 		state = createSelectState[T](tx[0], ctx)
 	} else {
-		state = createSelectState[T](db.Driver.NewConnection(), ctx)
+		state = createSelectState[T](db.driver.NewConnection(), ctx)
 	}
 
 	state.builder.fieldsSelect = fields
@@ -131,7 +132,7 @@ func (s *stateSelect[T]) Skip(i uint) *stateSelect[T] {
 func (s *stateSelect[T]) OrderByAsc(arg any) *stateSelect[T] {
 	field := getArg(arg, addrMap.mapField, nil)
 	if field == nil {
-		s.err = ErrInvalidOrderBy
+		s.err = errors.New("goe: invalid order by target. try sending a pointer")
 		return s
 	}
 	s.builder.query.OrderBy = &model.OrderBy{Attribute: model.Attribute{Name: field.getAttributeName(), Table: field.table()}}
@@ -146,7 +147,7 @@ func (s *stateSelect[T]) OrderByAsc(arg any) *stateSelect[T] {
 func (s *stateSelect[T]) OrderByDesc(arg any) *stateSelect[T] {
 	field := getArg(arg, addrMap.mapField, nil)
 	if field == nil {
-		s.err = ErrInvalidOrderBy
+		s.err = errors.New("goe: invalid order by target. try sending a pointer")
 		return s
 	}
 	s.builder.query.OrderBy = &model.OrderBy{
@@ -467,7 +468,7 @@ func getNonZeroFields[T any](addrMap map[uintptr]field, table *T, value T) ([]an
 
 	tableOf := reflect.ValueOf(table).Elem()
 	if tableOf.Kind() != reflect.Struct {
-		return nil, nil, ErrInvalidArg
+		return nil, nil, errors.New("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
 	}
 
 	valueOf := reflect.ValueOf(value)
@@ -483,7 +484,7 @@ func getNonZeroFields[T any](addrMap map[uintptr]field, table *T, value T) ([]an
 	}
 
 	if len(args) == 0 {
-		return nil, nil, ErrInvalidArg
+		return nil, nil, errors.New("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
 	}
 	return args, values, nil
 }
@@ -514,13 +515,13 @@ func getArgsSelect(addrMap map[uintptr]field, arg any) ([]fieldSelect, error) {
 	fields := make([]fieldSelect, 0)
 
 	if reflect.ValueOf(arg).Kind() != reflect.Pointer {
-		return nil, ErrInvalidArg
+		return nil, errors.New("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
 	}
 
 	valueOf := reflect.ValueOf(arg).Elem()
 
 	if valueOf.Kind() != reflect.Struct {
-		return nil, ErrInvalidArg
+		return nil, errors.New("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
 	}
 
 	var fieldOf reflect.Value
@@ -539,7 +540,7 @@ func getArgsSelect(addrMap map[uintptr]field, arg any) ([]fieldSelect, error) {
 	}
 
 	if len(fields) == 0 {
-		return nil, ErrInvalidArg
+		return nil, errors.New("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
 	}
 
 	return fields, nil
@@ -551,7 +552,7 @@ func getArgsSelectAno(addrMap map[uintptr]field, valueOf reflect.Value) ([]field
 	for i := 0; i < valueOf.NumField(); i++ {
 		if valueOf.Field(i).Kind() != reflect.Pointer {
 			//TODO: update to get value from one column query
-			return nil, ErrInvalidArg
+			return nil, errors.New("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
 		}
 		fieldOf = valueOf.Field(i).Elem()
 		addr := uintptr(fieldOf.Addr().UnsafePointer())
@@ -575,10 +576,10 @@ func getArgsSelectAno(addrMap map[uintptr]field, valueOf reflect.Value) ([]field
 			}
 
 		}
-		return nil, ErrInvalidArg
+		return nil, errors.New("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
 	}
 	if len(fields) == 0 {
-		return nil, ErrInvalidArg
+		return nil, errors.New("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
 	}
 	return fields, nil
 }
@@ -618,20 +619,19 @@ func getArgsJoin(addrMap map[uintptr]field, args ...any) ([]field, error) {
 				fields[i] = addrMap[ptr]
 			}
 		} else {
-			return nil, ErrInvalidArg
+			return nil, errors.New("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
 		}
 	}
 
 	if fields[0] == nil || fields[1] == nil {
-		return nil, ErrInvalidArg
+		return nil, errors.New("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
 	}
 	return fields, nil
 }
 
 func getArgsTables(builder *builder, addrMap map[uintptr]field, tables []int, args ...any) error {
 	if reflect.ValueOf(args[0]).Kind() != reflect.Pointer {
-		//TODO: add ErrInvalidTable
-		return ErrInvalidArg
+		return errors.New("goe: invalid table. try sending a pointer to a database mapped struct as table")
 	}
 
 	var ptr uintptr
@@ -642,8 +642,7 @@ func getArgsTables(builder *builder, addrMap map[uintptr]field, tables []int, ar
 	valueOf := reflect.ValueOf(args[0]).Elem()
 	ptr = uintptr(valueOf.Addr().UnsafePointer())
 	if addrMap[ptr] == nil {
-		//TODO: add ErrInvalidTable
-		return ErrInvalidArg
+		return errors.New("goe: invalid table. try sending a pointer to a database mapped struct as table")
 	}
 	tables[i] = addrMap[ptr].getTableId()
 	i++
@@ -651,15 +650,13 @@ func getArgsTables(builder *builder, addrMap map[uintptr]field, tables []int, ar
 
 	for _, a := range args[1:] {
 		if reflect.ValueOf(a).Kind() != reflect.Pointer {
-			//TODO: add ErrInvalidTable
-			return ErrInvalidArg
+			return errors.New("goe: invalid table. try sending a pointer to a database mapped struct as table")
 		}
 
 		valueOf = reflect.ValueOf(a).Elem()
 		ptr = uintptr(valueOf.Addr().UnsafePointer())
 		if addrMap[ptr] == nil {
-			//TODO: add ErrInvalidTable
-			return ErrInvalidArg
+			return errors.New("goe: invalid table. try sending a pointer to a database mapped struct as table")
 		}
 		tables[i] = addrMap[ptr].getTableId()
 		i++
@@ -729,7 +726,7 @@ func helperWhere(builder *builder, addrMap map[uintptr]field, brs ...model.Opera
 				builder.brs = append(builder.brs, br)
 				continue
 			}
-			return ErrInvalidWhere
+			return errors.New("goe: invalid where operation. try sending a pointer as parameter")
 		case enum.OperationAttributeWhere:
 			if a, b := getArg(br.Arg, addrMap, nil), getArg(br.Value.GetValue(), addrMap, nil); a != nil && b != nil {
 				br.Table = a.table()
@@ -740,7 +737,7 @@ func helperWhere(builder *builder, addrMap map[uintptr]field, brs ...model.Opera
 				builder.brs = append(builder.brs, br)
 				continue
 			}
-			return ErrInvalidWhere
+			return errors.New("goe: invalid where operation. try sending a pointer as parameter")
 		case enum.OperationInWhere:
 			if a := getArg(br.Arg, addrMap, &br); a != nil {
 				br.Table = a.table()
@@ -749,7 +746,7 @@ func helperWhere(builder *builder, addrMap map[uintptr]field, brs ...model.Opera
 				builder.brs = append(builder.brs, br)
 				continue
 			}
-			return ErrInvalidWhere
+			return errors.New("goe: invalid where operation. try sending a pointer as parameter")
 		case enum.OperationIsWhere:
 			if a := getArg(br.Arg, addrMap, nil); a != nil {
 				br.Table = a.table()
@@ -758,7 +755,7 @@ func helperWhere(builder *builder, addrMap map[uintptr]field, brs ...model.Opera
 				builder.brs = append(builder.brs, br)
 				continue
 			}
-			return ErrInvalidWhere
+			return errors.New("goe: invalid where operation. try sending a pointer as parameter")
 		default:
 			builder.brs = append(builder.brs, br)
 		}

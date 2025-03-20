@@ -183,7 +183,7 @@ func TestTx(t *testing.T) {
 				ctx, cancel := context.WithCancel(context.Background())
 				cancel()
 
-				_, err := goe.NewTransactionContext(ctx, db, sql.LevelSerializable)
+				_, err := db.NewTransactionContext(ctx, sql.LevelSerializable)
 				if !errors.Is(err, context.Canceled) {
 					t.Errorf("Expected context.Canceled, got : %v", err)
 				}
@@ -195,7 +195,7 @@ func TestTx(t *testing.T) {
 				ctx, cancel := context.WithTimeout(context.Background(), time.Nanosecond)
 				defer cancel()
 
-				_, err := goe.NewTransactionContext(ctx, db, sql.LevelSerializable)
+				_, err := db.NewTransactionContext(ctx, sql.LevelSerializable)
 				if !errors.Is(err, context.DeadlineExceeded) {
 					t.Errorf("Expected context.DeadlineExceeded, got : %v", err)
 				}

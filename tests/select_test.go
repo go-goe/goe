@@ -1215,59 +1215,6 @@ func TestSelect(t *testing.T) {
 			},
 		},
 		{
-			desc: "Select_Invalid_OrderBy",
-			testCase: func(t *testing.T) {
-				for _, err := range goe.Select(db.Animal).
-					From(db.Animal).OrderByAsc(db.Animal.IdHabitat).Rows() {
-					if !errors.Is(err, goe.ErrInvalidOrderBy) {
-						t.Errorf("Expected goe.ErrInvalidOrderBy, got error: %v", err)
-					}
-				}
-			},
-		},
-		{
-			desc: "Select_Invalid_Where",
-			testCase: func(t *testing.T) {
-				for _, err := range goe.Select(db.Animal).
-					From(db.Animal).Wheres(where.Equals(db.Animal.IdHabitat, uuid.New())).Rows() {
-					if !errors.Is(err, goe.ErrInvalidWhere) {
-						t.Errorf("Expected goe.ErrInvalidWhere, got error: %v", err)
-					}
-				}
-			},
-		},
-		{
-			desc: "Select_Invalid_Arg",
-			testCase: func(t *testing.T) {
-				for _, err := range goe.Select(&struct{}{}).Rows() {
-					if !errors.Is(err, goe.ErrInvalidArg) {
-						t.Errorf("Expected goe.ErrInvalidArg, got error: %v", err)
-					}
-				}
-				for _, err := range goe.Select[any](nil).Rows() {
-					if !errors.Is(err, goe.ErrInvalidArg) {
-						t.Errorf("Expected goe.ErrInvalidArg, got error: %v", err)
-					}
-				}
-			},
-		},
-		{
-			desc: "Select_Invalid_Table",
-			testCase: func(t *testing.T) {
-				for _, err := range goe.Select(db.Animal).From(db).Rows() {
-					if !errors.Is(err, goe.ErrInvalidArg) {
-						t.Errorf("Expected goe.ErrInvalidArg, got error: %v", err)
-					}
-				}
-
-				for _, err := range goe.Select(db.Animal).From(nil).Rows() {
-					if !errors.Is(err, goe.ErrInvalidArg) {
-						t.Errorf("Expected goe.ErrInvalidArg, got error: %v", err)
-					}
-				}
-			},
-		},
-		{
 			desc: "Select_Context_Cancel",
 			testCase: func(t *testing.T) {
 				ctx, cancel := context.WithCancel(context.Background())

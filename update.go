@@ -2,6 +2,7 @@ package goe
 
 import (
 	"context"
+	"errors"
 	"reflect"
 	"slices"
 
@@ -101,8 +102,7 @@ func (s *save[T]) Value(v T) error {
 	}
 
 	if len(argsSave.includes) == 0 {
-		//TODO: error inclues empty
-		return ErrInvalidArg
+		return errors.New("goe: empty includes. call includes function to include all update fields")
 	}
 
 	for i := range s.includes {
@@ -152,7 +152,7 @@ func UpdateContext[T any](ctx context.Context, table *T, tx ...Transaction) *sta
 	var state *stateUpdate[T]
 	if f == nil {
 		state = new(stateUpdate[T])
-		state.err = ErrInvalidArg
+		state.err = errors.New("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
 		return state
 	}
 
@@ -161,7 +161,7 @@ func UpdateContext[T any](ctx context.Context, table *T, tx ...Transaction) *sta
 	if tx != nil {
 		state = createUpdateState[T](tx[0], ctx)
 	} else {
-		state = createUpdateState[T](db.Driver.NewConnection(), ctx)
+		state = createUpdateState[T](db.driver.NewConnection(), ctx)
 	}
 
 	return state
@@ -208,8 +208,7 @@ func (s *stateUpdate[T]) Value(value T) error {
 	}
 
 	if s.conn == nil {
-		//TODO: Includes error
-		return ErrInvalidArg
+		return errors.New("goe: empty includes. call includes function to include all update fields")
 	}
 
 	v := reflect.ValueOf(value)
@@ -229,13 +228,13 @@ func getArgsUpdate(addrMap map[uintptr]field, args ...any) ([]field, error) {
 		valueOf = reflect.ValueOf(args[i])
 
 		if valueOf.Kind() != reflect.Pointer {
-			return nil, ErrInvalidArg
+			return nil, errors.New("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
 		}
 
 		valueOf = valueOf.Elem()
 
 		if !valueOf.CanAddr() {
-			return nil, ErrInvalidArg
+			return nil, errors.New("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
 		}
 
 		addr := uintptr(valueOf.Addr().UnsafePointer())
@@ -244,7 +243,7 @@ func getArgsUpdate(addrMap map[uintptr]field, args ...any) ([]field, error) {
 		}
 	}
 	if len(fields) == 0 {
-		return nil, ErrInvalidArg
+		return nil, errors.New("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
 	}
 	return fields, nil
 }
@@ -259,13 +258,13 @@ type argSave struct {
 
 func getArgsSave[T any](addrMap map[uintptr]field, table *T, value T) argSave {
 	if table == nil {
-		return argSave{err: ErrInvalidArg}
+		return argSave{err: errors.New("goe: invalid argument. try sending a pointer to a database mapped struct as argument")}
 	}
 
 	tableOf := reflect.ValueOf(table).Elem()
 
 	if tableOf.Kind() != reflect.Struct {
-		return argSave{err: ErrInvalidArg}
+		return argSave{err: errors.New("goe: invalid argument. try sending a pointer to a database mapped struct as argument")}
 	}
 
 	valueOf := reflect.ValueOf(value)
@@ -294,13 +293,13 @@ func getArgsSave[T any](addrMap map[uintptr]field, table *T, value T) argSave {
 
 func getArgsPks[T any](addrMap map[uintptr]field, table *T, value T) ([]any, []any, error) {
 	if table == nil {
-		return nil, nil, ErrInvalidArg
+		return nil, nil, errors.New("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
 	}
 
 	tableOf := reflect.ValueOf(table).Elem()
 
 	if tableOf.Kind() != reflect.Struct {
-		return nil, nil, ErrInvalidArg
+		return nil, nil, errors.New("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
 	}
 
 	valueOf := reflect.ValueOf(value)
@@ -321,7 +320,7 @@ func getArgsPks[T any](addrMap map[uintptr]field, table *T, value T) ([]any, []a
 	}
 
 	if len(args) == 0 && len(values) == 0 {
-		return nil, nil, ErrInvalidArg
+		return nil, nil, errors.New("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
 	}
 	return args, values, nil
 }

@@ -180,7 +180,7 @@ func TestUpdate(t *testing.T) {
 			testCase: func(t *testing.T) {
 				var tx goe.Transaction
 
-				tx, err = goe.NewTransaction(db)
+				tx, err = db.NewTransaction()
 				if err != nil {
 					t.Fatalf("Expected tx, got error: %v", err)
 				}
@@ -252,7 +252,7 @@ func TestUpdate(t *testing.T) {
 			testCase: func(t *testing.T) {
 				var tx goe.Transaction
 
-				tx, err = goe.NewTransaction(db)
+				tx, err = db.NewTransaction()
 				if err != nil {
 					t.Fatalf("Expected tx, got error: %v", err)
 				}
@@ -616,48 +616,6 @@ func TestUpdate(t *testing.T) {
 				tm := time.Time{}
 				if pj[len(pj)-1].CreatedAt.Unix() == tm.Unix() {
 					t.Errorf("Expected value, got %v", pj[len(pj)-1].CreatedAt.Unix())
-				}
-			},
-		},
-		{
-			desc: "Update_Invalid_Arg",
-			testCase: func(t *testing.T) {
-				a := Animal{
-					Name: "Cat",
-				}
-
-				a.Name = "Update Cat"
-				err = goe.Update(&struct{}{}).Includes(nil).Wheres(where.Equals(&db.Animal.Id, a.Id)).Value(struct{}{})
-				if !errors.Is(err, goe.ErrInvalidArg) {
-					t.Errorf("Expected a goe.ErrInvalidArg, got error: %v", err)
-				}
-			},
-		},
-		{
-			desc: "Update_Invalid_Includes",
-			testCase: func(t *testing.T) {
-				a := Animal{
-					Name: "Cat",
-				}
-
-				a.Name = "Update Cat"
-				err = goe.Update(&struct{}{}).Wheres(where.Equals(&db.Animal.Id, a.Id)).Value(struct{}{})
-				if !errors.Is(err, goe.ErrInvalidArg) {
-					t.Errorf("Expected a goe.ErrInvalidArg, got error: %v", err)
-				}
-			},
-		},
-		{
-			desc: "Update_Invalid_Where",
-			testCase: func(t *testing.T) {
-				a := Animal{
-					Name: "Cat",
-				}
-
-				a.Name = "Update Cat"
-				err = goe.Update(db.Animal).Wheres(where.Equals(&a.Id, a.Id)).Value(a)
-				if !errors.Is(err, goe.ErrInvalidWhere) {
-					t.Errorf("Expected a goe.ErrInvalidWhere, got error: %v", err)
 				}
 			},
 		},

@@ -9,9 +9,6 @@ import (
 	"github.com/olauro/goe/model"
 )
 
-var ErrInvalidWhere = errors.New("goe: invalid where operation. try sending a pointer as parameter")
-var ErrNoTables = errors.New("goe: none table specified, use From() function to specify")
-
 type builder struct {
 	query        model.Query
 	pkFieldId    int //insert
@@ -57,7 +54,7 @@ func (b *builder) buildSelectJoins(join enum.JoinType, fields []field) {
 
 func (b *builder) buildSqlSelect() (err error) {
 	if b.query.Tables == nil {
-		return ErrNoTables
+		return errors.New("goe: none table specified, use From() function to specify")
 	}
 	b.buildSelect()
 	err = b.buildTables()

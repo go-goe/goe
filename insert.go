@@ -2,6 +2,7 @@ package goe
 
 import (
 	"context"
+	"errors"
 	"reflect"
 
 	"github.com/olauro/goe/enum"
@@ -37,7 +38,7 @@ func InsertContext[T any](ctx context.Context, table *T, tx ...Transaction) *sta
 	if tx != nil {
 		state = createInsertState[T](tx[0], ctx)
 	} else {
-		state = createInsertState[T](db.Driver.NewConnection(), ctx)
+		state = createInsertState[T](db.driver.NewConnection(), ctx)
 	}
 	state.builder.fields = fields
 	return state
@@ -49,7 +50,7 @@ func (s *stateInsert[T]) One(value *T) error {
 	}
 
 	if value == nil {
-		return ErrInvalidInsertValue
+		return errors.New("goe: invalid insert value. try sending a pointer to a struct as value")
 	}
 
 	v := reflect.ValueOf(value).Elem()
@@ -64,7 +65,7 @@ func (s *stateInsert[T]) One(value *T) error {
 
 func (s *stateInsert[T]) All(value []T) error {
 	if len(value) == 0 {
-		return ErrEmptyBatchValue
+		return errors.New("goe: can't insert a empty batch value")
 	}
 
 	valueOf := reflect.ValueOf(value)
@@ -80,13 +81,13 @@ func createInsertState[T any](conn Connection, ctx context.Context) *stateInsert
 
 func getArgsTable[T any](AddrMap map[uintptr]field, table *T) ([]field, error) {
 	if table == nil {
-		return nil, ErrInvalidArg
+		return nil, errors.New("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
 	}
 	fields := make([]field, 0)
 
 	valueOf := reflect.ValueOf(table).Elem()
 	if valueOf.Kind() != reflect.Struct {
-		return nil, ErrInvalidArg
+		return nil, errors.New("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
 	}
 
 	var fieldOf reflect.Value
@@ -102,7 +103,7 @@ func getArgsTable[T any](AddrMap map[uintptr]field, table *T) ([]field, error) {
 	}
 
 	if len(fields) == 0 {
-		return nil, ErrInvalidArg
+		return nil, errors.New("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
 	}
 	return fields, nil
 }
