@@ -24,10 +24,25 @@ type stateSelect[T any] struct {
 	err     error
 }
 
+var ErrNotFound = errors.New("goe: not found any element on result set")
+
+// Find returns a matched record by primary keys,
+// if non record is found returns a [ErrNotFound].
+//
+// Find uses [context.Background] internally;
+// to specify the context, use [FindContext].
+//
+// # Example
+//
+//	goe.Find(db.Animal, Animal{Id: 2})
 func Find[T any](t *T, v T, tx ...Transaction) (*T, error) {
 	return FindContext(context.Background(), t, v, tx...)
 }
 
+// FindContext returns a matched record by primary keys,
+// if non record is found returns a [ErrNotFound].
+//
+// See [Find] for examples
 func FindContext[T any](ctx context.Context, table *T, value T, tx ...Transaction) (*T, error) {
 	pks, valuesPks, err := getArgsPks(addrMap.mapField, table, value)
 	if err != nil {
@@ -52,8 +67,10 @@ func FindContext[T any](ctx context.Context, table *T, value T, tx ...Transactio
 	return nil, ErrNotFound
 }
 
+// Select retrieves rows from tables.
+//
 // Select uses [context.Background] internally;
-// to specify the context, use [goe.SelectContext]
+// to specify the context, use [SelectContext]
 //
 // # Example
 //
@@ -62,6 +79,24 @@ func FindContext[T any](ctx context.Context, table *T, value T, tx ...Transactio
 //
 //	// iterator select
 //	for row, err := range goe.Select(db.Animal).From(db.Animal).Rows() { ... }
+//
+//	// pagination select
+//	var p *goe.Pagination[Animal]
+//	p, err = goe.Select(db.Animal).From(db.Animal).AsPagination(1, 10)
+//
+//	// select with where, joins and order by
+//	goe.Select(db.Food).From(db.Food).
+//		Joins(
+//			join.Join[uuid.UUID](&db.Food.Id, &db.AnimalFood.IdFood),
+//			join.Join[int](&db.AnimalFood.IdAnimal, &db.Animal.Id),
+//			join.Join[uuid.UUID](&db.Animal.IdHabitat, &db.Habitat.Id),
+//			join.Join[int](&db.Habitat.IdWeather, &db.Weather.Id),
+//		).
+//		Wheres(
+//			where.Equals(&db.Food.Id, foods[0].Id),
+//			where.And(),
+//			where.Equals(&db.Food.Name, foods[0].Name),
+//		).OrderByAsc(&db.Food.Name).AsSlice()
 //
 //	// select any argument
 //	goe.Select(&struct {
@@ -77,6 +112,9 @@ func Select[T any](t *T, tx ...Transaction) *stateSelect[T] {
 	return SelectContext(context.Background(), t, tx...)
 }
 
+// SelectContext retrieves rows from tables.
+//
+// See [Select] for examples
 func SelectContext[T any](ctx context.Context, t *T, tx ...Transaction) *stateSelect[T] {
 	fields, err := getArgsSelect(addrMap.mapField, t)
 
@@ -100,10 +138,6 @@ func SelectContext[T any](ctx context.Context, t *T, tx ...Transaction) *stateSe
 }
 
 // Wheres receives [model.Operation] as where operations from where sub package
-//
-// # Example
-//
-//	Wheres(where.Equals(&db.Food.Id, foods[0].Id), where.And(), where.Equals(&db.Food.Name, foods[0].Name))
 func (s *stateSelect[T]) Wheres(brs ...model.Operation) *stateSelect[T] {
 	if s.err != nil {
 		return s
@@ -125,10 +159,6 @@ func (s *stateSelect[T]) Skip(i uint) *stateSelect[T] {
 }
 
 // OrderByAsc makes a ordained by arg ascending query
-//
-// # Example
-//
-//	goe.Select(db.Habitat).From(db.Habitat).OrderByAsc(&db.Habitat.Name).AsSlice()
 func (s *stateSelect[T]) OrderByAsc(arg any) *stateSelect[T] {
 	field := getArg(arg, addrMap.mapField, nil)
 	if field == nil {
@@ -140,10 +170,6 @@ func (s *stateSelect[T]) OrderByAsc(arg any) *stateSelect[T] {
 }
 
 // OrderByDesc makes a ordained by arg descending query
-//
-// # Example
-//
-//	goe.Select(db.Habitat).From(db.Habitat).OrderByDesc(&db.Habitat.Name).AsSlice()
 func (s *stateSelect[T]) OrderByDesc(arg any) *stateSelect[T] {
 	field := getArg(arg, addrMap.mapField, nil)
 	if field == nil {
@@ -157,11 +183,6 @@ func (s *stateSelect[T]) OrderByDesc(arg any) *stateSelect[T] {
 }
 
 // From specify one or more tables for select
-//
-// # Example
-//
-//	goe.Select(db.Habitat).From(db.Habitat)
-//	goe.Select(db.Habitat).From(db.Habitat, db.Animal)
 func (s *stateSelect[T]) From(tables ...any) *stateSelect[T] {
 	if s.err != nil {
 		return s
@@ -179,15 +200,6 @@ func (s *stateSelect[T]) From(tables ...any) *stateSelect[T] {
 }
 
 // Joins receives [model.Joins] as joins from join sub package
-//
-// # Example
-//
-//	Joins(
-//		join.Join[uuid.UUID](&db.Food.Id, &db.AnimalFood.IdFood),
-//		join.Join[int](&db.AnimalFood.IdAnimal, &db.Animal.Id),
-//		join.Join[uuid.UUID](&db.Animal.IdHabitat, &db.Habitat.Id),
-//		join.Join[int](&db.Habitat.IdWeather, &db.Weather.Id),
-//	)
 func (s *stateSelect[T]) Joins(joins ...model.Joins) *stateSelect[T] {
 	if s.err != nil {
 		return s
@@ -204,7 +216,7 @@ func (s *stateSelect[T]) Joins(joins ...model.Joins) *stateSelect[T] {
 	return s
 }
 
-// AsSlice return all the rows as a slice
+// AsSlice return all the rows as a slice.
 func (s *stateSelect[T]) AsSlice() ([]T, error) {
 	rows := make([]T, 0, s.builder.query.Limit)
 	for row, err := range s.Rows() {
@@ -216,7 +228,7 @@ func (s *stateSelect[T]) AsSlice() ([]T, error) {
 	return rows, nil
 }
 
-// AsQuery return a [model.Query] for use inside a [where.In]
+// AsQuery return a [model.Query] for use inside a [where.In].
 func (s *stateSelect[T]) AsQuery() (*model.Query, error) {
 	if s.err != nil {
 		return nil, s.err
@@ -243,15 +255,14 @@ type Pagination[T any] struct {
 	Values     []T
 }
 
-// AsPagination return a paginated query as [goe.Pagination]
+// AsPagination return a paginated query as [Pagination].
 func (s *stateSelect[T]) AsPagination(page, size uint) (*Pagination[T], error) {
 	if s.err != nil {
 		return nil, s.err
 	}
 
 	if size == 0 {
-		// zero results for size equals 0
-		return new(Pagination[T]), nil
+		return nil, errors.New("goe: size as 0 is invalid")
 	}
 
 	var err error
@@ -328,7 +339,7 @@ func (s *stateSelect[T]) AsPagination(page, size uint) (*Pagination[T], error) {
 	return p, nil
 }
 
-// Rows return a iterator on rows, see [goe.Select] for a example
+// Rows return a iterator on rows.
 func (s *stateSelect[T]) Rows() iter.Seq2[T, error] {
 	if s.err != nil {
 		var v T
@@ -348,7 +359,7 @@ func (s *stateSelect[T]) Rows() iter.Seq2[T, error] {
 	return handlerResult[T](s.conn, s.builder.query, len(s.builder.fieldsSelect), s.ctx)
 }
 
-// SafeGet return a zero value if v is nil, is used when [goe.Select] get any argument
+// SafeGet return a zero value if v is nil, is used when [Select] get any argument.
 //
 // # Example
 //
@@ -394,47 +405,47 @@ type list[T any] struct {
 	err     error
 }
 
-// List is a wrapper over [goe.Select] for more simple queries,
+// List is a wrapper over [Select] for more simple queries using filters, pagination and ordering.
+//
 // List uses [context.Background] internally;
-// to specify the context, use [goe.ListContext]
-func List[T any](t *T, tx ...Transaction) *list[T] {
-	return ListContext(context.Background(), t, tx...)
-}
-
-func ListContext[T any](ctx context.Context, t *T, tx ...Transaction) *list[T] {
-	return &list[T]{sSelect: SelectContext(ctx, t, tx...).From(t), table: t}
-}
-
-// OrderByAsc makes a ordained by arg ascending query
-//
-// # Example
-//
-//	OrderByAsc(&db.Habitat.Name)
-func (l *list[T]) OrderByAsc(a any) *list[T] {
-	l.sSelect.OrderByAsc(a)
-	return l
-}
-
-// OrderByDesc makes a ordained by arg descending query
-//
-// # Example
-//
-//	OrderByDesc(&db.Habitat.Name)
-func (l *list[T]) OrderByDesc(a any) *list[T] {
-	l.sSelect.OrderByDesc(a)
-	return l
-}
-
-// Filter creates a where on non-zero values
+// to specify the context, use [ListContext]
 //
 // # Example
 //
 //	// where animals.name LIKE $1
 //	// on LIKE Filter goe uses ToUpper to match all results
-//	goe.List(db.Animal).Filter(Animal{Name: "%Cat%"}).AsSlice()
+//	goe.List(db.Animal).OrderByDesc(&db.Animal.Name).Filter(Animal{Name: "%Cat%"}).AsSlice()
 //
 //	// where animals.name equals $1 AND animal.id = $2 AND animals.idhabitat = $3
-//	goe.List(db.Animal).Filter(Animal{Name: "Cat", Id: animals[0].Id, IdHabitat: &habitats[0].Id}).AsSlice()
+//	goe.List(db.Animal).OrderByAsc(&db.Animal.Name).Filter(Animal{Name: "Cat", Id: animals[0].Id, IdHabitat: &habitats[0].Id}).AsSlice()
+//
+//	// pagination list
+//	var p *goe.Pagination[Animal]
+//	p, err = goe.List(db.Animal).AsPagination(1, 10)
+func List[T any](t *T, tx ...Transaction) *list[T] {
+	return ListContext(context.Background(), t, tx...)
+}
+
+// ListContext is a wrapper over [Select] for more simple queries using filters, pagination and ordering.
+//
+// See [List] for examples.
+func ListContext[T any](ctx context.Context, t *T, tx ...Transaction) *list[T] {
+	return &list[T]{sSelect: SelectContext(ctx, t, tx...).From(t), table: t}
+}
+
+// OrderByAsc makes a ordained by arg ascending query.
+func (l *list[T]) OrderByAsc(a any) *list[T] {
+	l.sSelect.OrderByAsc(a)
+	return l
+}
+
+// OrderByDesc makes a ordained by arg descending query.
+func (l *list[T]) OrderByDesc(a any) *list[T] {
+	l.sSelect.OrderByDesc(a)
+	return l
+}
+
+// Filter creates a where on non-zero values.
 func (l *list[T]) Filter(v T) *list[T] {
 	args, values, err := getNonZeroFields(addrMap.mapField, l.table, v)
 	if err != nil {
@@ -454,7 +465,7 @@ func (l *list[T]) AsSlice() ([]T, error) {
 	return l.sSelect.AsSlice()
 }
 
-// AsPagination return a paginated query as [goe.Pagination]
+// AsPagination return a paginated query as [Pagination]
 func (l *list[T]) AsPagination(page, size uint) (*Pagination[T], error) {
 	if l.err != nil {
 		return nil, l.err

@@ -15,15 +15,25 @@ type stateInsert[T any] struct {
 	err     error
 }
 
-// Insert uses [context.Background] internally;
-// to specify the context, use [query.InsertContext].
+// Insert inserts a new record into the given table.
 //
-// # Example
+// Insert uses [context.Background] internally;
+// to specify the context, use [InsertContext].
+//
+// # Examples
+//
+//	// insert one record
+//	err = goe.Insert(db.Person).One(&Person{Name: "Jhon"})
+//	// insert a list of records
+//	persons := []Person{{Name: "Jhon"}, {Name: "Mary"}}
+//	err = goe.Insert(db.Person).All(persons)
 func Insert[T any](table *T, tx ...Transaction) *stateInsert[T] {
 	return InsertContext(context.Background(), table, tx...)
 }
 
-// InsertContext creates a insert state for table
+// InsertContext inserts a new record into the given table.
+//
+// See [Insert] for examples.
 func InsertContext[T any](ctx context.Context, table *T, tx ...Transaction) *stateInsert[T] {
 	fields, err := getArgsTable(addrMap.mapField, table)
 

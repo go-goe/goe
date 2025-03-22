@@ -3,15 +3,12 @@ package goe
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"reflect"
 	"sync"
 
 	"github.com/olauro/goe/enum"
 	"github.com/olauro/goe/model"
 )
-
-var ErrNotFound = errors.New("goe: not found any element on result set")
 
 type goeMap struct {
 	mu       sync.Mutex

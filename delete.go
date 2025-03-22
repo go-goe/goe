@@ -16,13 +16,16 @@ type stateDelete struct {
 	err     error
 }
 
-// Remove creates a where using the values from the primary keys on the passed model;
+// Remove is a wrapper over [Delete] for more simple deletes,
+// uses the value for create a where matching the primary keys.
+//
 // Remove uses [context.Background] internally;
-// to specify the context, use [goe.RemoveContext].
+// to specify the context, use [RemoveContext].
 //
-// # Example
+// # Examples
 //
-//	goe.Remove(db.Animal, Animal{Id: as.Id})
+//	// remove animal of id 2
+//	err = goe.Remove(db.Animal, Animal{Id: 2})
 func Remove[T any](table *T, value T, tx ...Transaction) error {
 	return RemoveContext(context.Background(), table, value, tx...)
 }
@@ -45,16 +48,24 @@ func RemoveContext[T any](ctx context.Context, table *T, value T, tx ...Transact
 	return s.Wheres(brs...)
 }
 
+// Delete remove records in the given table
+//
 // Delete uses [context.Background] internally;
-// to specify the context, use [goe.DeleteContext].
+// to specify the context, use [DeleteContext].
 //
-// # Example
+// # Examples
 //
-//	goe.Delete(db.UserRole).Wheres()
+//	// delete all records
+//	err = goe.Delete(db.UserRole).Wheres()
+//	// delete one record
+//	err = goe.Delete(db.Animal).Wheres(where.Equals(&db.Animal.Id, 2))
 func Delete[T any](table *T, tx ...Transaction) *stateDelete {
 	return DeleteContext(context.Background(), table, tx...)
 }
 
+// Delete remove records in the given table
+//
+// See [Delete] for examples
 func DeleteContext[T any](ctx context.Context, table *T, tx ...Transaction) *stateDelete {
 	fields, err := getArgsTable(addrMap.mapField, table)
 
@@ -78,10 +89,6 @@ func DeleteContext[T any](ctx context.Context, table *T, tx ...Transaction) *sta
 }
 
 // Wheres receives [model.Operation] as where operations from where sub package
-//
-// # Example
-//
-//	Wheres(where.Equals(&db.Food.Id, foods[0].Id), where.And(), where.Equals(&db.Food.Name, foods[0].Name))
 func (s *stateDelete) Wheres(brs ...model.Operation) error {
 	if s.err != nil {
 		return s.err

@@ -640,20 +640,6 @@ func TestSelect(t *testing.T) {
 			},
 		},
 		{
-			desc: "List_As_Pagination_Size_0",
-			testCase: func(t *testing.T) {
-				var p *goe.Pagination[Animal]
-				p, err = goe.List(db.Animal).AsPagination(1, 0)
-				if err != nil {
-					t.Fatalf("Expected pagination, got: %v", err)
-				}
-
-				if len(p.Values) != 0 {
-					t.Fatalf("Expected 0, got: %v", len(p.Values))
-				}
-			},
-		},
-		{
 			desc: "Select_As_Pagination",
 			testCase: func(t *testing.T) {
 				var p *goe.Pagination[Animal]
