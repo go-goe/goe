@@ -254,24 +254,6 @@ func (o *oneToOne) writeAttributeInsert(b *builder) {
 	b.fieldIds = append(b.fieldIds, o.fieldId)
 }
 
-func (p *pk) buildAttributeUpdate(b *builder) {
-	if !p.autoIncrement {
-		b.fieldIds = append(b.fieldIds, p.fieldId)
-	}
-}
-
-func (a *att) buildAttributeUpdate(b *builder) {
-	b.fieldIds = append(b.fieldIds, a.fieldId)
-}
-
-func (m *manyToOne) buildAttributeUpdate(b *builder) {
-	b.fieldIds = append(b.fieldIds, m.fieldId)
-}
-
-func (o *oneToOne) buildAttributeUpdate(b *builder) {
-	b.fieldIds = append(b.fieldIds, o.fieldId)
-}
-
 func (p *pk) getFieldId() int {
 	return p.fieldId
 }

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"reflect"
-	"slices"
 
 	"github.com/olauro/goe/enum"
 	"github.com/olauro/goe/model"
@@ -12,11 +11,8 @@ import (
 )
 
 type save[T any] struct {
-	table         *T
-	argsReplace   []any
-	valuesReplace []any
-	includes      []field
-	update        *stateUpdate[T]
+	table  *T
+	update *stateUpdate[T]
 }
 
 // Save is a wrapper over [Update] for more simple updates,
@@ -30,17 +26,6 @@ type save[T any] struct {
 //
 //	// updates animal name on record id 1
 //	err = goe.Save(db.Animal).Value(Animal{Id: 1, Name: "Cat"})
-//
-//	// update all non-zero values including HabitatId
-//	// HabitatId can have a zero or nil value and won't be ignored
-//	err = goe.Save(db.Animal).Includes(&db.Animal.HabitatId).Value(Animal{Id: 1, Name: "Cat", HabitatId: nil})
-//
-//	// replace the primary key values from the matched record
-//	// updates IdJobTitle from 1 to 3
-//	err = goe.Save(db.PersonJobTitle).Replace(PersonJobTitle{
-//		PersonId:  2,
-//		IdJobTitle: 1}).Value(PersonJobTitle{
-//		IdJobTitle: 3, UpdatedAt: time.Now()})
 func Save[T any](table *T, tx ...Transaction) *save[T] {
 	return SaveContext(context.Background(), table, tx...)
 }
@@ -53,35 +38,8 @@ func Save[T any](table *T, tx ...Transaction) *save[T] {
 func SaveContext[T any](ctx context.Context, table *T, tx ...Transaction) *save[T] {
 	save := &save[T]{}
 	save.update = UpdateContext(ctx, table, tx...)
-
-	if save.update.err != nil {
-		return save
-	}
-
 	save.table = table
-
 	return save
-}
-
-func (s *save[T]) Includes(args ...any) *save[T] {
-	ptrArgs, err := getArgsUpdate(addrMap.mapField, args...)
-	if err != nil {
-		s.update.err = err
-		return s
-	}
-
-	s.includes = append(s.includes, ptrArgs...)
-	return s
-}
-
-// Replace is for update a primary key value
-func (s *save[T]) Replace(replace T) *save[T] {
-	if s.update.err != nil {
-		return s
-	}
-
-	s.argsReplace, s.valuesReplace, s.update.err = getArgsPks(addrMap.mapField, s.table, replace)
-	return s
 }
 
 func (s *save[T]) Value(v T) error {
@@ -94,38 +52,15 @@ func (s *save[T]) Value(v T) error {
 		return argsSave.err
 	}
 
-	// used for replace primary key model
-	if s.argsReplace != nil {
-		for i := range argsSave.pks {
-			// includes the pk for update if the values are different from replace model
-			if !slices.Contains(s.valuesReplace, argsSave.valuesWhere[i]) {
-				argsSave.includes = append(argsSave.includes, argsSave.pks[i])
-			}
-		}
-		argsSave.argsWhere = s.argsReplace
-		argsSave.valuesWhere = s.valuesReplace
-	}
-
-	if len(argsSave.includes) == 0 {
-		return errors.New("goe: empty includes. call includes function to include all update fields")
-	}
-
-	for i := range s.includes {
-		if !slices.ContainsFunc(argsSave.includes, func(f field) bool {
-			return f.getFieldId() == s.includes[i].getFieldId()
-		}) {
-			argsSave.includes = append(argsSave.includes, s.includes[i])
-		}
-	}
-
-	s.update.Wheres(where.Equals(&argsSave.argsWhere[0], argsSave.valuesWhere[0]))
+	wheres := make([]model.Operation, 0, len(argsSave.argsWhere))
+	wheres = append(wheres, where.Equals(&argsSave.argsWhere[0], argsSave.valuesWhere[0]))
 	for i := 1; i < len(argsSave.argsWhere); i++ {
-		s.update.Wheres(where.And())
-		s.update.Wheres(where.Equals(&argsSave.argsWhere[i], argsSave.valuesWhere[i]))
+		wheres = append(wheres, where.And())
+		wheres = append(wheres, where.Equals(&argsSave.argsWhere[i], argsSave.valuesWhere[i]))
 	}
 
-	s.update.builder.fields = argsSave.includes
-	return s.update.Value(v)
+	s.update.builder.sets = argsSave.sets
+	return s.update.Wheres(wheres...)
 }
 
 type stateUpdate[T any] struct {
@@ -143,12 +78,16 @@ type stateUpdate[T any] struct {
 // # Examples
 //
 //	// update only the attribute IdJobTitle from PersonJobTitle with the value 3
-//	// the wheres call ensures that only the records that match the query will be updated
-//	err = goe.Update(db.PersonJobTitle).Includes(&db.PersonJobTitle.IdJobTitle).Wheres(
+//	err = goe.Update(db.PersonJobTitle).
+//	Sets(update.Set(&db.PersonJobTitle.IdJobTitle, 3)).
+//	Wheres(
 //		where.Equals(&db.PersonJobTitle.PersonId, 2),
 //		where.And(),
-//		where.Equals(&db.PersonJobTitle.IdJobTitle, 1)).
-//	Value(PersonJobTitle{IdJobTitle: 3})
+//		where.Equals(&db.PersonJobTitle.IdJobTitle, 1),
+//	)
+//
+//	// update all animals name to Cat
+//	goe.Update(db.Animal).Sets(update.Set(&db.Animal.Name, "Cat")).Wheres()
 func Update[T any](table *T, tx ...Transaction) *stateUpdate[T] {
 	return UpdateContext(context.Background(), table, tx...)
 }
@@ -177,44 +116,32 @@ func UpdateContext[T any](ctx context.Context, table *T, tx ...Transaction) *sta
 	return state
 }
 
-// Includes one or more args for update
-func (s *stateUpdate[T]) Includes(args ...any) *stateUpdate[T] {
+// Sets one or more arguments for update
+func (s *stateUpdate[T]) Sets(sets ...model.Set) *stateUpdate[T] {
 	if s.err != nil {
 		return s
 	}
 
-	fields, err := getArgsUpdate(addrMap.mapField, args...)
-
-	if err != nil {
-		s.err = err
-		return s
+	for i := range sets {
+		if field := getArg(sets[i].Attribute, addrMap.mapField, nil); field != nil {
+			s.builder.sets = append(s.builder.sets, set{attribute: field, value: sets[i].Value})
+		}
 	}
 
-	s.builder.fields = append(s.builder.fields, fields...)
 	return s
 }
 
 // Wheres receives [model.Operation] as where operations from where sub package
-func (s *stateUpdate[T]) Wheres(brs ...model.Operation) *stateUpdate[T] {
+func (s *stateUpdate[T]) Wheres(brs ...model.Operation) error {
 	if s.err != nil {
-		return s
+		return s.err
 	}
 	s.err = helperWhere(&s.builder, addrMap.mapField, brs...)
-	return s
-}
-
-func (s *stateUpdate[T]) Value(value T) error {
 	if s.err != nil {
 		return s.err
 	}
 
-	if s.conn == nil {
-		return errors.New("goe: empty includes. call includes function to include all update fields")
-	}
-
-	v := reflect.ValueOf(value)
-
-	s.err = s.builder.buildSqlUpdate(v)
+	s.err = s.builder.buildUpdate()
 	if s.err != nil {
 		return s.err
 	}
@@ -222,36 +149,8 @@ func (s *stateUpdate[T]) Value(value T) error {
 	return handlerValues(s.conn, s.builder.query, s.ctx)
 }
 
-func getArgsUpdate(addrMap map[uintptr]field, args ...any) ([]field, error) {
-	fields := make([]field, 0)
-	var valueOf reflect.Value
-	for i := range args {
-		valueOf = reflect.ValueOf(args[i])
-
-		if valueOf.Kind() != reflect.Pointer {
-			return nil, errors.New("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
-		}
-
-		valueOf = valueOf.Elem()
-
-		if !valueOf.CanAddr() {
-			return nil, errors.New("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
-		}
-
-		addr := uintptr(valueOf.Addr().UnsafePointer())
-		if addrMap[addr] != nil {
-			fields = append(fields, addrMap[addr])
-		}
-	}
-	if len(fields) == 0 {
-		return nil, errors.New("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
-	}
-	return fields, nil
-}
-
 type argSave struct {
-	includes    []field
-	pks         []field
+	sets        []set
 	argsWhere   []any
 	valuesWhere []any
 	err         error
@@ -270,8 +169,8 @@ func getArgsSave[T any](addrMap map[uintptr]field, table *T, value T) argSave {
 
 	valueOf := reflect.ValueOf(value)
 
-	includes, pks := make([]field, 0), make([]field, 0)
-	args, values := make([]any, 0, valueOf.NumField()), make([]any, 0, valueOf.NumField())
+	sets := make([]set, 0)
+	pksWhere, valuesWhere := make([]any, 0, valueOf.NumField()), make([]any, 0, valueOf.NumField())
 
 	var addr uintptr
 	for i := 0; i < valueOf.NumField(); i++ {
@@ -279,17 +178,18 @@ func getArgsSave[T any](addrMap map[uintptr]field, table *T, value T) argSave {
 			addr = uintptr(tableOf.Field(i).Addr().UnsafePointer())
 			if addrMap[addr] != nil {
 				if addrMap[addr].isPrimaryKey() {
-					pks = append(pks, addrMap[addr])
-					args = append(args, tableOf.Field(i).Addr().Interface())
-					values = append(values, valueOf.Field(i).Interface())
+					pksWhere = append(pksWhere, tableOf.Field(i).Addr().Interface())
+					valuesWhere = append(valuesWhere, valueOf.Field(i).Interface())
 					continue
 				}
-				includes = append(includes, addrMap[addr])
+				sets = append(sets, set{attribute: addrMap[addr], value: valueOf.Field(i).Interface()})
 			}
 		}
 	}
-
-	return argSave{includes: includes, pks: pks, argsWhere: args, valuesWhere: values}
+	if len(pksWhere) == 0 {
+		return argSave{err: errors.New("goe: invalid value. pass a value with a primary key filled")}
+	}
+	return argSave{sets: sets, argsWhere: pksWhere, valuesWhere: valuesWhere}
 }
 
 func getArgsPks[T any](addrMap map[uintptr]field, table *T, value T) ([]any, []any, error) {

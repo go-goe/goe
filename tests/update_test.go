@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/olauro/goe"
 	"github.com/olauro/goe/query/join"
+	"github.com/olauro/goe/query/update"
 	"github.com/olauro/goe/query/where"
 )
 
@@ -57,9 +58,14 @@ func TestUpdate(t *testing.T) {
 					Byte:    []byte{1},
 				}
 				u := goe.Update(db.Flag).
-					Includes(&db.Flag.Name, &db.Flag.Bool).
+					Sets(
+						update.Set(&db.Flag.Name, ff.Name),
+						update.Set(&db.Flag.Bool, ff.Bool))
+				err = u.Sets(
+					update.Set(&db.Flag.Float64, ff.Float64),
+					update.Set(&db.Flag.Float32, ff.Float32),
+					update.Set(&db.Flag.Byte, ff.Byte)).
 					Wheres(where.Equals(&db.Flag.Id, f.Id))
-				err = u.Includes(&db.Flag.Float64, &db.Flag.Float32, &db.Flag.Byte).Value(ff)
 				if err != nil {
 					t.Fatalf("Expected a update, got error: %v", err)
 				}
@@ -81,6 +87,64 @@ func TestUpdate(t *testing.T) {
 				}
 				if fselect.Bool != ff.Bool {
 					t.Errorf("Expected a update on bool, got : %v", fselect.Bool)
+				}
+				if len(fselect.Byte) != len(ff.Byte) {
+					t.Errorf("Expected a update on byte, got : %v", len(fselect.Byte))
+				}
+			},
+		},
+		{
+			desc: "Save_Flag",
+			testCase: func(t *testing.T) {
+				f := Flag{
+					Id:      uuid.New(),
+					Name:    "Flag",
+					Float32: 1.1,
+					Float64: 2.2,
+					Today:   time.Now(),
+					Int:     -1,
+					Int8:    -8,
+					Int16:   -16,
+					Int32:   -32,
+					Int64:   -64,
+					Uint:    1,
+					Uint8:   8,
+					Uint16:  16,
+					Uint32:  32,
+					Bool:    true,
+					Byte:    []byte{1, 2, 3},
+				}
+				err = goe.Insert(db.Flag).One(&f)
+				if err != nil {
+					t.Errorf("Expected a insert, got error: %v", err)
+				}
+
+				ff := Flag{
+					Id:      f.Id,
+					Name:    "Flag_Test",
+					Float32: 3.3,
+					Float64: 4.4,
+					Byte:    []byte{1},
+				}
+				err = goe.Save(db.Flag).Value(ff)
+				if err != nil {
+					t.Fatalf("Expected a update, got error: %v", err)
+				}
+
+				var fselect *Flag
+				fselect, err = goe.Find(db.Flag, Flag{Id: f.Id})
+				if err != nil {
+					t.Fatalf("Expected a select, got error: %v", err)
+				}
+
+				if fselect.Name != ff.Name {
+					t.Errorf("Expected a update on name, got : %v", fselect.Name)
+				}
+				if fselect.Float32 != ff.Float32 {
+					t.Errorf("Expected a update on float32, got : %v", fselect.Float32)
+				}
+				if fselect.Float64 != ff.Float64 {
+					t.Errorf("Expected a update on float64, got : %v", fselect.Float64)
 				}
 				if len(fselect.Byte) != len(ff.Byte) {
 					t.Errorf("Expected a update on byte, got : %v", len(fselect.Byte))
@@ -160,7 +224,8 @@ func TestUpdate(t *testing.T) {
 				}
 
 				aselect.IdHabitat = nil
-				err = goe.Save(db.Animal).Includes(&db.Animal.IdHabitat).Value(*aselect)
+				err = goe.Update(db.Animal).Sets(update.Set(&db.Animal.IdHabitat, aselect.IdHabitat)).
+					Wheres(where.Equals(&db.Animal.Id, aselect.Id))
 				if err != nil {
 					t.Fatalf("Expected a update, got error: %v", err)
 				}
@@ -322,12 +387,10 @@ func TestUpdate(t *testing.T) {
 				if len(pj) != 2 {
 					t.Errorf("Expected %v, got : %v", 2, len(pj))
 				}
-
-				err = goe.Update(db.PersonJobTitle, tx).Includes(&db.PersonJobTitle.IdJobTitle).Wheres(
+				err = goe.Update(db.PersonJobTitle, tx).Sets(update.Set(&db.PersonJobTitle.IdJobTitle, jobs[0].Id)).Wheres(
 					where.Equals(&db.PersonJobTitle.PersonId, persons[2].Id),
 					where.And(),
-					where.Equals(&db.PersonJobTitle.IdJobTitle, jobs[1].Id),
-				).Value(PersonJobTitle{IdJobTitle: jobs[0].Id})
+					where.Equals(&db.PersonJobTitle.IdJobTitle, jobs[1].Id))
 				if err != nil {
 					tx.Rollback()
 					t.Fatalf("Expected a update, got error: %v", err)
@@ -464,11 +527,10 @@ func TestUpdate(t *testing.T) {
 					t.Errorf("Expected %v, got : %v", 2, len(pj))
 				}
 
-				err = goe.Update(db.PersonJobTitle).Includes(&db.PersonJobTitle.IdJobTitle).Wheres(
+				err = goe.Update(db.PersonJobTitle).Sets(update.Set(&db.PersonJobTitle.IdJobTitle, jobs[0].Id)).Wheres(
 					where.Equals(&db.PersonJobTitle.PersonId, persons[2].Id),
 					where.And(),
-					where.Equals(&db.PersonJobTitle.IdJobTitle, jobs[1].Id),
-				).Value(PersonJobTitle{IdJobTitle: jobs[0].Id})
+					where.Equals(&db.PersonJobTitle.IdJobTitle, jobs[1].Id))
 				if err != nil {
 					t.Fatalf("Expected a update, got error: %v", err)
 				}
@@ -505,121 +567,6 @@ func TestUpdate(t *testing.T) {
 			},
 		},
 		{
-			desc: "Save_PersonJobs",
-			testCase: func(t *testing.T) {
-				persons := []Person{
-					{Name: "Jhon"},
-					{Name: "Laura"},
-					{Name: "Luana"},
-				}
-				err = goe.Insert(db.Person).All(persons)
-				if err != nil {
-					t.Fatalf("Expected insert persons, got error: %v", err)
-				}
-
-				jobs := []JobTitle{
-					{Name: "Developer"},
-					{Name: "Designer"},
-				}
-				err = goe.Insert(db.JobTitle).All(jobs)
-				if err != nil {
-					t.Fatalf("Expected insert jobs, got error: %v", err)
-				}
-
-				personJobs := []PersonJobTitle{
-					{PersonId: persons[0].Id, IdJobTitle: jobs[0].Id},
-					{PersonId: persons[1].Id, IdJobTitle: jobs[0].Id},
-					{PersonId: persons[2].Id, IdJobTitle: jobs[1].Id},
-				}
-				err = goe.Insert(db.PersonJobTitle).All(personJobs)
-				if err != nil {
-					t.Fatalf("Expected insert personJobs, got error: %v", err)
-				}
-
-				pj := []struct {
-					JobTitle  string
-					Person    string
-					CreatedAt time.Time
-				}{}
-				for row, err := range goe.Select(&struct {
-					JobTitle *string
-					Person   *string
-				}{
-					JobTitle: &db.JobTitle.Name,
-					Person:   &db.Person.Name,
-				}).From(db.Person).
-					Joins(
-						join.Join[int](&db.Person.Id, &db.PersonJobTitle.PersonId),
-						join.Join[int](&db.JobTitle.Id, &db.PersonJobTitle.IdJobTitle),
-					).
-					Wheres(where.Equals(&db.JobTitle.Id, jobs[0].Id)).Rows() {
-
-					if err != nil {
-						t.Fatalf("Expected a select, got error: %v", err)
-					}
-					pj = append(pj, struct {
-						JobTitle  string
-						Person    string
-						CreatedAt time.Time
-					}{
-						JobTitle: goe.SafeGet(row.JobTitle),
-						Person:   goe.SafeGet(row.Person),
-					})
-				}
-
-				if len(pj) != 2 {
-					t.Errorf("Expected %v, got : %v", 2, len(pj))
-				}
-
-				err = goe.Save(db.PersonJobTitle).Replace(PersonJobTitle{
-					PersonId:   persons[2].Id,
-					IdJobTitle: jobs[1].Id}).Value(PersonJobTitle{
-					IdJobTitle: jobs[0].Id, CreatedAt: time.Now()})
-				if err != nil {
-					t.Fatalf("Expected a update, got error: %v", err)
-				}
-
-				pj = nil
-				for row, err := range goe.Select(&struct {
-					JobTitle  *string
-					Person    *string
-					CreatedAt *time.Time
-				}{
-					JobTitle:  &db.JobTitle.Name,
-					CreatedAt: &db.PersonJobTitle.CreatedAt,
-					Person:    &db.Person.Name,
-				}).From(db.Person).
-					Joins(
-						join.Join[int](&db.Person.Id, &db.PersonJobTitle.PersonId),
-						join.Join[int](&db.JobTitle.Id, &db.PersonJobTitle.IdJobTitle),
-					).
-					Wheres(where.Equals(&db.JobTitle.Id, jobs[0].Id)).OrderByAsc(&db.Person.Id).Rows() {
-
-					if err != nil {
-						t.Fatalf("Expected a select, got error: %v", err)
-					}
-					pj = append(pj, struct {
-						JobTitle  string
-						Person    string
-						CreatedAt time.Time
-					}{
-						JobTitle:  goe.SafeGet(row.JobTitle),
-						Person:    goe.SafeGet(row.Person),
-						CreatedAt: goe.SafeGet(row.CreatedAt),
-					})
-				}
-
-				if len(pj) != 3 {
-					t.Errorf("Expected %v, got : %v", 3, len(pj))
-				}
-
-				tm := time.Time{}
-				if pj[len(pj)-1].CreatedAt.Unix() == tm.Unix() {
-					t.Errorf("Expected value, got %v", pj[len(pj)-1].CreatedAt.Unix())
-				}
-			},
-		},
-		{
 			desc: "Update_Context_Cancel",
 			testCase: func(t *testing.T) {
 				a := Animal{
@@ -627,7 +574,7 @@ func TestUpdate(t *testing.T) {
 				}
 				ctx, cancel := context.WithCancel(context.Background())
 				cancel()
-				err = goe.UpdateContext(ctx, db.Animal).Includes(&db.Animal.Name).Wheres(where.Equals(&db.Animal.Id, a.Id)).Value(a)
+				err = goe.UpdateContext(ctx, db.Animal).Sets(update.Set(&db.Animal.Name, a.Name)).Wheres(where.Equals(&db.Animal.Id, a.Id))
 				if !errors.Is(err, context.Canceled) {
 					t.Errorf("Expected a context.Canceled, got error: %v", err)
 				}
@@ -641,7 +588,7 @@ func TestUpdate(t *testing.T) {
 				}
 				ctx, cancel := context.WithTimeout(context.Background(), time.Nanosecond*1)
 				defer cancel()
-				err = goe.UpdateContext(ctx, db.Animal).Includes(&db.Animal.Name).Wheres(where.Equals(&db.Animal.Id, a.Id)).Value(a)
+				err = goe.UpdateContext(ctx, db.Animal).Sets(update.Set(&db.Animal.Name, a.Name)).Wheres(where.Equals(&db.Animal.Id, a.Id))
 				if !errors.Is(err, context.DeadlineExceeded) {
 					t.Errorf("Expected a context.DeadlineExceeded, got error: %v", err)
 				}

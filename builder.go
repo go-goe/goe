@@ -20,6 +20,12 @@ type builder struct {
 	joinsArgs    []field         //select
 	tables       []int
 	brs          []model.Operation
+	sets         []set
+}
+
+type set struct {
+	attribute field
+	value     any
 }
 
 func createBuilder(typeQuery enum.QueryType) builder {
@@ -74,13 +80,6 @@ func (b *builder) buildSqlInsertBatch(v reflect.Value) (pkFieldId int) {
 	b.buildInsert()
 	pkFieldId = b.buildBatchValues(v)
 	return pkFieldId
-}
-
-func (b *builder) buildSqlUpdate(v reflect.Value) (err error) {
-	b.buildUpdate()
-	b.buildSet(v)
-	err = b.buildWhere()
-	return err
 }
 
 func (b *builder) buildSqlDelete() (err error) {
@@ -265,34 +264,22 @@ func buildBatchValues(value reflect.Value, b *builder, c *int) {
 	}
 }
 
-func (b *builder) buildUpdate() {
+func (b *builder) buildUpdate() (err error) {
+	if len(b.sets) == 0 {
+		return errors.New("goe: can't update on empty set")
+	}
+	b.buildSets()
+	return b.buildWhere()
+}
 
-	b.fieldIds = make([]int, 0, len(b.fields))
-	b.query.Attributes = make([]model.Attribute, 0, len(b.fields))
+func (b *builder) buildSets() {
+	b.query.Attributes = make([]model.Attribute, 0, len(b.sets))
 	b.query.Tables = make([]string, 1)
-	b.query.Tables[0] = b.fields[0].table()
+	b.query.Tables[0] = b.sets[0].attribute.table()
+	b.query.Arguments = make([]any, 0, len(b.sets))
 
-	b.fields[0].buildAttributeUpdate(b)
-
-	a := b.fields[1:]
-	for i := range a {
-		a[i].buildAttributeUpdate(b)
+	for i := range b.sets {
+		b.query.Attributes = append(b.query.Attributes, model.Attribute{Name: b.sets[i].attribute.getAttributeName()})
+		b.query.Arguments = append(b.query.Arguments, b.sets[i].value)
 	}
-}
-
-func (b *builder) buildSet(value reflect.Value) {
-	b.query.Arguments = make([]any, 0, len(b.fieldIds))
-	var c uint16 = 1
-	buildSetField(value.Field(b.fieldIds[0]), b.fields[0].getAttributeName(), b, c)
-
-	for i := 1; i < len(b.fieldIds); i++ {
-		c++
-		buildSetField(value.Field(b.fieldIds[i]), b.fields[i].getAttributeName(), b, c)
-	}
-}
-
-func buildSetField(valueField reflect.Value, attributeName string, b *builder, c uint16) {
-	b.query.Attributes = append(b.query.Attributes, model.Attribute{Name: attributeName})
-	b.query.Arguments = append(b.query.Arguments, valueField.Interface())
-	c++
 }

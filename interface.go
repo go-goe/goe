@@ -17,7 +17,6 @@ type field interface {
 	table() string
 	buildAttributeInsert(*builder)
 	writeAttributeInsert(*builder)
-	buildAttributeUpdate(*builder)
 }
 
 type fieldDb interface {

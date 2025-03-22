@@ -68,6 +68,11 @@ type Operation struct {
 	AttributeValueTable string
 }
 
+type Set struct {
+	Attribute any
+	Value     any
+}
+
 type Joins interface {
 	FirstArg() any
 	Join() enum.JoinType
