@@ -25,6 +25,7 @@ type stateSelect[T any] struct {
 }
 
 var ErrNotFound = errors.New("goe: not found any element on result set")
+var ErrInvalidPagination = errors.New("goe: size or page equals 0 is invalid")
 
 // Find returns a matched record by primary keys,
 // if non record is found returns a [ErrNotFound].
@@ -256,21 +257,18 @@ type Pagination[T any] struct {
 }
 
 // AsPagination return a paginated query as [Pagination].
+//
+// If page or size is equals zero returns [ErrInvalidPagination].
 func (s *stateSelect[T]) AsPagination(page, size uint) (*Pagination[T], error) {
 	if s.err != nil {
 		return nil, s.err
 	}
 
-	if size == 0 {
-		return nil, errors.New("goe: size as 0 is invalid")
+	if size == 0 || page == 0 {
+		return nil, ErrInvalidPagination
 	}
 
 	var err error
-	if page == 0 {
-		// page 0 equals page 1
-		page = 1
-	}
-
 	stateCount := Select(&struct {
 		*query.Count
 	}{

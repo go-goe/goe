@@ -626,16 +626,15 @@ func TestSelect(t *testing.T) {
 			},
 		},
 		{
-			desc: "List_As_Pagination_Page_0",
+			desc: "List_As_Pagination_Page_And_Size_0",
 			testCase: func(t *testing.T) {
-				var p *goe.Pagination[Animal]
-				p, err = goe.List(db.Animal).AsPagination(0, 1)
-				if err != nil {
-					t.Fatalf("Expected pagination, got: %v", err)
+				_, err = goe.List(db.Animal).AsPagination(0, 1)
+				if !errors.Is(err, goe.ErrInvalidPagination) {
+					t.Fatalf("Expected goe.ErrInvalidPagination, got: %v", err)
 				}
-
-				if p.CurrentPage != 1 {
-					t.Errorf("Expected 1, got: %v", p.CurrentPage)
+				_, err = goe.List(db.Animal).AsPagination(1, 0)
+				if !errors.Is(err, goe.ErrInvalidPagination) {
+					t.Fatalf("Expected goe.ErrInvalidPagination, got: %v", err)
 				}
 			},
 		},
