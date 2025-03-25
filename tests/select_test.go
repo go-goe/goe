@@ -424,6 +424,19 @@ func TestSelect(t *testing.T) {
 			},
 		},
 		{
+			desc: "Select_Where_Not_In_Slice",
+			testCase: func(t *testing.T) {
+				a, err := goe.Select(db.Animal).From(db.Animal).Wheres(where.NotIn(&db.Animal.Name, []string{"Cat"})).AsSlice()
+				if err != nil {
+					t.Fatalf("Expected a select where in, got error: %v", err)
+				}
+
+				if len(a) != (len(animals) - 1) {
+					t.Errorf("Expected %v, got %v", (len(animals) - 1), len(a))
+				}
+			},
+		},
+		{
 			desc: "Select_Where_In_Query_No_Values",
 			testCase: func(t *testing.T) {
 				querySelect, err := goe.Select(&struct{ Name *string }{Name: &db.Animal.Name}).
@@ -443,6 +456,29 @@ func TestSelect(t *testing.T) {
 
 				if len(a) != 2 {
 					t.Errorf("Expected 2, got %v", len(a))
+				}
+			},
+		},
+		{
+			desc: "Select_Where_NotIn_Query_No_Values",
+			testCase: func(t *testing.T) {
+				querySelect, err := goe.Select(&struct{ Name *string }{Name: &db.Animal.Name}).
+					From(db.Animal).AsQuery()
+				if err != nil {
+					t.Fatalf("Expected a query, got error: %v", err)
+				}
+
+				//whereIn as the first where argument
+				a, err := goe.Select(db.Animal).From(db.Animal).Wheres(
+					where.NotIn(&db.Animal.Name, querySelect),
+					where.And(),
+					where.LessEquals(&db.Animal.Id, animals[1].Id)).AsSlice()
+				if err != nil {
+					t.Fatalf("Expected a select where in, got error: %v", err)
+				}
+
+				if len(a) != 0 {
+					t.Errorf("Expected 0, got %v", len(a))
 				}
 			},
 		},
@@ -499,6 +535,62 @@ func TestSelect(t *testing.T) {
 
 				if len(a) != 2 {
 					t.Errorf("Expected 2, got %v", len(a))
+				}
+			},
+		},
+		{
+			desc: "Select_Where_NotIn_Query",
+			testCase: func(t *testing.T) {
+				querySelect, err := goe.Select(&struct{ Name *string }{Name: &db.Animal.Name}).
+					From(db.Animal).
+					Wheres(where.Equals(&db.Animal.Name, "Cat")).
+					Joins(
+						join.Join[int](&db.Animal.Id, &db.AnimalFood.IdAnimal),
+						join.Join[uuid.UUID](&db.AnimalFood.IdFood, &db.Food.Id)).
+					Wheres(where.Or(), where.NotIn(&db.Food.Name, []string{foods[0].Name, foods[1].Name})).
+					AsQuery()
+				if err != nil {
+					t.Fatalf("Expected a query, got error: %v", err)
+				}
+
+				//whereIn as the first where argument
+				a, err := goe.Select(db.Animal).From(db.Animal).Wheres(
+					where.NotIn(&db.Animal.Name, querySelect),
+					where.And(),
+					where.LessEquals(&db.Animal.Id, animals[1].Id)).AsSlice()
+				if err != nil {
+					t.Fatalf("Expected a select where in, got error: %v", err)
+				}
+
+				if len(a) != 1 {
+					t.Errorf("Expected 1, got %v", len(a))
+				}
+
+				//whereIn as the last where argument
+				a, err = goe.Select(db.Animal).From(db.Animal).Wheres(
+					where.LessEquals(&db.Animal.Id, animals[1].Id),
+					where.And(),
+					where.NotIn(&db.Animal.Name, querySelect)).AsSlice()
+				if err != nil {
+					t.Fatalf("Expected a select where in, got error: %v", err)
+				}
+				if len(a) != 1 {
+					t.Errorf("Expected 1, got %v", len(a))
+				}
+
+				//whereIn as the middle where argument
+				a, err = goe.Select(db.Animal).From(db.Animal).Wheres(
+					where.NotEquals(&db.Animal.Id, animals[2].Id),
+					where.And(),
+					where.NotIn(&db.Animal.Name, querySelect),
+					where.And(),
+					where.LessEquals(&db.Animal.Id, animals[2].Id)).AsSlice()
+				if err != nil {
+					t.Fatalf("Expected a select where in, got error: %v", err)
+				}
+
+				if len(a) != 1 {
+					t.Errorf("Expected 1, got %v", len(a))
 				}
 			},
 		},
@@ -718,7 +810,7 @@ func TestSelect(t *testing.T) {
 			desc: "Select_Where_Greater",
 			testCase: func(t *testing.T) {
 				e := runSelect(t, goe.Select(db.Exam).From(db.Exam).
-					Wheres(where.GreaterArg(&db.Exam.Score, &db.Exam.Minimum)).Rows())
+					Wheres(where.GreaterArg[float32](&db.Exam.Score, &db.Exam.Minimum)).Rows())
 				if len(e) != 1 {
 					t.Errorf("Expected a %v, got %v", 1, len(e))
 				}
@@ -735,7 +827,7 @@ func TestSelect(t *testing.T) {
 			desc: "Select_Where_GreaterEquals",
 			testCase: func(t *testing.T) {
 				e := runSelect(t, goe.Select(db.Exam).From(db.Exam).
-					Wheres(where.GreaterEqualsArg(&db.Exam.Score, &db.Exam.Minimum)).Rows())
+					Wheres(where.GreaterEqualsArg[float32](&db.Exam.Score, &db.Exam.Minimum)).Rows())
 				if len(e) != 2 {
 					t.Errorf("Expected a %v, got %v", 1, len(e))
 				}
@@ -752,7 +844,7 @@ func TestSelect(t *testing.T) {
 			desc: "Select_Where_Less",
 			testCase: func(t *testing.T) {
 				e := runSelect(t, goe.Select(db.Exam).From(db.Exam).
-					Wheres(where.LessArg(&db.Exam.Score, &db.Exam.Minimum)).Rows())
+					Wheres(where.LessArg[float32](&db.Exam.Score, &db.Exam.Minimum)).Rows())
 				if len(e) != 1 {
 					t.Errorf("Expected %v, got %v", 1, len(e))
 				}
@@ -769,7 +861,7 @@ func TestSelect(t *testing.T) {
 			desc: "Select_Where_LessEquals",
 			testCase: func(t *testing.T) {
 				e := runSelect(t, goe.Select(db.Exam).From(db.Exam).
-					Wheres(where.LessEqualsArg(&db.Exam.Score, &db.Exam.Minimum)).Rows())
+					Wheres(where.LessEqualsArg[float32](&db.Exam.Score, &db.Exam.Minimum)).Rows())
 				if len(e) != 2 {
 					t.Errorf("Expected a %v, got %v", 1, len(e))
 				}
@@ -867,9 +959,9 @@ func TestSelect(t *testing.T) {
 				qr := goe.Select(db.Animal).
 					From(db.Animal, db.AnimalFood, db.Food).
 					Wheres(
-						where.EqualsArg(&db.Animal.Id, &db.AnimalFood.IdAnimal),
+						where.EqualsArg[int](&db.Animal.Id, &db.AnimalFood.IdAnimal),
 						where.And(),
-						where.EqualsArg(&db.Food.Id, &db.AnimalFood.IdFood)).Rows()
+						where.EqualsArg[uuid.UUID](&db.Food.Id, &db.AnimalFood.IdFood)).Rows()
 				a := runSelect(t, qr)
 
 				if len(a) != len(animalFoods) {

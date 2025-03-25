@@ -49,18 +49,19 @@ const (
 type OperatorType uint
 
 const (
-	_ OperatorType = iota
-	Equals
-	NotEquals
-	Is
-	IsNot
-	Greater
-	GreaterEquals
-	Less
-	LessEquals
-	In
-	NotIn
-	Like
-	And
-	Or
+	_             OperatorType = iota
+	Equals                     // =
+	NotEquals                  // <>
+	Is                         // IS
+	IsNot                      // IS NOT
+	Greater                    // >
+	GreaterEquals              // >=
+	Less                       // <
+	LessEquals                 // <=
+	In                         // IN
+	NotIn                      // NOT IN
+	Like                       // LIKE
+	NotLike                    // NOT LIKE
+	And                        // AND
+	Or                         // OR
 )
