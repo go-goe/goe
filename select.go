@@ -357,42 +357,6 @@ func (s *stateSelect[T]) Rows() iter.Seq2[T, error] {
 	return handlerResult[T](s.conn, s.builder.query, len(s.builder.fieldsSelect), s.ctx)
 }
 
-// SafeGet return a zero value if v is nil, is used when [Select] get any argument.
-//
-// # Example
-//
-//	for row, err := range goe.Select(&struct {
-//		User    *string //goe needs a pointer for store the referecent argument
-//		Role    *string //goe needs a pointer for store the referecent argument
-//		EndTime **time.Time //if the argument is already a pointer goe needs a pointer to a pointer for store the referecent argument
-//	}{
-//		User:    &db.User.Name,
-//		Role:    &db.Role.Name,
-//		EndTime: &db.UserRole.EndDate,
-//	}).
-//	From(db.User).
-//	Joins(
-//		join.LeftJoin[int](&db.User.Id, &db.UserRole.UserId),
-//		join.LeftJoin[int](&db.UserRole.RoleId, &db.Role.Id),
-//	).
-//	OrderByAsc(&db.User.Id).Rows() {
-//		q = append(q, struct {
-//			User    string //return model can be different from select model
-//			Role    string
-//			EndTime *time.Time
-//		}{
-//			User:    goe.SafeGet(row.User), //get a empty string if the database returns null
-//			Role:    goe.SafeGet(row.Role), //get a empty string if the database returns null
-//			EndTime: goe.SafeGet(row.EndTime), //EndTime can store nil/null values
-//		})
-//	}
-func SafeGet[T any](v *T) T {
-	if v == nil {
-		return reflect.New(reflect.TypeOf(v).Elem()).Elem().Interface().(T)
-	}
-	return *v
-}
-
 func createSelectState[T any](conn Connection, ctx context.Context) *stateSelect[T] {
 	return &stateSelect[T]{conn: conn, builder: createBuilder(enum.SelectQuery), ctx: ctx}
 }

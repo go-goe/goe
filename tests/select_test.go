@@ -329,8 +329,8 @@ func TestSelect(t *testing.T) {
 					if err != nil {
 						t.Fatalf("Expected select, got error: %v", err)
 					}
-					if strings.ToUpper(goe.SafeGet(row.Name)) != row.UpperName.Value {
-						t.Fatalf("Expected %v, got: %v", strings.ToUpper(goe.SafeGet(row.Name)), row.UpperName.Value)
+					if strings.ToUpper(query.Get(row.Name)) != row.UpperName.Value {
+						t.Fatalf("Expected %v, got: %v", strings.ToUpper(query.Get(row.Name)), row.UpperName.Value)
 					}
 				}
 			},
@@ -348,8 +348,8 @@ func TestSelect(t *testing.T) {
 					if err != nil {
 						t.Fatalf("Expected select, got error: %v", err)
 					}
-					if strings.ToLower(goe.SafeGet(row.Name)) != row.LowerName.Value {
-						t.Fatalf("Expected %v, got: %v", strings.ToLower(goe.SafeGet(row.Name)), row.LowerName.Value)
+					if strings.ToLower(query.Get(row.Name)) != row.LowerName.Value {
+						t.Fatalf("Expected %v, got: %v", strings.ToLower(query.Get(row.Name)), row.LowerName.Value)
 					}
 				}
 			},
@@ -1201,9 +1201,9 @@ func TestSelect(t *testing.T) {
 						Role    string
 						EndTime *time.Time
 					}{
-						User:    goe.SafeGet(row.User),
-						Role:    goe.SafeGet(row.Role),
-						EndTime: goe.SafeGet(row.EndTime),
+						User:    query.Get(row.User),
+						Role:    query.Get(row.Role),
+						EndTime: query.Get(row.EndTime),
 					})
 				}
 
@@ -1249,9 +1249,9 @@ func TestSelect(t *testing.T) {
 						Role    string
 						EndTime *time.Time
 					}{
-						User:    goe.SafeGet(row.User),
-						Role:    goe.SafeGet(row.Role),
-						EndTime: goe.SafeGet(row.EndTime),
+						User:    query.Get(row.User),
+						Role:    query.Get(row.Role),
+						EndTime: query.Get(row.EndTime),
 					})
 				}
 
@@ -1291,8 +1291,8 @@ func TestSelect(t *testing.T) {
 						JobTitle string
 						Person   string
 					}{
-						JobTitle: goe.SafeGet(row.JobTitle),
-						Person:   goe.SafeGet(row.Person),
+						JobTitle: query.Get(row.JobTitle),
+						Person:   query.Get(row.Person),
 					})
 				}
 

@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/olauro/goe"
+	"github.com/olauro/goe/query"
 	"github.com/olauro/goe/query/join"
 	"github.com/olauro/goe/query/update"
 	"github.com/olauro/goe/query/where"
@@ -379,8 +380,8 @@ func TestUpdate(t *testing.T) {
 						JobTitle string
 						Person   string
 					}{
-						JobTitle: goe.SafeGet(row.JobTitle),
-						Person:   goe.SafeGet(row.Person),
+						JobTitle: query.Get(row.JobTitle),
+						Person:   query.Get(row.Person),
 					})
 				}
 
@@ -417,8 +418,8 @@ func TestUpdate(t *testing.T) {
 						JobTitle string
 						Person   string
 					}{
-						JobTitle: goe.SafeGet(row.JobTitle),
-						Person:   goe.SafeGet(row.Person),
+						JobTitle: query.Get(row.JobTitle),
+						Person:   query.Get(row.Person),
 					})
 				}
 
@@ -452,8 +453,8 @@ func TestUpdate(t *testing.T) {
 						JobTitle string
 						Person   string
 					}{
-						JobTitle: goe.SafeGet(row.JobTitle),
-						Person:   goe.SafeGet(row.Person),
+						JobTitle: query.Get(row.JobTitle),
+						Person:   query.Get(row.Person),
 					})
 				}
 
@@ -518,8 +519,8 @@ func TestUpdate(t *testing.T) {
 						JobTitle string
 						Person   string
 					}{
-						JobTitle: goe.SafeGet(row.JobTitle),
-						Person:   goe.SafeGet(row.Person),
+						JobTitle: query.Get(row.JobTitle),
+						Person:   query.Get(row.Person),
 					})
 				}
 
@@ -556,8 +557,8 @@ func TestUpdate(t *testing.T) {
 						JobTitle string
 						Person   string
 					}{
-						JobTitle: goe.SafeGet(row.JobTitle),
-						Person:   goe.SafeGet(row.Person),
+						JobTitle: query.Get(row.JobTitle),
+						Person:   query.Get(row.Person),
 					})
 				}
 
