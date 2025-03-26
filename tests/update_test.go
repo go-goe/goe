@@ -72,7 +72,7 @@ func TestUpdate(t *testing.T) {
 				}
 
 				var fselect *Flag
-				fselect, err = goe.Find(db.Flag, Flag{Id: f.Id})
+				fselect, err = goe.Find(db.Flag).ById(Flag{Id: f.Id})
 				if err != nil {
 					t.Fatalf("Expected a select, got error: %v", err)
 				}
@@ -133,7 +133,7 @@ func TestUpdate(t *testing.T) {
 				}
 
 				var fselect *Flag
-				fselect, err = goe.Find(db.Flag, Flag{Id: f.Id})
+				fselect, err = goe.Find(db.Flag).ById(Flag{Id: f.Id})
 				if err != nil {
 					t.Fatalf("Expected a select, got error: %v", err)
 				}
@@ -212,7 +212,7 @@ func TestUpdate(t *testing.T) {
 				}
 
 				var aselect *Animal
-				aselect, err = goe.Find(db.Animal, Animal{Id: a.Id})
+				aselect, err = goe.Find(db.Animal).ById(Animal{Id: a.Id})
 				if err != nil {
 					t.Fatalf("Expected a select, got error: %v", err)
 				}
@@ -231,7 +231,7 @@ func TestUpdate(t *testing.T) {
 					t.Fatalf("Expected a update, got error: %v", err)
 				}
 
-				aselect, err = goe.Find(db.Animal, Animal{Id: a.Id})
+				aselect, err = goe.Find(db.Animal).ById(Animal{Id: a.Id})
 				if err != nil {
 					t.Fatalf("Expected a select, got error: %v", err)
 				}
@@ -256,7 +256,7 @@ func TestUpdate(t *testing.T) {
 				}
 
 				defer tx.Rollback()
-				err = goe.Insert(db.Animal, tx).One(&a)
+				err = goe.Insert(db.Animal).OnTransaction(tx).One(&a)
 				if err != nil {
 					tx.Rollback()
 					t.Fatalf("Expected a insert animal, got error: %v", err)
@@ -265,7 +265,7 @@ func TestUpdate(t *testing.T) {
 				w := Weather{
 					Name: "Warm",
 				}
-				err = goe.Insert(db.Weather, tx).One(&w)
+				err = goe.Insert(db.Weather).OnTransaction(tx).One(&w)
 				if err != nil {
 					tx.Rollback()
 					t.Fatalf("Expected a insert weather, got error: %v", err)
@@ -276,7 +276,7 @@ func TestUpdate(t *testing.T) {
 					Name:      "City",
 					IdWeather: w.Id,
 				}
-				err = goe.Insert(db.Habitat, tx).One(&h)
+				err = goe.Insert(db.Habitat).OnTransaction(tx).One(&h)
 				if err != nil {
 					tx.Rollback()
 					t.Fatalf("Expected a insert habitat, got error: %v", err)
@@ -284,14 +284,14 @@ func TestUpdate(t *testing.T) {
 
 				a.IdHabitat = &h.Id
 				a.Name = "Update Cat"
-				err = goe.Save(db.Animal, tx).Value(a)
+				err = goe.Save(db.Animal).OnTransaction(tx).Value(a)
 				if err != nil {
 					tx.Rollback()
 					t.Fatalf("Expected a update, got error: %v", err)
 				}
 
 				// get record before commit or not using tx, will result in a goe.ErrNotFound
-				_, err = goe.Find(db.Animal, Animal{Id: a.Id})
+				_, err = goe.Find(db.Animal).ById(Animal{Id: a.Id})
 				if !errors.Is(err, goe.ErrNotFound) {
 					tx.Rollback()
 					t.Fatalf("Expected a goe.ErrNotFound, got error: %v", err)
@@ -303,7 +303,7 @@ func TestUpdate(t *testing.T) {
 				}
 
 				var aselect *Animal
-				aselect, err = goe.Find(db.Animal, Animal{Id: a.Id})
+				aselect, err = goe.Find(db.Animal).ById(Animal{Id: a.Id})
 
 				if aselect.IdHabitat == nil || *aselect.IdHabitat != h.Id {
 					t.Errorf("Expected a update on id habitat, got : %v", aselect.IdHabitat)
@@ -329,7 +329,7 @@ func TestUpdate(t *testing.T) {
 					{Name: "Laura"},
 					{Name: "Luana"},
 				}
-				err = goe.Insert(db.Person, tx).All(persons)
+				err = goe.Insert(db.Person).OnTransaction(tx).All(persons)
 				if err != nil {
 					tx.Rollback()
 					t.Fatalf("Expected insert persons, got error: %v", err)
@@ -339,7 +339,7 @@ func TestUpdate(t *testing.T) {
 					{Name: "Developer"},
 					{Name: "Designer"},
 				}
-				err = goe.Insert(db.JobTitle, tx).All(jobs)
+				err = goe.Insert(db.JobTitle).OnTransaction(tx).All(jobs)
 				if err != nil {
 					tx.Rollback()
 					t.Fatalf("Expected insert jobs, got error: %v", err)
@@ -350,7 +350,7 @@ func TestUpdate(t *testing.T) {
 					{PersonId: persons[1].Id, IdJobTitle: jobs[0].Id, CreatedAt: time.Now()},
 					{PersonId: persons[2].Id, IdJobTitle: jobs[1].Id, CreatedAt: time.Now()},
 				}
-				err = goe.Insert(db.PersonJobTitle, tx).All(personJobs)
+				err = goe.Insert(db.PersonJobTitle).OnTransaction(tx).All(personJobs)
 				if err != nil {
 					tx.Rollback()
 					t.Fatalf("Expected insert personJobs, got error: %v", err)
@@ -366,7 +366,7 @@ func TestUpdate(t *testing.T) {
 				}{
 					JobTitle: &db.JobTitle.Name,
 					Person:   &db.Person.Name,
-				}, tx).From(db.Person).
+				}).OnTransaction(tx).From(db.Person).
 					Joins(
 						join.Join[int](&db.Person.Id, &db.PersonJobTitle.PersonId),
 						join.Join[int](&db.JobTitle.Id, &db.PersonJobTitle.IdJobTitle),
@@ -388,7 +388,7 @@ func TestUpdate(t *testing.T) {
 				if len(pj) != 2 {
 					t.Errorf("Expected %v, got : %v", 2, len(pj))
 				}
-				err = goe.Update(db.PersonJobTitle, tx).Sets(update.Set(&db.PersonJobTitle.IdJobTitle, jobs[0].Id)).Wheres(
+				err = goe.Update(db.PersonJobTitle).OnTransaction(tx).Sets(update.Set(&db.PersonJobTitle.IdJobTitle, jobs[0].Id)).Wheres(
 					where.Equals(&db.PersonJobTitle.PersonId, persons[2].Id),
 					where.And(),
 					where.Equals(&db.PersonJobTitle.IdJobTitle, jobs[1].Id))
@@ -404,7 +404,7 @@ func TestUpdate(t *testing.T) {
 				}{
 					JobTitle: &db.JobTitle.Name,
 					Person:   &db.Person.Name,
-				}, tx).From(db.Person).
+				}).OnTransaction(tx).From(db.Person).
 					Joins(
 						join.Join[int](&db.Person.Id, &db.PersonJobTitle.PersonId),
 						join.Join[int](&db.JobTitle.Id, &db.PersonJobTitle.IdJobTitle),

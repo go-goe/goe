@@ -16,6 +16,11 @@ type stateDelete struct {
 	err     error
 }
 
+type remove[T any] struct {
+	table  *T
+	delete *stateDelete
+}
+
 // Remove is a wrapper over [Delete] for more simple deletes,
 // uses the value for create a where matching the primary keys.
 //
@@ -26,17 +31,24 @@ type stateDelete struct {
 //
 //	// remove animal of id 2
 //	err = goe.Remove(db.Animal, Animal{Id: 2})
-func Remove[T any](table *T, value T, tx ...Transaction) error {
-	return RemoveContext(context.Background(), table, value, tx...)
+func Remove[T any](table *T) *remove[T] {
+	return RemoveContext(context.Background(), table)
 }
 
-func RemoveContext[T any](ctx context.Context, table *T, value T, tx ...Transaction) error {
-	pks, valuesPks, err := getArgsPks(addrMap.mapField, table, value)
+func RemoveContext[T any](ctx context.Context, table *T) *remove[T] {
+	return &remove[T]{table: table, delete: DeleteContext(ctx, table)}
+}
+
+func (r *remove[T]) OnTransaction(tx Transaction) *remove[T] {
+	r.delete.OnTransaction(tx)
+	return r
+}
+
+func (r *remove[T]) ById(value T) error {
+	pks, valuesPks, err := getArgsPks(addrMap.mapField, r.table, value)
 	if err != nil {
 		return err
 	}
-
-	s := DeleteContext(ctx, table, tx...)
 
 	brs := make([]model.Operation, 0, len(pks))
 	brs = append(brs, where.Equals(&pks[0], valuesPks[0]))
@@ -45,7 +57,7 @@ func RemoveContext[T any](ctx context.Context, table *T, value T, tx ...Transact
 		brs = append(brs, where.Equals(&pks[i], valuesPks[i]))
 	}
 
-	return s.Wheres(brs...)
+	return r.delete.Wheres(brs...)
 }
 
 // Delete remove records in the given table
@@ -59,33 +71,32 @@ func RemoveContext[T any](ctx context.Context, table *T, value T, tx ...Transact
 //	err = goe.Delete(db.UserRole).Wheres()
 //	// delete one record
 //	err = goe.Delete(db.Animal).Wheres(where.Equals(&db.Animal.Id, 2))
-func Delete[T any](table *T, tx ...Transaction) *stateDelete {
-	return DeleteContext(context.Background(), table, tx...)
+func Delete[T any](table *T) *stateDelete {
+	return DeleteContext(context.Background(), table)
 }
 
 // Delete remove records in the given table
 //
 // See [Delete] for examples
-func DeleteContext[T any](ctx context.Context, table *T, tx ...Transaction) *stateDelete {
-	fields, err := getArgsTable(addrMap.mapField, table)
+func DeleteContext[T any](ctx context.Context, table *T) *stateDelete {
+	field := getArg(table, addrMap.mapField, nil)
 
 	var state *stateDelete
-	if err != nil {
+	if field == nil {
 		state = new(stateDelete)
 		state.err = errors.New("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
 		return state
 	}
 
-	db := fields[0].getDb()
+	state = createDeleteState(ctx)
 
-	if tx != nil {
-		state = createDeleteState(tx[0], ctx)
-	} else {
-		state = createDeleteState(db.driver.NewConnection(), ctx)
-	}
-
-	state.builder.fields = fields
+	state.builder.fields = append(state.builder.fields, field)
 	return state
+}
+
+func (s *stateDelete) OnTransaction(tx Transaction) *stateDelete {
+	s.conn = tx
+	return s
 }
 
 // Wheres receives [model.Operation] as where operations from where sub package
@@ -104,9 +115,13 @@ func (s *stateDelete) Wheres(brs ...model.Operation) error {
 		return s.err
 	}
 
+	if s.conn == nil {
+		s.conn = s.builder.fields[0].getDb().driver.NewConnection()
+	}
+
 	return handlerValues(s.conn, s.builder.query, s.ctx)
 }
 
-func createDeleteState(conn Connection, ctx context.Context) *stateDelete {
-	return &stateDelete{conn: conn, builder: createBuilder(enum.DeleteQuery), ctx: ctx}
+func createDeleteState(ctx context.Context) *stateDelete {
+	return &stateDelete{builder: createBuilder(enum.DeleteQuery), ctx: ctx}
 }

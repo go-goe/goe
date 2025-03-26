@@ -16,6 +16,9 @@ import (
 	"github.com/olauro/goe/query/where"
 )
 
+var ErrNotFound = errors.New("goe: not found any element on result set")
+var ErrInvalidPagination = errors.New("goe: size or page equals 0 is invalid")
+
 type stateSelect[T any] struct {
 	conn    Connection
 	builder builder
@@ -24,8 +27,10 @@ type stateSelect[T any] struct {
 	err     error
 }
 
-var ErrNotFound = errors.New("goe: not found any element on result set")
-var ErrInvalidPagination = errors.New("goe: size or page equals 0 is invalid")
+type find[T any] struct {
+	table   *T
+	sSelect *stateSelect[T]
+}
 
 // Find returns a matched record by primary keys,
 // if non record is found returns a [ErrNotFound].
@@ -36,29 +41,36 @@ var ErrInvalidPagination = errors.New("goe: size or page equals 0 is invalid")
 // # Example
 //
 //	goe.Find(db.Animal, Animal{Id: 2})
-func Find[T any](t *T, v T, tx ...Transaction) (*T, error) {
-	return FindContext(context.Background(), t, v, tx...)
+func Find[T any](t *T) *find[T] {
+	return FindContext(context.Background(), t)
 }
 
 // FindContext returns a matched record by primary keys,
 // if non record is found returns a [ErrNotFound].
 //
 // See [Find] for examples
-func FindContext[T any](ctx context.Context, table *T, value T, tx ...Transaction) (*T, error) {
-	pks, valuesPks, err := getArgsPks(addrMap.mapField, table, value)
+func FindContext[T any](ctx context.Context, table *T) *find[T] {
+	return &find[T]{table: table, sSelect: SelectContext(ctx, table).From(table)}
+}
+
+func (f *find[T]) OnTransaction(tx Transaction) *find[T] {
+	f.sSelect.OnTransaction(tx)
+	return f
+}
+
+func (f *find[T]) ById(value T) (*T, error) {
+	pks, valuesPks, err := getArgsPks(addrMap.mapField, f.table, value)
 	if err != nil {
 		return nil, err
 	}
 
-	s := SelectContext(ctx, table, tx...).From(table)
-
-	s.Wheres(where.Equals(&pks[0], valuesPks[0]))
+	f.sSelect.Wheres(where.Equals(&pks[0], valuesPks[0]))
 	for i := 1; i < len(pks); i++ {
-		s.Wheres(where.And())
-		s.Wheres(where.Equals(&pks[i], valuesPks[i]))
+		f.sSelect.Wheres(where.And())
+		f.sSelect.Wheres(where.Equals(&pks[i], valuesPks[i]))
 	}
 
-	for row, err := range s.Rows() {
+	for row, err := range f.sSelect.Rows() {
 		if err != nil {
 			return nil, err
 		}
@@ -109,14 +121,14 @@ func FindContext[T any](ctx context.Context, table *T, value T, tx ...Transactio
 //		Role:    &db.Role.Name,
 //		EndTime: &db.UserRole.EndDate,
 //	}).From(db.User).AsSlice()
-func Select[T any](t *T, tx ...Transaction) *stateSelect[T] {
-	return SelectContext(context.Background(), t, tx...)
+func Select[T any](t *T) *stateSelect[T] {
+	return SelectContext(context.Background(), t)
 }
 
 // SelectContext retrieves rows from tables.
 //
 // See [Select] for examples
-func SelectContext[T any](ctx context.Context, t *T, tx ...Transaction) *stateSelect[T] {
+func SelectContext[T any](ctx context.Context, t *T) *stateSelect[T] {
 	fields, err := getArgsSelect(addrMap.mapField, t)
 
 	var state *stateSelect[T]
@@ -126,13 +138,7 @@ func SelectContext[T any](ctx context.Context, t *T, tx ...Transaction) *stateSe
 		return state
 	}
 
-	db := fields[0].getDb()
-
-	if tx != nil {
-		state = createSelectState[T](tx[0], ctx)
-	} else {
-		state = createSelectState[T](db.driver.NewConnection(), ctx)
-	}
+	state = createSelectState[T](ctx)
 
 	state.builder.fieldsSelect = fields
 	return state
@@ -337,6 +343,11 @@ func (s *stateSelect[T]) AsPagination(page, size uint) (*Pagination[T], error) {
 	return p, nil
 }
 
+func (s *stateSelect[T]) OnTransaction(tx Transaction) *stateSelect[T] {
+	s.conn = tx
+	return s
+}
+
 // Rows return a iterator on rows.
 func (s *stateSelect[T]) Rows() iter.Seq2[T, error] {
 	if s.err != nil {
@@ -354,11 +365,15 @@ func (s *stateSelect[T]) Rows() iter.Seq2[T, error] {
 		}
 	}
 
+	if s.conn == nil {
+		s.conn = s.builder.fieldsSelect[0].getDb().driver.NewConnection()
+	}
+
 	return handlerResult[T](s.conn, s.builder.query, len(s.builder.fieldsSelect), s.ctx)
 }
 
-func createSelectState[T any](conn Connection, ctx context.Context) *stateSelect[T] {
-	return &stateSelect[T]{conn: conn, builder: createBuilder(enum.SelectQuery), ctx: ctx}
+func createSelectState[T any](ctx context.Context) *stateSelect[T] {
+	return &stateSelect[T]{builder: createBuilder(enum.SelectQuery), ctx: ctx}
 }
 
 type list[T any] struct {
@@ -384,15 +399,15 @@ type list[T any] struct {
 //	// pagination list
 //	var p *goe.Pagination[Animal]
 //	p, err = goe.List(db.Animal).AsPagination(1, 10)
-func List[T any](t *T, tx ...Transaction) *list[T] {
-	return ListContext(context.Background(), t, tx...)
+func List[T any](t *T) *list[T] {
+	return ListContext(context.Background(), t)
 }
 
 // ListContext is a wrapper over [Select] for more simple queries using filters, pagination and ordering.
 //
 // See [List] for examples.
-func ListContext[T any](ctx context.Context, t *T, tx ...Transaction) *list[T] {
-	return &list[T]{sSelect: SelectContext(ctx, t, tx...).From(t), table: t}
+func ListContext[T any](ctx context.Context, t *T) *list[T] {
+	return &list[T]{sSelect: SelectContext(ctx, t).From(t), table: t}
 }
 
 // OrderByAsc makes a ordained by arg ascending query.
@@ -416,6 +431,11 @@ func (l *list[T]) Filter(v T) *list[T] {
 	}
 
 	helperNonZeroOperation(l.sSelect, args, values)
+	return l
+}
+
+func (l *list[T]) OnTransaction(tx Transaction) *list[T] {
+	l.sSelect.OnTransaction(tx)
 	return l
 }
 

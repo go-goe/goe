@@ -26,8 +26,8 @@ type save[T any] struct {
 //
 //	// updates animal name on record id 1
 //	err = goe.Save(db.Animal).Value(Animal{Id: 1, Name: "Cat"})
-func Save[T any](table *T, tx ...Transaction) *save[T] {
-	return SaveContext(context.Background(), table, tx...)
+func Save[T any](table *T) *save[T] {
+	return SaveContext(context.Background(), table)
 }
 
 // SaveContext is a wrapper over [Update] for more simple updates,
@@ -35,11 +35,16 @@ func Save[T any](table *T, tx ...Transaction) *save[T] {
 // and includes for update all non-zero values excluding the primary keys.
 //
 // See [Save] for examples.
-func SaveContext[T any](ctx context.Context, table *T, tx ...Transaction) *save[T] {
+func SaveContext[T any](ctx context.Context, table *T) *save[T] {
 	save := &save[T]{}
-	save.update = UpdateContext(ctx, table, tx...)
+	save.update = UpdateContext(ctx, table)
 	save.table = table
 	return save
+}
+
+func (s *save[T]) OnTransaction(tx Transaction) *save[T] {
+	s.update.conn = tx
+	return s
 }
 
 func (s *save[T]) Value(v T) error {
@@ -88,32 +93,15 @@ type stateUpdate[T any] struct {
 //
 //	// update all animals name to Cat
 //	goe.Update(db.Animal).Sets(update.Set(&db.Animal.Name, "Cat")).Wheres()
-func Update[T any](table *T, tx ...Transaction) *stateUpdate[T] {
-	return UpdateContext(context.Background(), table, tx...)
+func Update[T any](table *T) *stateUpdate[T] {
+	return UpdateContext(context.Background(), table)
 }
 
 // Update updates records in the given table
 //
 // See [Update] for examples
-func UpdateContext[T any](ctx context.Context, table *T, tx ...Transaction) *stateUpdate[T] {
-	f := getArg(table, addrMap.mapField, nil)
-
-	var state *stateUpdate[T]
-	if f == nil {
-		state = new(stateUpdate[T])
-		state.err = errors.New("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
-		return state
-	}
-
-	db := f.getDb()
-
-	if tx != nil {
-		state = createUpdateState[T](tx[0], ctx)
-	} else {
-		state = createUpdateState[T](db.driver.NewConnection(), ctx)
-	}
-
-	return state
+func UpdateContext[T any](ctx context.Context, table *T) *stateUpdate[T] {
+	return createUpdateState[T](ctx)
 }
 
 // Sets one or more arguments for update
@@ -131,6 +119,11 @@ func (s *stateUpdate[T]) Sets(sets ...model.Set) *stateUpdate[T] {
 	return s
 }
 
+func (s *stateUpdate[T]) OnTransaction(tx Transaction) *stateUpdate[T] {
+	s.conn = tx
+	return s
+}
+
 // Wheres receives [model.Operation] as where operations from where sub package
 func (s *stateUpdate[T]) Wheres(brs ...model.Operation) error {
 	if s.err != nil {
@@ -144,6 +137,10 @@ func (s *stateUpdate[T]) Wheres(brs ...model.Operation) error {
 	s.err = s.builder.buildUpdate()
 	if s.err != nil {
 		return s.err
+	}
+
+	if s.conn == nil {
+		s.conn = s.builder.sets[0].attribute.getDb().driver.NewConnection()
 	}
 
 	return handlerValues(s.conn, s.builder.query, s.ctx)
@@ -226,8 +223,6 @@ func getArgsPks[T any](addrMap map[uintptr]field, table *T, value T) ([]any, []a
 	return args, values, nil
 }
 
-func createUpdateState[T any](
-	conn Connection,
-	ctx context.Context) *stateUpdate[T] {
-	return &stateUpdate[T]{conn: conn, builder: createBuilder(enum.UpdateQuery), ctx: ctx}
+func createUpdateState[T any](ctx context.Context) *stateUpdate[T] {
+	return &stateUpdate[T]{builder: createBuilder(enum.UpdateQuery), ctx: ctx}
 }

@@ -47,7 +47,7 @@ func TestInsert(t *testing.T) {
 					t.Fatalf("Expected a insert, got error: %v", err)
 				}
 
-				fs, _ := goe.Find(db.Flag, Flag{Id: f.Id})
+				fs, _ := goe.Find(db.Flag).ById(Flag{Id: f.Id})
 
 				if fs.Id != f.Id {
 					t.Errorf("Expected %v, got : %v", f.Id, fs.Id)
@@ -150,7 +150,7 @@ func TestInsert(t *testing.T) {
 				}
 				defer tx.Rollback()
 
-				err = goe.Insert(db.Animal, tx).One(a)
+				err = goe.Insert(db.Animal).OnTransaction(tx).One(a)
 				if err != nil {
 					tx.Rollback()
 					t.Fatalf("Expected a insert, got error: %v", err)
@@ -161,14 +161,14 @@ func TestInsert(t *testing.T) {
 				}
 
 				// get record before commit or not using tx, will result in a goe.ErrNotFound
-				_, err = goe.Find(db.Animal, Animal{Id: a.Id})
+				_, err = goe.Find(db.Animal).ById(Animal{Id: a.Id})
 				if !errors.Is(err, goe.ErrNotFound) {
 					tx.Rollback()
 					t.Fatalf("Expected a Id value, got : %v", a.Id)
 				}
 
 				// get using same tx
-				_, err = goe.Find(db.Animal, Animal{Id: a.Id}, tx)
+				_, err = goe.Find(db.Animal).OnTransaction(tx).ById(Animal{Id: a.Id})
 				if err != nil {
 					t.Fatalf("Expected Find, got : %v", err)
 				}
@@ -178,7 +178,7 @@ func TestInsert(t *testing.T) {
 					t.Fatalf("Expected Commit Tx, got : %v", err)
 				}
 
-				_, err = goe.Find(db.Animal, Animal{Id: a.Id})
+				_, err = goe.Find(db.Animal).ById(Animal{Id: a.Id})
 				if err != nil {
 					t.Fatalf("Expected Find, got : %v", err)
 				}
@@ -197,7 +197,7 @@ func TestInsert(t *testing.T) {
 				}
 				defer tx.Rollback()
 
-				err = goe.Insert(db.Animal, tx).One(a)
+				err = goe.Insert(db.Animal).OnTransaction(tx).One(a)
 				if err != nil {
 					tx.Rollback()
 					t.Fatalf("Expected a insert, got error: %v", err)
@@ -213,7 +213,7 @@ func TestInsert(t *testing.T) {
 				}
 
 				// get record after rollback will result in a goe.ErrNotFound
-				_, err = goe.Find(db.Animal, Animal{Id: a.Id})
+				_, err = goe.Find(db.Animal).ById(Animal{Id: a.Id})
 				if !errors.Is(err, goe.ErrNotFound) {
 					t.Fatalf("Expected a Id value, got : %v", a.Id)
 				}

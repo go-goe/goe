@@ -27,14 +27,14 @@ type stateInsert[T any] struct {
 //	// insert a list of records
 //	persons := []Person{{Name: "Jhon"}, {Name: "Mary"}}
 //	err = goe.Insert(db.Person).All(persons)
-func Insert[T any](table *T, tx ...Transaction) *stateInsert[T] {
-	return InsertContext(context.Background(), table, tx...)
+func Insert[T any](table *T) *stateInsert[T] {
+	return InsertContext(context.Background(), table)
 }
 
 // InsertContext inserts a new record into the given table.
 //
 // See [Insert] for examples.
-func InsertContext[T any](ctx context.Context, table *T, tx ...Transaction) *stateInsert[T] {
+func InsertContext[T any](ctx context.Context, table *T) *stateInsert[T] {
 	fields, err := getArgsTable(addrMap.mapField, table)
 
 	var state *stateInsert[T]
@@ -43,15 +43,15 @@ func InsertContext[T any](ctx context.Context, table *T, tx ...Transaction) *sta
 		state.err = err
 		return state
 	}
-	db := fields[0].getDb()
+	state = createInsertState[T](ctx)
 
-	if tx != nil {
-		state = createInsertState[T](tx[0], ctx)
-	} else {
-		state = createInsertState[T](db.driver.NewConnection(), ctx)
-	}
 	state.builder.fields = fields
 	return state
+}
+
+func (s *stateInsert[T]) OnTransaction(tx Transaction) *stateInsert[T] {
+	s.conn = tx
+	return s
 }
 
 func (s *stateInsert[T]) One(value *T) error {
@@ -66,6 +66,10 @@ func (s *stateInsert[T]) One(value *T) error {
 	v := reflect.ValueOf(value).Elem()
 
 	pkFieldId := s.builder.buildSqlInsert(v)
+
+	if s.conn == nil {
+		s.conn = s.builder.fields[0].getDb().driver.NewConnection()
+	}
 
 	if s.builder.query.ReturningId != nil {
 		return handlerValuesReturning(s.conn, s.builder.query, v, pkFieldId, s.ctx)
@@ -82,11 +86,15 @@ func (s *stateInsert[T]) All(value []T) error {
 
 	pkFieldId := s.builder.buildSqlInsertBatch(valueOf)
 
+	if s.conn == nil {
+		s.conn = s.builder.fields[0].getDb().driver.NewConnection()
+	}
+
 	return handlerValuesReturningBatch(s.conn, s.builder.query, valueOf, pkFieldId, s.ctx)
 }
 
-func createInsertState[T any](conn Connection, ctx context.Context) *stateInsert[T] {
-	return &stateInsert[T]{conn: conn, builder: createBuilder(enum.InsertQuery), ctx: ctx}
+func createInsertState[T any](ctx context.Context) *stateInsert[T] {
+	return &stateInsert[T]{builder: createBuilder(enum.InsertQuery), ctx: ctx}
 }
 
 func getArgsTable[T any](AddrMap map[uintptr]field, table *T) ([]field, error) {
