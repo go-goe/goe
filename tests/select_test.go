@@ -885,6 +885,16 @@ func TestSelect(t *testing.T) {
 			},
 		},
 		{
+			desc: "Select_Where_NotLike",
+			testCase: func(t *testing.T) {
+				a := runSelect(t, goe.Select(db.Animal).
+					From(db.Animal).Wheres(where.NotLike(&db.Animal.Name, "%Cat%")).Rows())
+				if len(a) != len(animals)-2 {
+					t.Errorf("Expected %v animals, got %v", len(animals)-2, len(a))
+				}
+			},
+		},
+		{
 			desc: "Select_Where_Equals_Nil",
 			testCase: func(t *testing.T) {
 				qr := goe.Select(db.Animal).From(db.Animal).Wheres(where.Equals[*uuid.UUID](&db.Animal.IdHabitat, nil)).Rows()
