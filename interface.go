@@ -29,7 +29,6 @@ type fieldSelect interface {
 }
 
 type Driver interface {
-	Name() string
 	MigrateContext(context.Context, *Migrator) error
 	DropTable(string) error
 	DropColumn(table, column string) error
@@ -40,6 +39,12 @@ type Driver interface {
 	NewTransaction(ctx context.Context, opts *sql.TxOptions) (Transaction, error)
 	Stats() sql.DBStats
 	Close() error
+	Config
+}
+
+type Config interface {
+	Log(bool)
+	Name() string
 }
 
 type Connection interface {

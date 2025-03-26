@@ -43,6 +43,14 @@ func (db *DB) Stats() sql.DBStats {
 	return db.driver.Stats()
 }
 
+func (db *DB) Log(b bool) {
+	db.driver.Log(b)
+}
+
+func (db *DB) Name() string {
+	return db.driver.Name()
+}
+
 func (db *DB) RawQueryContext(ctx context.Context, query string, args ...any) (Rows, error) {
 	return db.driver.NewConnection().QueryContext(ctx, model.Query{Type: enum.RawQuery, RawSql: query, Arguments: args})
 }
