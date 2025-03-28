@@ -20,11 +20,12 @@ var ErrNotFound = errors.New("goe: not found any element on result set")
 var ErrInvalidPagination = errors.New("goe: size or page equals 0 is invalid")
 
 type stateSelect[T any] struct {
-	conn    Connection
-	builder builder
-	tables  []any
-	ctx     context.Context
-	err     error
+	conn            Connection
+	builder         builder
+	tables          []any
+	ctx             context.Context
+	anonymousStruct bool
+	err             error
 }
 
 type find[T any] struct {
@@ -129,18 +130,19 @@ func Select[T any](t *T) *stateSelect[T] {
 //
 // See [Select] for examples
 func SelectContext[T any](ctx context.Context, t *T) *stateSelect[T] {
-	fields, err := getArgsSelect(addrMap.mapField, t)
+	argsSelect := getArgsSelect(addrMap.mapField, t)
 
 	var state *stateSelect[T]
-	if err != nil {
+	if argsSelect.err != nil {
 		state = new(stateSelect[T])
-		state.err = err
+		state.err = argsSelect.err
 		return state
 	}
 
 	state = createSelectState[T](ctx)
 
-	state.builder.fieldsSelect = fields
+	state.builder.fieldsSelect = argsSelect.fields
+	state.anonymousStruct = argsSelect.anonymous
 	return state
 }
 
@@ -369,7 +371,7 @@ func (s *stateSelect[T]) Rows() iter.Seq2[T, error] {
 		s.conn = s.builder.fieldsSelect[0].getDb().driver.NewConnection()
 	}
 
-	return handlerResult[T](s.conn, s.builder.query, len(s.builder.fieldsSelect), s.ctx)
+	return handlerResult[T](s.ctx, s.conn, s.builder.query, len(s.builder.fieldsSelect), s.anonymousStruct)
 }
 
 func createSelectState[T any](ctx context.Context) *stateSelect[T] {
@@ -504,17 +506,23 @@ func equalsOrLike(f any, a any) model.Operation {
 	return where.Equals(&f, a)
 }
 
-func getArgsSelect(addrMap map[uintptr]field, arg any) ([]fieldSelect, error) {
+type argsSelect struct {
+	fields    []fieldSelect
+	anonymous bool
+	err       error
+}
+
+func getArgsSelect(addrMap map[uintptr]field, arg any) argsSelect {
 	fields := make([]fieldSelect, 0)
 
 	if reflect.ValueOf(arg).Kind() != reflect.Pointer {
-		return nil, errors.New("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
+		return argsSelect{err: errors.New("goe: invalid argument. try sending a pointer to a database mapped struct as argument")}
 	}
 
 	valueOf := reflect.ValueOf(arg).Elem()
 
 	if valueOf.Kind() != reflect.Struct {
-		return nil, errors.New("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
+		return argsSelect{err: errors.New("goe: invalid argument. try sending a pointer to a database mapped struct as argument")}
 	}
 
 	var fieldOf reflect.Value
@@ -533,19 +541,19 @@ func getArgsSelect(addrMap map[uintptr]field, arg any) ([]fieldSelect, error) {
 	}
 
 	if len(fields) == 0 {
-		return nil, errors.New("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
+		return argsSelect{err: errors.New("goe: invalid argument. try sending a pointer to a database mapped struct as argument")}
 	}
 
-	return fields, nil
+	return argsSelect{fields: fields}
 }
 
-func getArgsSelectAno(addrMap map[uintptr]field, valueOf reflect.Value) ([]fieldSelect, error) {
+func getArgsSelectAno(addrMap map[uintptr]field, valueOf reflect.Value) argsSelect {
 	fields := make([]fieldSelect, 0)
 	var fieldOf reflect.Value
 	for i := 0; i < valueOf.NumField(); i++ {
 		if valueOf.Field(i).Kind() != reflect.Pointer {
 			//TODO: update to get value from one column query
-			return nil, errors.New("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
+			return argsSelect{err: errors.New("goe: invalid argument. try sending a pointer to a database mapped struct as argument")}
 		}
 		fieldOf = valueOf.Field(i).Elem()
 		addr := uintptr(fieldOf.Addr().UnsafePointer())
@@ -569,12 +577,12 @@ func getArgsSelectAno(addrMap map[uintptr]field, valueOf reflect.Value) ([]field
 			}
 
 		}
-		return nil, errors.New("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
+		return argsSelect{err: errors.New("goe: invalid argument. try sending a pointer to a database mapped struct as argument")}
 	}
 	if len(fields) == 0 {
-		return nil, errors.New("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
+		return argsSelect{err: errors.New("goe: invalid argument. try sending a pointer to a database mapped struct as argument")}
 	}
-	return fields, nil
+	return argsSelect{fields: fields, anonymous: true}
 }
 
 func createFunction(field field, a any) fieldSelect {
