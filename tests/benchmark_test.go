@@ -22,8 +22,7 @@ func BenchmarkSelect(b *testing.B) {
 	animals = make([]Animal, size)
 	goe.Insert(db.Animal).All(animals)
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		animals = make([]Animal, 0)
 		for row := range goe.Select(db.Animal).From(db.Animal).Rows() {
 			animals = append(animals, row)
@@ -40,8 +39,7 @@ func BenchmarkSelectRaw(b *testing.B) {
 	animals = make([]Animal, size)
 	goe.Insert(db.Animal).All(animals)
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		rows, _ := db.DB.RawQueryContext(context.Background(), "select a.id, a.name, a.idinfo, a.idhabitat from animals a;")
 		defer rows.Close()
 
@@ -80,8 +78,7 @@ func BenchmarkJoin(b *testing.B) {
 	af := AnimalFood{IdAnimal: a.Id, IdFood: f.Id}
 	goe.Insert(db.AnimalFood).One(&af)
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		foods = make([]Food, 0)
 
 		for row := range goe.Select(db.Food).From(db.Food).
@@ -126,8 +123,7 @@ func BenchmarkJoinSql(b *testing.B) {
 	af := AnimalFood{IdAnimal: a.Id, IdFood: f.Id}
 	goe.Insert(db.AnimalFood).One(&af)
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 
 		rows, _ := db.DB.RawQueryContext(context.Background(), `select f.id, f.name from foods f
 						join animalfoods af on f.id = af.idfood

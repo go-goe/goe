@@ -256,7 +256,7 @@ func TestDelete(t *testing.T) {
 					wg.Add(1)
 					go func() {
 						defer wg.Done()
-						goe.Delete(db.PersonJobTitle)
+						goe.Delete(db.PersonJobTitle).Wheres()
 					}()
 				}
 				wg.Wait()
