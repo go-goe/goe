@@ -436,6 +436,11 @@ func (l *list[T]) Filter(v T) *list[T] {
 	return l
 }
 
+func (l *list[T]) Joins(joins ...model.Joins) *list[T] {
+	l.sSelect.Joins(joins...)
+	return l
+}
+
 func (l *list[T]) OnTransaction(tx Transaction) *list[T] {
 	l.sSelect.OnTransaction(tx)
 	return l
@@ -450,6 +455,8 @@ func (l *list[T]) AsSlice() ([]T, error) {
 }
 
 // AsPagination return a paginated query as [Pagination]
+//
+// If page or size is equals zero returns [ErrInvalidPagination].
 func (l *list[T]) AsPagination(page, size uint) (*Pagination[T], error) {
 	if l.err != nil {
 		return nil, l.err

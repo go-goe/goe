@@ -288,6 +288,17 @@ func TestSelect(t *testing.T) {
 				if len(a) != len(animals) {
 					t.Errorf("Expected %v animals, got %v", len(animals), len(a))
 				}
+				a, err = goe.List(db.Animal).
+					Joins(
+						join.Join[int](&db.Animal.Id, &db.AnimalFood.IdAnimal),
+						join.Join[uuid.UUID](&db.AnimalFood.IdFood, &db.Food.Id),
+					).AsSlice()
+				if err != nil {
+					t.Fatalf("Expected List, got error: %v", err)
+				}
+				if len(a) != len(animalFoods) {
+					t.Errorf("Expected %v animals, got %v", len(animalFoods), len(a))
+				}
 			},
 		},
 		{
