@@ -1,5 +1,5 @@
 # GOE
- A SQL like ORM for Go
+ A type safe SQL like ORM for Go
 
 
 [![Go.Dev reference](https://img.shields.io/badge/go.dev-reference-blue?logo=go&logoColor=white)](https://pkg.go.dev/github.com/olauro/goe)
@@ -27,36 +27,39 @@
 		- [Function Index](#function-index)
 		- [Two Columns Index](#two-columns-index)
 - [Select](#select)
+	- [Find](#find)
+	- [List](#list)
 	- [Select From](#select-from)
 	- [Select Specific Fields](#select-specific-fields)
-	- [Select Where](#select-where)
-	- [Select Join](#select-join)
+	- [Where](#where)
+	- [Join](#join)
+	- [OrderBy](#orderby)
 	- [Pagination](#pagination)
+	- [Aggregates](#aggregates)
+	- [Functions](#functions)
 - [Insert](#insert)
-	- [Insert Table](#insert-table)
-	- [Insert Batch Table](#insert-batch-table)
-	- [Insert With Foreign Key](#insert-with-foreign-key)
-	- [Insert Many to Many Table](#insert-many-to-many-table)
-	- [Insert Batch Many to Many Table](#insert-batch-many-to-many-table)
+	- [Insert One](#insert-one)
+	- [Insert Batch](#insert-batch)
 - [Update](#update)
-	- [Update Table](#update-table)
-	- [Update Many to Many Table](#update-many-to-many-table)
+	- [Save](#save)
+	- [Update Set](#update-set)
 - [Delete](#delete)
-	- [Delete Table](#delete-table)
-	- [Delete Many To Many Table](#delete-many-to-many-table)
+	- [Remove](#remove)
+	- [Delete Batch](#delete-batch)
+- [Transaction](#transaction)
 
 ## Install
 ```
 go get github.com/olauro/goe
 ```
-> As any database/sql support in go, you have to get a specific driver for your database, check [Available Drivers](#available-drivers)
+As any database/sql support in go, you have to get a specific driver for your database, check [Available Drivers](#available-drivers)
 
 ## Available Drivers
 ### PostgreSQL
 ```
 go get github.com/olauro/postgres
 ```
-## Quick Start
+<!-- ## Quick Start
 ```
 package main
 
@@ -121,130 +124,166 @@ func main() {
 	fmt.Println(sql)
 	fmt.Println(animals)
 }
-```
+``` -->
 ## Database
 ```
 type Database struct {
-	User    *User
-	Role    *Role
-	UserLog *UserLog
+	User    	*User
+	Role    	*Role
+	UserLog 	*UserLog
 	*goe.DB
 }
 ```
-> In goe, it's necessary to define a Database struct,
+In goe, it's necessary to define a Database struct,
 this struct implements *goe.DB and a pointer to all
-the structs that's it's to be mappend
+the structs that's it's to be mappend.
 
-> It's through the Database struct that you will
-interact with your database
+It's through the Database struct that you will
+interact with your database.
 ### Struct mapping
 ```
 type User struct {
-	Id       uint
-	Name     string
-	Password string
+	Id        	uint //this is primary key
+	Login     	string
+	Password  	string
 }
 ```
 > By default the field "Id" is primary key and all ids of integers are auto increment
+
+[Back to Contents](#content)
 ### Setting primary key
 ```
 type User struct {
-	Id       uint `goe:"pk"`
-	Name     string
-	Password string
+	Identifier	uint `goe:"pk"`
+	Login     	string
+	Password	string
 }
 ```
-> In case you want to specify 
-a primary key use the tag value "pk"
+In case you want to specify 
+a primary key use the tag value "pk".
+
+> Don't use patterns like "UserId" or "IdUser" on tables that aren't relational, they are used for relational keys and will not work as common fields.
+
+[Back to Contents](#content)
 ### Setting type
 ```
 type User struct {
-	Id       string `goe:"pk;type:uuid"`
-	Name     string `goe:"type:varchar(50)"`
-	Password string
+	Id       	string `goe:"pk;type:uuid"`
+	Login    	string `goe:"type:varchar(10)"`
+	Name     	string `goe:"type:varchar(150)"`
+	Password 	string `goe:"type:varchar(60)"`
 }
 ```
-> You can specify a type using the tag value "type"
+You can specify a type using the tag value "type"
+
+[Back to Contents](#content)
+
+### Setting null
+```
+type User struct {
+	Id        int
+	Name      string
+	Email     *string // this will be a null column
+}
+```
+
+A pointer is considered a null column in Database.
+
+[Back to Contents](#content)
+
+> Default values will be added in future features.
+
 ### Relationship
+In goe relational fields are created using the pattern TargetTable+TargetTableId, so if you want to have a foreign key to User, you will have to write a field like "UserId" or "IdUser".
 #### One To One
 ```
 type User struct {
-	Id       uint
-	Name     string
-	Password string
+	Id       	uint
+	Login    	string
+	Name     	string
+	Password 	string
 }
 
-type UserLog struct {
-	Id       uint
-	Action   string
-	DateTime time.Time
-	IdUser   uint `goe:"table:User"`
+type UserDetails struct {
+	Id       	uint
+	Email   	string
+	Birthdate 	time.Time
+	UserId   	uint // one to one with User
 }
 ```
-> User has one UserLog
 
-> In goe it's necessary to use the tag value "table" in a field named with the pattern "Id + Table"
+[Back to Contents](#content)
 #### Many To One
+**For simplifications all relational slices should be the last fields on struct.**
 ```
 type User struct {
-	Id       uint
-	Name     string
-	Password string
-	UserLogs []UserLog
+	Id       	uint
+	Name     	string
+	Password 	string
+	UserLogs 	[]UserLog // one User has many UserLogs
 }
 
 type UserLog struct {
-	Id       uint
-	Action   string
-	DateTime time.Time
-	IdUser   uint `goe:"table:User"`
+	Id       	uint
+	Action   	string
+	DateTime 	time.Time
+	UserId   	uint // if remove the slice from user, will became a one to one
 }
 ```
-> User has many UserLog
 
-> The difference from one to one and many to one it's the add of a slice field on the "many" struct
+The difference from one to one and many to one it's the add of a slice field on the "many" struct
 
-> In goe it's necessary to use the tag value "table" in a field named with the pattern "Id + Table"
+[Back to Contents](#content)
 #### Many to Many
+**For simplifications all relational slices should be the last fields on struct.**
 ```
 type User struct {
-	Id       uint
-	Name     string
-	Password string
-	Roles    []Role `goe:"table:UserRole"`
+	Id       	uint
+	Name     	string
+	Password 	string
+	UserRoles 	[]UserRole
+}
+
+type UserRole struct {
+	UserId  	uint `goe:"pk"`
+	RoleId  	uint `goe:"pk"`
 }
 
 type Role struct {
-	Id    uint
-	Name  string
-	Users []User `goe:"table:UserRole"`
+	Id        	uint
+	Name      	string
+	UserRoles 	[]UserRole
 }
 ```
-> One user has many roles and one role has many users
+Is used a combination of two many to one to generate a many to many. In this example, User has many UserRole and Role has many UserRole.
 
-> In goe it's necessary to use the tag value "table" in both slice fields, over the hood goe will create a table "UserRole"
+It's used the tags "pk" for ensure that the foreign keys will be both primary key.
 
-> To manipulete the table "UserRole" use the methods with signature "In", like "InsertIn", "UpdateIn" and "DeleteIn"
+[Back to Contents](#content)
 ### Index
+#### Unique Index
+```
+type User struct {
+	Id       	uint
+	Name     	string
+	Email    	string  `goe:"unique"`
+}
+```
+To create a unique index you need the "unique" goe tag
+
+[Back to Contents](#content)
 #### Create Index
 ```
 type User struct {
 	Id       uint
 	Name     string
-	Email 	 string `goe:"index(n:idx_email)"`
+	Email 	 string `goe:"index"`
 }
 ```
-> To create a index you need to use the function tag index(), "n" is the parameter for name
-#### Unique Index
-```
-type User struct {
-	Id       uint
-	Name     string
-	Email    string `goe:"index(unique n:idx_email)"`
-}
-```
-> To create a unique index you need to pass the "unique" word inside index()
-#### Function Index
+To create a common index you need the "index" goe tag
+
+[Back to Contents](#content)
+<!-- #### Function Index
 ```
 type User struct {
 	Id       uint
@@ -252,147 +291,353 @@ type User struct {
 	Email    string `goe:"index(n:idx_email f:lower)"`
 }
 ```
-> To create a function index you need to pass the "f" parameter with the function name
+> To create a function index you need to pass the "f" parameter with the function name -->
 #### Two Columns Index
 ```
 type User struct {
 	Id       uint
-	Name    string `goe:"index(unique n:idx_name_email f:lower)"`
-	Email   string `goe:"index(unique n:idx_name_email f:lower)"`
+	Name    string `goe:"index(n:idx_name_status)"`
+	Email   string `goe:"index(n:idx_name_status);unique"`
 }
 ```
-> To create a two columns index it's necessary to inform the index name in both columns
 
-> If you want to create a index for email and mantain the two columns index, just write a comma and you can create a index in the way you want.
+Using the goe tag "index()", you can pass the index infos as a function call. "n:" is a parameter for name, to have a two column index just need two indexes with same name. You can use the semicolon ";" to create another single index for the field.
 
+[Back to Contents](#content)
+
+#### Two Columns Unique Index
 ```
-`goe:"index(unique n:idx_name_email f:lower, n:idx_email)"`
+type User struct {
+	Id       uint
+	Name    string `goe:"index(unique n:idx_name_status)"`
+	Email   string `goe:"index(unique n:idx_name_status);unique"`
+}
 ```
+
+Just as creating a [Two Column Index](#two-columns-index) but added the "unique" value inside the index function.
+
+> Function indexes will be added in future features.
+
+[Back to Contents](#content)
 ## Select
+### Find
+Find is used when you want to return a single result by primary key.
+```
+// one primary key
+goe.Find(db.Animal).ById(Animal{Id: 2})
+
+// two primary keys
+goe.Find(db.AnimalFood).ById(AnimalFood{IdAnimal: 3, IdFood: 2})
+```
+
+> Use **goe.FindContext** for specify a context
+
+[Back to Contents](#content)
+### List
+
+List has support for [OrderBy](#orderby), [Pagination](#pagination) and [Joins](#select-join).
+
+```
+// list all animals
+goe.List(db.Animal).AsSlice()
+
+// list the animals with name "Cat", Id "3" and IdHabitat "4"
+goe.List(db.Animal).Filter(Animal{Name: "Cat", Id: 3, IdHabitat: 4}).AsSlice()
+
+// when using % on filter, goe makes a like operation
+goe.List(db.Animal).Filter(Animal{Name: "%Cat%"}).AsSlice()
+```
+
+> Use **goe.ListContext** for specify a context
+
+[Back to Contents](#content)
 ### Select From
+
+Return all animals as a slice
 ```
-db.Select(db.Animal).Scan(&a)
+// select * from animals
+goe.Select(db.Animal).From(db.Animal).AsSlice()
 ```
+
+> Use **goe.SelectContext** for specify a context
+
+[Back to Contents](#content)
+
+### Select Iterator
+
+Iterate over the rows
+```
+for row, err := range goe.Select(db.Animal).From(db.Animal).Rows() {
+	// iterator rows
+ }
+```
+
+[Back to Contents](#content)
+
 ### Select Specific Fields
 ```
-db.Select(&db.Animal.Name, &db.Animal.Emoji).Scan(&a)
+// return a slice of this struct
+goe.Select(&struct {
+		User    *string
+		Role    *string
+		EndTime **time.Time
+	}{
+		User:    &db.User.Name,
+		Role:    &db.Role.Name,
+		EndTime: &db.UserRole.EndDate,
+	}).From(db.User).AsSlice()
 ```
-### Select Where
-```
-db.Select(db.Animal).Where(db.Equals(&db.Animal.Id, 1)).Scan(&a)
-```
-### Select Join
-```
-db.Select(db.Food).Join(db.Animal, db.Food).
-    Where(db.Equals(&db.Animal.Id, 1)).Scan(&a)
-```
-> Join will throw an error if the tables don't have a many to many or many to one relationship.
 
-> Using join you can access Animal Id for getting foods by Animal.
+Can use Rows() to itereate over the result and map the values to another struct
+```
+// iterate over the rows
+for row, err := range goe.Select(&struct {
+		User    *string
+		Role    *string
+		EndTime **time.Time
+	}{
+		User:    &db.User.Name,
+		Role:    &db.Role.Name,
+		EndTime: &db.UserRole.EndDate,
+	}).From(db.User).Rows() {
+		if err != nil {
+			// handler error
+		}
+
+		// use query.Get if you want to remove the new pointer field.
+		// query.Get reduces the pointer tree, so, if **time.Time is passed, it's returns a *time.Time value.
+		anotherStruct := struct {
+						User    string
+						Role    string
+						EndTime *time.Time
+					}{
+						User:    query.Get(row.User),
+						Role:    query.Get(row.Role),
+						EndTime: query.Get(row.EndTime),
+					}
+	}
+```
+
+For specific field is used a new struct, each new field guards the reference for the database attribute.
+
+[Back to Contents](#content)
+
+### Where
+For where, goe uses a sub-package where, on where package you have all the goe available where operations.
+```
+goe.Select(db.Animal).From(db.Animal).Wheres(where.Equals(&db.Animal.Id, 2)).AsSlice()
+```
+
+It's possible to call a list of where operations inside Wheres()
+
+```
+goe.Select(db.Animal).From(db.Animal).Wheres(
+					where.LessEquals(&db.Animal.Id, 30),
+					where.And(),
+					where.In(&db.Animal.Name, []string{"Cat", "Dog"})).AsSlice()
+```
+
+You can use a if to call a where operation only if it's match
+```
+selectQuery := goe.Select(db.Animal).From(db.Animal).Wheres(where.LessEquals(&db.Animal.Id, 30))
+
+if filter.In {
+	selectQuery.Wheres(where.And(), where.In(&db.Animal.Name, []string{"Cat", "Dog"}))
+}
+
+selectQuery.AsSlice()
+```
+
+[Back to Contents](#content)
+
+### Join
+On join, goe uses a sub-package join, on join package you have all the goe available join operations.
+
+For the join operations, you need to specify the type, this make the joins operations more safe. So if you change a type from a field, the compiler will throw a error.
+```
+goe.Select(db.Animal).From(db.Animal).
+	Joins(
+		join.Join[int](&db.Animal.Id, &db.AnimalFood.IdAnimal),
+		join.Join[uuid.UUID](&db.Food.Id, &db.AnimalFood.IdFood),
+	).AsSlice()
+```
+
+Same as where, you can use a if to only make a join if the condition match.
+
+[Back to Contents](#content)
+### OrderBy
+For OrderBy you need to pass a reference to a mapped database field.
+
+It's possible to OrderBy desc and asc. List and Select has support for OrderBy queries.
+#### List
+```
+goe.List(db.Animal).OrderByDesc(&db.Animal.Id).AsSlice()
+```
+#### Select
+```
+goe.Select(db.Animal).From(db.Animal).OrderByAsc(&db.Animal.Id).AsSlice()
+```
+
+[Back to Contents](#content)
 ### Pagination
-```
-db.Select(db.Animal).Page(2, 20).OrderByAsc(&db.Animal.Name).Scan(&animals)
-```
-> Get 20 habitats from second page ordered by name
+For pagination, it's possible to run on Select and List functions
 
-same result with
+#### Select Pagination
 ```
-db.Select(db.Animal).Skip(20).Take(20).OrderByAsc(&db.Animal.Name).Scan(&animals)
+// page 1 of size 10
+goe.Select(db.Animal).From(db.Animal).AsPagination(1, 10)
 ```
+> AsPagination returns a ErrInvalidPagination if page or size is equals 0
+
+#### List Pagination
+```
+// page 1 of size 10
+goe.List(db.Animal).AsPagination(1, 10)
+```
+
+> AsPagination returns a ErrInvalidPagination if page or size is equals 0
+
+[Back to Contents](#content)
+### Aggregates
+For aggregates goe uses a sub-package aggregate, on aggregate package you have all the goe available aggregates. 
+
+On select fields, goe uses query sub-package for declaring a aggregate field on struct.
+
+```
+result, err := goe.Select(&struct{ *query.Count }{aggregate.Count(&db.Animal.Id)}).From(db.Animal).AsSlice()
+
+if err != nil {
+	// handler error
+}
+
+// count value as int64
+result[0].Value
+```
+
+[Back to Contents](#content)
+### Functions
+For functions goe uses a sub-package function, on function package you have all the goe available functions. 
+
+On select fields, goe uses query sub-package for declaring a function result field on struct.
+```
+for row, err := range goe.Select(&struct {
+					UpperName *query.Function[string]
+				}{
+					UpperName: function.ToUpper(&db.Animal.Name),
+				}).From(db.Animal).Rows() {
+					if err != nil {
+						//handler error
+					}
+					//function result value
+					row.UpperName.Value
+				}
+```
+
+Functions can be used inside where.
+```
+goe.Select(db.Animal).From(db.Animal).
+Wheres(
+	where.Like(function.ToUpper(&db.Animal.Name), "%CAT%")
+).AsSlice()
+```
+> where like expected a second argument always as string
+
+```
+goe.Select(db.Animal).From(db.Animal).
+Wheres(
+	where.Equals(function.ToUpper(&db.Animal.Name), function.Argument("CAT")),
+).AsSlice()
+```
+
+> to by pass the compiler type warning, use function.Argument. This way the compiler will check the argument value
+
+[Back to Contents](#content)
 ## Insert
-### Insert Table
+On Insert if the primary key value is auto-increment, the new Id will be stored on the object after the insert.
+### Insert One
 ```
-var a Animal
-a.Name = "Elephant"
-a.Emoji = "🐘"
-db.Insert(db.Animal).Value(&a)
+a := Animal{Name: "Cat", Emoji: "🐘"}
+goe.Insert(db.Animal).One(&a)
+
+// new generated id
+a.Id
 ```
-### Insert Batch Table
+> Use **goe.InsertContext** for specify a context
+
+[Back to Contents](#content)
+### Insert Batch
 ```
 foods := []Food{
 		{Name: "Meat", Emoji: "🥩"},
 		{Name: "Hotdog", Emoji: "🌭"},
 		{Name: "Cookie", Emoji: "🍪"},
 	}
-db.Insert(db.Food).Value(&foods)
+goe.Insert(db.Food).All(foods)
 ```
-### Insert With Foreign Key
-```
-var a Animal
-a.Name = "Elephant"
-a.Emoji = "🐘"
-a.IdStatus = 1
-db.Insert(db.Animal).Value(&a)
-```
-### Insert Many To Many Table
-```
-db.InsertIn(db.Food, db.Animal).Values(10, 20)
-```
-> InsertIn is used for insert values inside many to many tables
+> Use **goe.InsertContext** for specify a context
 
-> "10" is the value for IdFood and "20" is the value for IdAnimal
-### Insert Batch Many To Many Table
-```
-ids := []uint{
-		1, 1,
-		1, 2,
-		1, 3,
-	}
-db.InsertIn(db.User, db.Role).Values(&ids)
-```
-> The slice needs to be size even, every pair is for both id
-
-> If the ids are of diffrent type, use a slice of type any
+[Back to Contents](#content)
 ## Update
-### Update Table
+### Save
+Save is the basic function for updates a single record; 
+only updates the non-zero values.
 ```
-var animal Animal
-animal.Name = "Cat"
+a := Animal{Id: 2}
+a.Name = "Update Cat"
 
-db.Update(db.Animal).Value(animal)
+// update animal of id 2
+goe.Save(db.Animal).Value(a)
 ```
-> Update all rows with animal value
+> Use **goe.SaveContext** for specify a context
+
+[Back to Contents](#content)
+
+### Update Set
+Update with set uses update sub-package. This is used for more complex updates, like updating a field with zero/nil values or make a batch update.
+
 ```
-var animal Animal
-animal.Name = "Cat"
-animal.Id = 10
+a := Animal{Id: 2}
 
-db.Update(db.Animal).Where(db.Equals(&db.Animal.Id, animal.Id)).Value(animal)
+// a.IdHabitat is nil, so is ignored by Save
+goe.Update(db.Animal).
+	Sets(update.Set(&db.Animal.IdHabitat, a.IdHabitat)).
+	Wheres(where.Equals(&db.Animal.Id, a.Id))
 ```
-> Update single row by where id
 
-> For update you can pass a pointer to struct or a value to struct
+Check out the [Where](#where) section for more information about where operations.
 
-### Update Many To Many Table
-```
-db.UpdateIn(db.Animal, db.Food).Where(
-		db.Equals(&db.Animal.Id, 10),
-		db.And(),
-		db.Equals(&db.Food.Id, 20)).
-		Value(25)
-```
-> Update one row in a many to many table (AnimalFood) where the id of animal is 10 and food is 20 set the value 25 for IdFood.
+> The where call ensures that only the matched rows will be updated.
 
-> If you want to change the value of IdAnimal, just switch from "db.UpdateIn(db.Animal, db.Food)" to "db.UpdateIn(db.Food, db.Animal)"
+> Use **goe.UpdateContext** for specify a context
 
-> As in a many to many table, the pair of ids is the primary key, so if you try to update more then one row a primary key constraint error will be raised
+[Back to Contents](#content)
 ## Delete
-### Delete Table
+### Remove
+Remove is used for remove only one record by primary key
 ```
-db.Delete(db.Animal).Where()
+// remove animal of id 2
+goe.Remove(db.Animal).ById(Animal{Id: 2})
 ```
-> Delete all records from Animal
 
+> Use **goe.RemoveContext** for specify a context
+
+[Back to Contents](#content)
+
+### Delete Batch
+Delete all records from Animal
 ```
-db.Delete(db.Animal).Where(db.Equals(&db.Animal.Id, 10))
+goe.Delete(db.Animal).Wheres()
 ```
-> Delete the record of id 10 in Animal
-### Delete Many to Many Table
+
+Delete all matched records
 ```
-db.DeleteIn(db.Animal, db.Food).Where()
+goe.Delete(db.Animal).Wheres(where.Like(&db.Animal.Name, "%Cat%"))
 ```
-> Delete all records from AnimalFood
-```
-db.DeleteIn(db.Animal, db.Food).Where(db.Equals(&db.Food.Id, 20))
-```
-> Delete all records of id 20 from AnimalFood
+
+Check out the [Where](#where) section for more information about where operations.
+
+> Use **goe.DeleteContext** for specify a context
+
+[Back to Contents](#content)
+
+## Transaction
