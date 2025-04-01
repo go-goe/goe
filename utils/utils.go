@@ -3,7 +3,9 @@ package utils
 import "strings"
 
 func TableNamePattern(name string) string {
-	name += "s"
+	if name[len(name)-1] != 's' {
+		name += "s"
+	}
 	return strings.ToLower(name)
 }
 
