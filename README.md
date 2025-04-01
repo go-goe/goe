@@ -319,15 +319,48 @@ Just as creating a [Two Column Index](#two-columns-index) but added the "unique"
 > Function indexes will be added in future features.
 
 [Back to Contents](#content)
+
+## Open and Migrate
+To open a database use `goe.Open` function, it's require a valid driver. Most of the drives will require a dns/path connection and a config setup. On `goe.Open` needs to specify the struct database.
+
+To migrate the structs, use the `goe.AutoMigrate` passing the database returned by `goe.Open`.
+
+If you don't need the database connection anymore, call `goe.Close` to ensure that all the database resources will be removed from memory.
+
+```
+type Database struct {
+	Animal         *Animal
+	AnimalFood     *AnimalFood
+	Food           *Food
+	*goe.DB
+}
+
+dns := "user=postgres password=postgres host=localhost port=5432 database=postgres"
+
+db, err := goe.Open[Database](postgres.Open(dns, postgres.Config{}))
+
+if err != nil {
+	// handler error
+}
+defer goe.Close(db)
+
+// migrate all database structs
+err = goe.AutoMigrate(db)
+if err != nil {
+	// handler error
+}
+```
+
+> You can use the postgres.Config{} to active a log that will print all the queries. Also db.Log() it's a alternativly way of active or deactive the logs at any time.
 ## Select
 ### Find
 Find is used when you want to return a single result by primary key.
 ```
 // one primary key
-goe.Find(db.Animal).ById(Animal{Id: 2})
+animal, err = goe.Find(db.Animal).ById(Animal{Id: 2})
 
 // two primary keys
-goe.Find(db.AnimalFood).ById(AnimalFood{IdAnimal: 3, IdFood: 2})
+animalFood, err = goe.Find(db.AnimalFood).ById(AnimalFood{IdAnimal: 3, IdFood: 2})
 ```
 
 > Use **goe.FindContext** for specify a context
@@ -339,13 +372,13 @@ List has support for [OrderBy](#orderby), [Pagination](#pagination) and [Joins](
 
 ```
 // list all animals
-goe.List(db.Animal).AsSlice()
+animals, err = goe.List(db.Animal).AsSlice()
 
 // list the animals with name "Cat", Id "3" and IdHabitat "4"
-goe.List(db.Animal).Filter(Animal{Name: "Cat", Id: 3, IdHabitat: 4}).AsSlice()
+animals, err = goe.List(db.Animal).Filter(Animal{Name: "Cat", Id: 3, IdHabitat: 4}).AsSlice()
 
 // when using % on filter, goe makes a like operation
-goe.List(db.Animal).Filter(Animal{Name: "%Cat%"}).AsSlice()
+animals, err = goe.List(db.Animal).Filter(Animal{Name: "%Cat%"}).AsSlice()
 ```
 
 > Use **goe.ListContext** for specify a context
@@ -356,7 +389,11 @@ goe.List(db.Animal).Filter(Animal{Name: "%Cat%"}).AsSlice()
 Return all animals as a slice
 ```
 // select * from animals
-goe.Select(db.Animal).From(db.Animal).AsSlice()
+animals, err = goe.Select(db.Animal).From(db.Animal).AsSlice()
+
+if err != nil {
+	// handler error
+}
 ```
 
 > Use **goe.SelectContext** for specify a context
@@ -377,7 +414,7 @@ for row, err := range goe.Select(db.Animal).From(db.Animal).Rows() {
 ### Select Specific Fields
 ```
 // return a slice of this struct
-goe.Select(&struct {
+animals, err = goe.Select(&struct {
 		User    *string
 		Role    *string
 		EndTime **time.Time
@@ -386,6 +423,10 @@ goe.Select(&struct {
 		Role:    &db.Role.Name,
 		EndTime: &db.UserRole.EndDate,
 	}).From(db.User).AsSlice()
+
+if err != nil {
+	// handler error
+}
 ```
 
 Can use Rows() to itereate over the result and map the values to another struct
@@ -404,8 +445,6 @@ for row, err := range goe.Select(&struct {
 			// handler error
 		}
 
-		// use query.Get if you want to remove the new pointer field.
-		// query.Get reduces the pointer tree, so, if **time.Time is passed, it's returns a *time.Time value.
 		anotherStruct := struct {
 						User    string
 						Role    string
@@ -418,6 +457,8 @@ for row, err := range goe.Select(&struct {
 	}
 ```
 
+You can use query.Get for remove the pointer stack, so if was needed a **time.Time for query the field, you can use query.Get to get *time.Time. In cases of *string and wanted string it's returned a empty string if the pointer is nil (database returns null).
+
 For specific field is used a new struct, each new field guards the reference for the database attribute.
 
 [Back to Contents](#content)
@@ -425,16 +466,24 @@ For specific field is used a new struct, each new field guards the reference for
 ### Where
 For where, goe uses a sub-package where, on where package you have all the goe available where operations.
 ```
-goe.Select(db.Animal).From(db.Animal).Wheres(where.Equals(&db.Animal.Id, 2)).AsSlice()
+animals, err = goe.Select(db.Animal).From(db.Animal).Wheres(where.Equals(&db.Animal.Id, 2)).AsSlice()
+
+if err != nil {
+	//handler error
+}
 ```
 
 It's possible to call a list of where operations inside Wheres()
 
 ```
-goe.Select(db.Animal).From(db.Animal).Wheres(
+animals, err = goe.Select(db.Animal).From(db.Animal).Wheres(
 					where.LessEquals(&db.Animal.Id, 30),
 					where.And(),
 					where.In(&db.Animal.Name, []string{"Cat", "Dog"})).AsSlice()
+
+if err != nil {
+	//handler error
+}
 ```
 
 You can use a if to call a where operation only if it's match
@@ -445,7 +494,11 @@ if filter.In {
 	selectQuery.Wheres(where.And(), where.In(&db.Animal.Name, []string{"Cat", "Dog"}))
 }
 
-selectQuery.AsSlice()
+animals, err = selectQuery.AsSlice()
+
+if err != nil {
+	//handler error
+}
 ```
 
 [Back to Contents](#content)
@@ -455,11 +508,15 @@ On join, goe uses a sub-package join, on join package you have all the goe avail
 
 For the join operations, you need to specify the type, this make the joins operations more safe. So if you change a type from a field, the compiler will throw a error.
 ```
-goe.Select(db.Animal).From(db.Animal).
-	Joins(
-		join.Join[int](&db.Animal.Id, &db.AnimalFood.IdAnimal),
-		join.Join[uuid.UUID](&db.Food.Id, &db.AnimalFood.IdFood),
-	).AsSlice()
+animals, err = goe.Select(db.Animal).From(db.Animal).
+			   Joins(
+					join.Join[int](&db.Animal.Id, &db.AnimalFood.IdAnimal),
+					join.Join[uuid.UUID](&db.Food.Id, &db.AnimalFood.IdFood),
+			   ).AsSlice()
+
+if err != nil {
+	//handler error
+}
 ```
 
 Same as where, you can use a if to only make a join if the condition match.
@@ -471,11 +528,19 @@ For OrderBy you need to pass a reference to a mapped database field.
 It's possible to OrderBy desc and asc. List and Select has support for OrderBy queries.
 #### List
 ```
-goe.List(db.Animal).OrderByDesc(&db.Animal.Id).AsSlice()
+animals, err = goe.List(db.Animal).OrderByDesc(&db.Animal.Id).AsSlice()
+
+if err != nil {
+	//handler error
+}
 ```
 #### Select
 ```
-goe.Select(db.Animal).From(db.Animal).OrderByAsc(&db.Animal.Id).AsSlice()
+animals, err = goe.Select(db.Animal).From(db.Animal).OrderByAsc(&db.Animal.Id).AsSlice()
+
+if err != nil {
+	//handler error
+}
 ```
 
 [Back to Contents](#content)
@@ -485,14 +550,22 @@ For pagination, it's possible to run on Select and List functions
 #### Select Pagination
 ```
 // page 1 of size 10
-goe.Select(db.Animal).From(db.Animal).AsPagination(1, 10)
+page, err = goe.Select(db.Animal).From(db.Animal).AsPagination(1, 10)
+
+if err != nil {
+	//handler error
+}
 ```
 > AsPagination returns a ErrInvalidPagination if page or size is equals 0
 
 #### List Pagination
 ```
 // page 1 of size 10
-goe.List(db.Animal).AsPagination(1, 10)
+page, err = goe.List(db.Animal).AsPagination(1, 10)
+
+if err != nil {
+	//handler error
+}
 ```
 
 > AsPagination returns a ErrInvalidPagination if page or size is equals 0
@@ -535,18 +608,26 @@ for row, err := range goe.Select(&struct {
 
 Functions can be used inside where.
 ```
-goe.Select(db.Animal).From(db.Animal).
+animals, err = goe.Select(db.Animal).From(db.Animal).
 Wheres(
 	where.Like(function.ToUpper(&db.Animal.Name), "%CAT%")
 ).AsSlice()
+
+if err != nil {
+	//handler error
+}
 ```
 > where like expected a second argument always as string
 
 ```
-goe.Select(db.Animal).From(db.Animal).
-Wheres(
-	where.Equals(function.ToUpper(&db.Animal.Name), function.Argument("CAT")),
-).AsSlice()
+animals, err = goe.Select(db.Animal).From(db.Animal).
+			   Wheres(
+					where.Equals(function.ToUpper(&db.Animal.Name), function.Argument("CAT")),
+			   ).AsSlice()
+
+if err != nil {
+	//handler error
+}
 ```
 
 > to by pass the compiler type warning, use function.Argument. This way the compiler will check the argument value
@@ -557,7 +638,11 @@ On Insert if the primary key value is auto-increment, the new Id will be stored 
 ### Insert One
 ```
 a := Animal{Name: "Cat", Emoji: "🐘"}
-goe.Insert(db.Animal).One(&a)
+err = goe.Insert(db.Animal).One(&a)
+
+if err != nil {
+	//handler error
+}
 
 // new generated id
 a.Id
@@ -572,7 +657,11 @@ foods := []Food{
 		{Name: "Hotdog", Emoji: "🌭"},
 		{Name: "Cookie", Emoji: "🍪"},
 	}
-goe.Insert(db.Food).All(foods)
+err = goe.Insert(db.Food).All(foods)
+
+if err != nil {
+	//handler error
+}
 ```
 > Use **goe.InsertContext** for specify a context
 
@@ -586,7 +675,11 @@ a := Animal{Id: 2}
 a.Name = "Update Cat"
 
 // update animal of id 2
-goe.Save(db.Animal).Value(a)
+err = goe.Save(db.Animal).Value(a)
+
+if err != nil {
+	//handler error
+}
 ```
 > Use **goe.SaveContext** for specify a context
 
@@ -599,9 +692,13 @@ Update with set uses update sub-package. This is used for more complex updates, 
 a := Animal{Id: 2}
 
 // a.IdHabitat is nil, so is ignored by Save
-goe.Update(db.Animal).
-	Sets(update.Set(&db.Animal.IdHabitat, a.IdHabitat)).
-	Wheres(where.Equals(&db.Animal.Id, a.Id))
+err = goe.Update(db.Animal).
+	  Sets(update.Set(&db.Animal.IdHabitat, a.IdHabitat)).
+	  Wheres(where.Equals(&db.Animal.Id, a.Id))
+
+if err != nil {
+	//handler error
+}
 ```
 
 Check out the [Where](#where) section for more information about where operations.
@@ -616,7 +713,11 @@ Check out the [Where](#where) section for more information about where operation
 Remove is used for remove only one record by primary key
 ```
 // remove animal of id 2
-goe.Remove(db.Animal).ById(Animal{Id: 2})
+err = goe.Remove(db.Animal).ById(Animal{Id: 2})
+
+if err != nil {
+	//handler error
+}
 ```
 
 > Use **goe.RemoveContext** for specify a context
@@ -626,12 +727,20 @@ goe.Remove(db.Animal).ById(Animal{Id: 2})
 ### Delete Batch
 Delete all records from Animal
 ```
-goe.Delete(db.Animal).Wheres()
+err = goe.Delete(db.Animal).Wheres()
+
+if err != nil {
+	//handler error
+}
 ```
 
 Delete all matched records
 ```
-goe.Delete(db.Animal).Wheres(where.Like(&db.Animal.Name, "%Cat%"))
+err = goe.Delete(db.Animal).Wheres(where.Like(&db.Animal.Name, "%Cat%"))
+
+if err != nil {
+	//handler error
+}
 ```
 
 Check out the [Where](#where) section for more information about where operations.
@@ -641,3 +750,51 @@ Check out the [Where](#where) section for more information about where operation
 [Back to Contents](#content)
 
 ## Transaction
+
+### Begin Transaction
+Setup the transaction with the database function `db.NewTransaction()`
+```
+tx, err = db.NewTransaction()
+if err != nil {
+	// handler error
+}
+defer tx.Rollback()
+```
+
+You can use the `OnTransaction()` function to setup a transaction for [Select](#select), [Insert](#insert), [Update](#update) and [Delete](#delete).
+
+> Ensure to call `defer tx.Rollback()`; this will make the Rollback happens if something go wrong
+
+> Use **goe.NewTransactionContext** for specify a context
+
+[Back to Contents](#content)
+
+### Commit and Rollback
+
+To Commit a Transaction just call `tx.Commit()`
+```
+err = tx.Commit()
+
+if err != nil {
+	// handler the error
+}
+```
+
+To Rollback a Transaction just call `tx.Rollback()`
+```
+err = tx.Rollback()
+
+if err != nil {
+	// handler the error
+}
+```
+
+[Back to Contents](#content)
+
+### Isolation
+
+The isolation is used for control the flow and security of  multiple transactions. On goe you can use the [sql.IsolationLevel](https://pkg.go.dev/database/sql#IsolationLevel).
+
+By default if you call `db.NewTransaction()` it's use the Serializable isolation.
+
+[Back to Contents](#content)
