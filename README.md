@@ -162,8 +162,6 @@ type User struct {
 In case you want to specify 
 a primary key use the tag value "pk".
 
-> Don't use patterns like "UserId" or "IdUser" on tables that aren't relational, they are used for relational keys and will not work as common fields.
-
 [Back to Contents](#content)
 ### Setting type
 ```
