@@ -47,6 +47,9 @@
 	- [Remove](#remove)
 	- [Delete Batch](#delete-batch)
 - [Transaction](#transaction)
+	- [Begin Transaction](#begin-transaction)
+	- [Commit and Rollback](#commit-and-rollback)
+	- [Isolation](#isolation)
 
 ## Install
 ```
@@ -59,72 +62,68 @@ As any database/sql support in go, you have to get a specific driver for your da
 ```
 go get github.com/olauro/postgres
 ```
-<!-- ## Quick Start
+## Quick Start
 ```
 package main
 
 import (
-	"database/sql"
-	"errors"
 	"fmt"
 
 	"github.com/olauro/goe"
 	"github.com/olauro/postgres"
 )
 
-// By default field "Id" is primary key
-// and all integers types are auto increment
 type Animal struct {
-	Id    uint
+	ID    int
 	Name  string
 	Emoji string
 }
 
-// In goe, it's necessary to define a Database struct
-// that implements *goe.DB and all
-// the structs that's it's to be mappend
-//
-// It's through the Database struct that you will
-// interact with your database
 type Database struct {
 	Animal *Animal
 	*goe.DB
 }
 
 func main() {
-	db := &Database{DB: &goe.DB{}}
-
-	DNS := "user=app password=123456 host=localhost port=5432 database=appanimal"
-	err := goe.Open(db, postgres.Open(DNS))
+	dns := "user=postgres password=postgres host=localhost port=5432 database=postgres"
+	db, err := goe.Open[Database](postgres.Open(dns, postgres.Config{}))
 	if err != nil {
-		fmt.Println("A error ocurred when opening the database", err)
-		return
+		panic(err)
+	}
+	defer goe.Close(db)
+
+	err = goe.AutoMigrate(db)
+	if err != nil {
+		panic(err)
 	}
 
-	// migrate all the database tables and print SQL
-	db.Migrate(goe.MigrateFrom(db))
+	err = goe.Delete(db.Animal).Wheres()
+	if err != nil {
+		panic(err)
+	}
 
-	var a Animal
-	_, err = db.Select(db.Animal).Where(db.Equals(&db.Animal.Id, 1)).Scan(&a)
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		fmt.Println("A error occurred when select animal", err)
-		return
+	animals := []Animal{
+		{Name: "Cat", Emoji: "🐈"},
+		{Name: "Dog", Emoji: "🐕"},
+		{Name: "Rat", Emoji: "🐀"},
+		{Name: "Pig", Emoji: "🐖"},
+		{Name: "Whale", Emoji: "🐋"},
+		{Name: "Fish", Emoji: "🐟"},
+		{Name: "Bird", Emoji: "🐦"},
 	}
-	if a.Id == 0 {
-		a.Name = "Elephant"
-		a.Emoji = "🐘"
-		_, err := db.Insert(db.Animal).Value(&a)
-		if err != nil {
-			fmt.Println("A error occurred when inserting animal", err)
-			return
-		}
+
+	err = goe.Insert(db.Animal).All(animals)
+	if err != nil {
+		panic(err)
 	}
-	var animals []Animal
-	sql, _ := db.Select(db.Animal).Scan(&animals)
-	fmt.Println(sql)
+
+	animals, err = goe.List(db.Animal).AsSlice()
+	if err != nil {
+		panic(err)
+	}
 	fmt.Println(animals)
 }
-``` -->
+```
 ## Database
 ```
 type Database struct {
