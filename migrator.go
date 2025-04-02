@@ -91,7 +91,6 @@ func typeField(tables reflect.Value, valueOf reflect.Value, migrator *Migrator, 
 		field = valueOf.Type().Field(i)
 		//skip primary key
 		if slices.Contains(fieldNames, field.Name) {
-			//TODO: Check this
 			table, prefix := checkTablePattern(tables, field)
 			if table == "" && prefix == "" {
 				continue
@@ -230,7 +229,7 @@ func migratePk(typeOf reflect.Type, driver Driver) ([]*PrimaryKeyMigrate, []stri
 	var pks []*PrimaryKeyMigrate
 	var fieldsNames []string
 
-	id, valid := typeOf.FieldByName("Id")
+	id, valid := getId(typeOf)
 	if valid {
 		pks = make([]*PrimaryKeyMigrate, 1)
 		fieldsNames = make([]string, 1)

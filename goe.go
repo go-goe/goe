@@ -126,9 +126,7 @@ func getPk(db *DB, typeOf reflect.Type, tableId int, driver Driver) ([]*pk, []in
 	var fieldIds []int
 	var fieldId int
 
-	id, valid := typeOf.FieldByNameFunc(func(s string) bool {
-		return strings.ToUpper(s) == "ID"
-	})
+	id, valid := getId(typeOf)
 	if valid {
 		pks := make([]*pk, 1)
 		fieldIds = make([]int, 1)
@@ -296,4 +294,10 @@ func helperAttribute(tables reflect.Value, valueOf reflect.Value, i int, db *DB,
 		}
 	}
 	newAttr(valueOf, i, pks[0].tableName, uintptr(valueOf.Field(i).Addr().UnsafePointer()), db, tableId, fieldId, driver)
+}
+
+func getId(typeOf reflect.Type) (reflect.StructField, bool) {
+	return typeOf.FieldByNameFunc(func(s string) bool {
+		return strings.ToUpper(s) == "ID"
+	})
 }
