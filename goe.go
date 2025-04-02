@@ -194,10 +194,10 @@ func isManyToOne(db *DB, tables reflect.Value, typeOf reflect.Type, tableId, fie
 }
 
 func primaryKeys(str reflect.Type) (pks []reflect.StructField) {
-	Field, exists := str.FieldByName("Id")
+	field, exists := getId(str)
 	if exists {
 		pks := make([]reflect.StructField, 1)
-		pks[0] = Field
+		pks[0] = field
 		return pks
 	} else {
 		//TODO: Return anonymous pk para len(pks) == 0

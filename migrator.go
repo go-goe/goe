@@ -98,7 +98,7 @@ func typeField(tables reflect.Value, valueOf reflect.Value, migrator *Migrator, 
 		}
 		switch valueOf.Field(i).Kind() {
 		case reflect.Slice:
-			err = handlerSliceMigrate(table, tables, field, valueOf.Field(i).Type().Elem(), valueOf, i, driver)
+			err = handlerSliceMigrate(table, tables, field, valueOf.Field(i).Type().Elem(), valueOf, i, driver, fieldNames)
 			if err != nil {
 				return err
 			}
@@ -108,12 +108,12 @@ func typeField(tables reflect.Value, valueOf reflect.Value, migrator *Migrator, 
 				return err
 			}
 		case reflect.Ptr:
-			err = helperAttributeMigrate(table, tables, valueOf, field, i, true, driver)
+			err = helperAttributeMigrate(table, tables, valueOf, field, i, true, driver, fieldNames)
 			if err != nil {
 				return err
 			}
 		default:
-			err = helperAttributeMigrate(table, tables, valueOf, field, i, false, driver)
+			err = helperAttributeMigrate(table, tables, valueOf, field, i, false, driver, fieldNames)
 			if err != nil {
 				return err
 			}
@@ -137,10 +137,10 @@ func handlerStructMigrate(table *TableMigrate, field reflect.StructField, target
 	return nil
 }
 
-func handlerSliceMigrate(table *TableMigrate, tables reflect.Value, field reflect.StructField, targetTypeOf reflect.Type, valueOf reflect.Value, i int, driver Driver) error {
+func handlerSliceMigrate(table *TableMigrate, tables reflect.Value, field reflect.StructField, targetTypeOf reflect.Type, valueOf reflect.Value, i int, driver Driver, fieldNames []string) error {
 	switch targetTypeOf.Kind() {
 	case reflect.Uint8:
-		return helperAttributeMigrate(table, tables, valueOf, field, i, false, driver)
+		return helperAttributeMigrate(table, tables, valueOf, field, i, false, driver, fieldNames)
 	}
 	return nil
 }
@@ -373,7 +373,7 @@ func createMigrateAtt(attributeName string, dataType string, nullable bool, driv
 	}
 }
 
-func helperAttributeMigrate(tbl *TableMigrate, tables reflect.Value, valueOf reflect.Value, field reflect.StructField, i int, nullable bool, driver Driver) error {
+func helperAttributeMigrate(tbl *TableMigrate, tables reflect.Value, valueOf reflect.Value, field reflect.StructField, i int, nullable bool, driver Driver, fieldNames []string) error {
 	table, prefix := checkTablePattern(tables, valueOf.Type().Field(i))
 	if table != "" {
 		if mto := isManyToOneMigrate(tables, valueOf.Type(), nullable, table, prefix, valueOf.Type().Field(i).Name, driver); mto != nil {
@@ -386,6 +386,9 @@ func helperAttributeMigrate(tbl *TableMigrate, tables reflect.Value, valueOf ref
 				tbl.ManyToOnes = append(tbl.ManyToOnes, *v)
 			case *OneToOneMigrate:
 				if v == nil {
+					if slices.Contains(fieldNames, field.Name) {
+						return nil
+					}
 					return migrateAtt(tbl, valueOf, field, i, driver)
 				}
 				v.DataType = getType(field)
