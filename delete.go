@@ -18,11 +18,13 @@ type stateDelete struct {
 
 type remove[T any] struct {
 	table  *T
+	tx     Transaction
 	delete *stateDelete
 }
 
 // Remove is a wrapper over [Delete] for more simple deletes,
 // uses the value for create a where matching the primary keys.
+// If the record don't exists returns a [ErrNotFound].
 //
 // Remove uses [context.Background] internally;
 // to specify the context, use [RemoveContext].
@@ -41,12 +43,17 @@ func RemoveContext[T any](ctx context.Context, table *T) *remove[T] {
 
 func (r *remove[T]) OnTransaction(tx Transaction) *remove[T] {
 	r.delete.OnTransaction(tx)
+	r.tx = tx
 	return r
 }
 
 func (r *remove[T]) ById(value T) error {
 	pks, valuesPks, err := getArgsPks(addrMap.mapField, r.table, value)
 	if err != nil {
+		return err
+	}
+
+	if _, err := Find(r.table).OnTransaction(r.tx).ById(value); err != nil {
 		return err
 	}
 

@@ -17,6 +17,7 @@ type stateInsert[T any] struct {
 
 type create[T any] struct {
 	table  *T
+	tx     Transaction
 	insert *stateInsert[T]
 }
 
@@ -40,6 +41,7 @@ func CreateContext[T any](ctx context.Context, table *T) *create[T] {
 
 func (c *create[T]) OnTransaction(tx Transaction) *create[T] {
 	c.insert.OnTransaction(tx)
+	c.tx = tx
 	return c
 }
 
@@ -49,7 +51,7 @@ func (c *create[T]) ByValue(value T) (*T, error) {
 		return nil, err
 	}
 
-	return &value, nil
+	return Find(c.table).OnTransaction(c.tx).ById(value)
 }
 
 // Insert inserts a new record into the given table.

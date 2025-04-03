@@ -12,12 +12,14 @@ import (
 
 type save[T any] struct {
 	table  *T
+	tx     Transaction
 	update *stateUpdate[T]
 }
 
 // Save is a wrapper over [Update] for more simple updates,
 // uses the value for create a where matching the primary keys
 // and includes for update all non-zero values excluding the primary keys.
+// If the record don't exists returns a [ErrNotFound].
 //
 // Save uses [context.Background] internally;
 // to specify the context, use [SaveContext].
@@ -44,12 +46,17 @@ func SaveContext[T any](ctx context.Context, table *T) *save[T] {
 
 func (s *save[T]) OnTransaction(tx Transaction) *save[T] {
 	s.update.conn = tx
+	s.tx = tx
 	return s
 }
 
 func (s *save[T]) ByValue(v T) error {
 	if s.update.err != nil {
 		return s.update.err
+	}
+
+	if _, err := Find(s.table).OnTransaction(s.tx).ById(v); err != nil {
+		return err
 	}
 
 	argsSave := getArgsSave(addrMap.mapField, s.table, v)
@@ -66,6 +73,25 @@ func (s *save[T]) ByValue(v T) error {
 
 	s.update.builder.sets = argsSave.sets
 	return s.update.Wheres(wheres...)
+}
+
+func (s *save[T]) AndFindByValue(v T) (*T, error) {
+	err := s.ByValue(v)
+	if err != nil {
+		return nil, err
+	}
+	return Find(s.table).OnTransaction(s.tx).ById(v)
+}
+
+func (s *save[T]) OrCreateByValue(v T) (*T, error) {
+	err := s.ByValue(v)
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			return Create(s.table).OnTransaction(s.tx).ByValue(v)
+		}
+		return nil, err
+	}
+	return Find(s.table).OnTransaction(s.tx).ById(v)
 }
 
 type stateUpdate[T any] struct {
@@ -218,7 +244,7 @@ func getArgsPks[T any](addrMap map[uintptr]field, table *T, value T) ([]any, []a
 	}
 
 	if len(args) == 0 && len(values) == 0 {
-		return nil, nil, errors.New("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
+		return nil, nil, ErrNotFound
 	}
 	return args, values, nil
 }

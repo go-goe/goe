@@ -568,6 +568,39 @@ func TestUpdate(t *testing.T) {
 			},
 		},
 		{
+			desc: "Save_NotFound",
+			testCase: func(t *testing.T) {
+				err = goe.Save(db.Animal).ByValue(Animal{Name: "Cat"})
+				if !errors.Is(err, goe.ErrNotFound) {
+					t.Fatalf("Expected goe.ErrNotFound, got %v", err)
+				}
+			},
+		},
+		{
+			desc: "Save_OrCreateByValue_AndFindByValue",
+			testCase: func(t *testing.T) {
+				var a *Animal
+				a, err = goe.Save(db.Animal).OrCreateByValue(Animal{Name: "Create Cat"})
+				if err != nil {
+					t.Fatalf("Expected create, got error: %v", err)
+				}
+				if a.Id == 0 {
+					t.Fatal("Expected new id, got 0")
+				}
+				if a.Name != "Create Cat" {
+					t.Fatalf("Expected create or save")
+				}
+				a.Name = "Update Cat"
+				updateAnimal, err := goe.Save(db.Animal).AndFindByValue(*a)
+				if err != nil {
+					t.Fatalf("Expected create, got error: %v", err)
+				}
+				if updateAnimal.Name != a.Name {
+					t.Fatalf("Expected %v, got: %v", a.Name, updateAnimal.Name)
+				}
+			},
+		},
+		{
 			desc: "Update_Context_Cancel",
 			testCase: func(t *testing.T) {
 				a := Animal{

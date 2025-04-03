@@ -263,6 +263,15 @@ func TestDelete(t *testing.T) {
 			},
 		},
 		{
+			desc: "Delete_NotFound",
+			testCase: func(t *testing.T) {
+				err = goe.Remove(db.Animal).ById(Animal{Name: "Cat"})
+				if !errors.Is(err, goe.ErrNotFound) {
+					t.Fatalf("Expected goe.ErrNotFound, got %v", err)
+				}
+			},
+		},
+		{
 			desc: "Delete_Context_Cancel",
 			testCase: func(t *testing.T) {
 				ctx, cancel := context.WithCancel(context.Background())
