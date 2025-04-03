@@ -127,6 +127,12 @@ type Select struct {
 	Name string
 }
 
+type Page struct {
+	Id     int
+	Number int
+	PageId *int
+}
+
 type Database struct {
 	Animal         *Animal
 	AnimalFood     *AnimalFood
@@ -144,6 +150,7 @@ type Database struct {
 	JobTitle       *JobTitle
 	Exam           *Exam
 	Select         *Select
+	Page           *Page
 	*goe.DB
 }
 

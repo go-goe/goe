@@ -41,7 +41,7 @@ type find[T any] struct {
 //
 // # Example
 //
-//	goe.Find(db.Animal, Animal{Id: 2})
+//	goe.Find(db.Animal).ById(Animal{Id: 2})
 func Find[T any](t *T) *find[T] {
 	return FindContext(context.Background(), t)
 }

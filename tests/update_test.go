@@ -127,7 +127,7 @@ func TestUpdate(t *testing.T) {
 					Float64: 4.4,
 					Byte:    []byte{1},
 				}
-				err = goe.Save(db.Flag).Value(ff)
+				err = goe.Save(db.Flag).ByValue(ff)
 				if err != nil {
 					t.Fatalf("Expected a update, got error: %v", err)
 				}
@@ -169,7 +169,7 @@ func TestUpdate(t *testing.T) {
 						defer wg.Done()
 						au := Animal{Id: a.Id}
 						au.Name = "Update Cat"
-						goe.Save(db.Animal).Value(au)
+						goe.Save(db.Animal).ByValue(au)
 					}()
 				}
 				wg.Wait()
@@ -206,7 +206,7 @@ func TestUpdate(t *testing.T) {
 
 				a.IdHabitat = &h.Id
 				a.Name = "Update Cat"
-				err = goe.Save(db.Animal).Value(a)
+				err = goe.Save(db.Animal).ByValue(a)
 				if err != nil {
 					t.Fatalf("Expected a update, got error: %v", err)
 				}
@@ -284,7 +284,7 @@ func TestUpdate(t *testing.T) {
 
 				a.IdHabitat = &h.Id
 				a.Name = "Update Cat"
-				err = goe.Save(db.Animal).OnTransaction(tx).Value(a)
+				err = goe.Save(db.Animal).OnTransaction(tx).ByValue(a)
 				if err != nil {
 					tx.Rollback()
 					t.Fatalf("Expected a update, got error: %v", err)

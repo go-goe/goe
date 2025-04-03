@@ -25,7 +25,7 @@ type save[T any] struct {
 // # Examples
 //
 //	// updates animal name on record id 1
-//	err = goe.Save(db.Animal).Value(Animal{Id: 1, Name: "Cat"})
+//	err = goe.Save(db.Animal).ByValue(Animal{Id: 1, Name: "Cat"})
 func Save[T any](table *T) *save[T] {
 	return SaveContext(context.Background(), table)
 }
@@ -47,7 +47,7 @@ func (s *save[T]) OnTransaction(tx Transaction) *save[T] {
 	return s
 }
 
-func (s *save[T]) Value(v T) error {
+func (s *save[T]) ByValue(v T) error {
 	if s.update.err != nil {
 		return s.update.err
 	}

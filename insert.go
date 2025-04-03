@@ -15,6 +15,43 @@ type stateInsert[T any] struct {
 	err     error
 }
 
+type create[T any] struct {
+	table  *T
+	insert *stateInsert[T]
+}
+
+// Create is a wrapper over [Insert] for simple insert one record
+// and return the inserted record with the new id.
+//
+// Create uses [context.Background] internally;
+// to specify the context, use [CreateContext].
+//
+// # Examples
+//
+//	// create animal
+//	insertedAnimal, err = goe.Create(db.Animal).ByValue(Animal{})
+func Create[T any](table *T) *create[T] {
+	return CreateContext(context.Background(), table)
+}
+
+func CreateContext[T any](ctx context.Context, table *T) *create[T] {
+	return &create[T]{table: table, insert: InsertContext(ctx, table)}
+}
+
+func (c *create[T]) OnTransaction(tx Transaction) *create[T] {
+	c.insert.OnTransaction(tx)
+	return c
+}
+
+func (c *create[T]) ByValue(value T) (*T, error) {
+	err := c.insert.One(&value)
+	if err != nil {
+		return nil, err
+	}
+
+	return &value, nil
+}
+
 // Insert inserts a new record into the given table.
 //
 // Insert uses [context.Background] internally;

@@ -30,7 +30,7 @@ type remove[T any] struct {
 // # Examples
 //
 //	// remove animal of id 2
-//	err = goe.Remove(db.Animal, Animal{Id: 2})
+//	err = goe.Remove(db.Animal).ById(Animal{Id: 2})
 func Remove[T any](table *T) *remove[T] {
 	return RemoveContext(context.Background(), table)
 }
