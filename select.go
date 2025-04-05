@@ -29,8 +29,9 @@ type stateSelect[T any] struct {
 }
 
 type find[T any] struct {
-	table   *T
-	sSelect *stateSelect[T]
+	table       *T
+	errNotFound error
+	sSelect     *stateSelect[T]
 }
 
 // Find returns a matched record by primary keys,
@@ -51,7 +52,7 @@ func Find[T any](t *T) *find[T] {
 //
 // See [Find] for examples
 func FindContext[T any](ctx context.Context, table *T) *find[T] {
-	return &find[T]{table: table, sSelect: SelectContext(ctx, table).From(table)}
+	return &find[T]{table: table, sSelect: SelectContext(ctx, table).From(table), errNotFound: ErrNotFound}
 }
 
 func (f *find[T]) OnTransaction(tx Transaction) *find[T] {
@@ -59,8 +60,13 @@ func (f *find[T]) OnTransaction(tx Transaction) *find[T] {
 	return f
 }
 
+func (f *find[T]) OnErrNotFound(err error) *find[T] {
+	f.errNotFound = err
+	return f
+}
+
 func (f *find[T]) ById(value T) (*T, error) {
-	pks, valuesPks, err := getArgsPks(addrMap.mapField, f.table, value)
+	pks, valuesPks, err := getArgsPks(addrMap.mapField, f.table, value, f.errNotFound)
 	if err != nil {
 		return nil, err
 	}
@@ -78,7 +84,7 @@ func (f *find[T]) ById(value T) (*T, error) {
 		return &row, nil
 	}
 
-	return nil, ErrNotFound
+	return nil, f.errNotFound
 }
 
 // Select retrieves rows from tables.

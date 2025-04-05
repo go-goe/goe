@@ -11,9 +11,10 @@ import (
 )
 
 type save[T any] struct {
-	table  *T
-	tx     Transaction
-	update *stateUpdate[T]
+	table       *T
+	tx          Transaction
+	errNotFound error
+	update      *stateUpdate[T]
 }
 
 // Save is a wrapper over [Update] for more simple updates,
@@ -38,10 +39,7 @@ func Save[T any](table *T) *save[T] {
 //
 // See [Save] for examples.
 func SaveContext[T any](ctx context.Context, table *T) *save[T] {
-	save := &save[T]{}
-	save.update = UpdateContext(ctx, table)
-	save.table = table
-	return save
+	return &save[T]{update: UpdateContext(ctx, table), table: table, errNotFound: ErrNotFound}
 }
 
 func (s *save[T]) OnTransaction(tx Transaction) *save[T] {
@@ -50,12 +48,17 @@ func (s *save[T]) OnTransaction(tx Transaction) *save[T] {
 	return s
 }
 
+func (s *save[T]) OnErrNotFound(err error) *save[T] {
+	s.errNotFound = err
+	return s
+}
+
 func (s *save[T]) ByValue(v T) error {
 	if s.update.err != nil {
 		return s.update.err
 	}
 
-	if _, err := Find(s.table).OnTransaction(s.tx).ById(v); err != nil {
+	if _, err := Find(s.table).OnErrNotFound(s.errNotFound).OnTransaction(s.tx).ById(v); err != nil {
 		return err
 	}
 
@@ -80,18 +83,18 @@ func (s *save[T]) AndFindByValue(v T) (*T, error) {
 	if err != nil {
 		return nil, err
 	}
-	return Find(s.table).OnTransaction(s.tx).ById(v)
+	return Find(s.table).OnErrNotFound(s.errNotFound).OnTransaction(s.tx).ById(v)
 }
 
 func (s *save[T]) OrCreateByValue(v T) (*T, error) {
 	err := s.ByValue(v)
 	if err != nil {
-		if errors.Is(err, ErrNotFound) {
+		if errors.Is(err, s.errNotFound) {
 			return Create(s.table).OnTransaction(s.tx).ByValue(v)
 		}
 		return nil, err
 	}
-	return Find(s.table).OnTransaction(s.tx).ById(v)
+	return Find(s.table).OnErrNotFound(s.errNotFound).OnTransaction(s.tx).ById(v)
 }
 
 type stateUpdate[T any] struct {
@@ -215,7 +218,7 @@ func getArgsSave[T any](addrMap map[uintptr]field, table *T, value T) argSave {
 	return argSave{sets: sets, argsWhere: pksWhere, valuesWhere: valuesWhere}
 }
 
-func getArgsPks[T any](addrMap map[uintptr]field, table *T, value T) ([]any, []any, error) {
+func getArgsPks[T any](addrMap map[uintptr]field, table *T, value T, errNotFound error) ([]any, []any, error) {
 	if table == nil {
 		return nil, nil, errors.New("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
 	}
@@ -244,7 +247,7 @@ func getArgsPks[T any](addrMap map[uintptr]field, table *T, value T) ([]any, []a
 	}
 
 	if len(args) == 0 && len(values) == 0 {
-		return nil, nil, ErrNotFound
+		return nil, nil, errNotFound
 	}
 	return args, values, nil
 }

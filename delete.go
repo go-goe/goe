@@ -17,9 +17,10 @@ type stateDelete struct {
 }
 
 type remove[T any] struct {
-	table  *T
-	tx     Transaction
-	delete *stateDelete
+	table       *T
+	tx          Transaction
+	errNotFound error
+	delete      *stateDelete
 }
 
 // Remove is a wrapper over [Delete] for more simple deletes,
@@ -38,7 +39,7 @@ func Remove[T any](table *T) *remove[T] {
 }
 
 func RemoveContext[T any](ctx context.Context, table *T) *remove[T] {
-	return &remove[T]{table: table, delete: DeleteContext(ctx, table)}
+	return &remove[T]{table: table, delete: DeleteContext(ctx, table), errNotFound: ErrNotFound}
 }
 
 func (r *remove[T]) OnTransaction(tx Transaction) *remove[T] {
@@ -47,13 +48,18 @@ func (r *remove[T]) OnTransaction(tx Transaction) *remove[T] {
 	return r
 }
 
+func (r *remove[T]) OnErrNotFound(err error) *remove[T] {
+	r.errNotFound = err
+	return r
+}
+
 func (r *remove[T]) ById(value T) error {
-	pks, valuesPks, err := getArgsPks(addrMap.mapField, r.table, value)
+	pks, valuesPks, err := getArgsPks(addrMap.mapField, r.table, value, r.errNotFound)
 	if err != nil {
 		return err
 	}
 
-	if _, err := Find(r.table).OnTransaction(r.tx).ById(value); err != nil {
+	if _, err := Find(r.table).OnErrNotFound(r.errNotFound).OnTransaction(r.tx).ById(value); err != nil {
 		return err
 	}
 

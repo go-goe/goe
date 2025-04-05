@@ -272,6 +272,16 @@ func TestDelete(t *testing.T) {
 			},
 		},
 		{
+			desc: "Remove_Custom_NotFound",
+			testCase: func(t *testing.T) {
+				customErr := errors.New("my custom error")
+				err = goe.Remove(db.Animal).OnErrNotFound(customErr).ById(Animal{Name: "Create Cat"})
+				if !errors.Is(err, customErr) {
+					t.Fatalf("Expected customErr, got error: %v", err)
+				}
+			},
+		},
+		{
 			desc: "Delete_Context_Cancel",
 			testCase: func(t *testing.T) {
 				ctx, cancel := context.WithCancel(context.Background())

@@ -601,6 +601,22 @@ func TestUpdate(t *testing.T) {
 			},
 		},
 		{
+			desc: "Save_Custom_NotFound",
+			testCase: func(t *testing.T) {
+				customErr := errors.New("my custom error")
+				var a *Animal
+				a, err = goe.Save(db.Animal).OnErrNotFound(customErr).OrCreateByValue(Animal{Name: "Create Cat"})
+				if err != nil {
+					t.Fatalf("Expected create, got error: %v", err)
+				}
+				a.Id = 0
+				_, err = goe.Save(db.Animal).OnErrNotFound(customErr).AndFindByValue(*a)
+				if !errors.Is(err, customErr) {
+					t.Fatalf("Expected customErr, got error: %v", err)
+				}
+			},
+		},
+		{
 			desc: "Update_Context_Cancel",
 			testCase: func(t *testing.T) {
 				a := Animal{
