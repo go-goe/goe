@@ -21,6 +21,7 @@
 		- [One to One](#one-to-one)
 		- [Many to One](#many-to-one)
 		- [Many to Many](#many-to-many)
+		- [Self Referential](#self-referential)
 	- [Index](#index)
 		- [Create Index](#create-index)
 		- [Unique Index](#unique-index)
@@ -38,6 +39,7 @@
 	- [Aggregates](#aggregates)
 	- [Functions](#functions)
 - [Insert](#insert)
+	- [Create](#create)
 	- [Insert One](#insert-one)
 	- [Insert Batch](#insert-batch)
 - [Update](#update)
@@ -257,6 +259,31 @@ Is used a combination of two many to one to generate a many to many. In this exa
 It's used the tags "pk" for ensure that the foreign keys will be both primary key.
 
 [Back to Contents](#content)
+
+#### Self-Referential
+
+One to Many
+
+```
+type Page struct {
+	Id     int
+	Number int
+	PageId *int
+	Pages  []Page
+}
+```
+
+One to One
+
+```
+type Page struct {
+	Id     int
+	Number int
+	PageId *int
+}
+```
+
+[Back to Contents](#content)
 ### Index
 #### Unique Index
 ```
@@ -361,6 +388,8 @@ animalFood, err = goe.Find(db.AnimalFood).ById(AnimalFood{IdAnimal: 3, IdFood: 2
 ```
 
 > Use **goe.FindContext** for specify a context
+
+> Use **OnErrNotFound** to replace ErrNotFound with a new error
 
 [Back to Contents](#content)
 ### List
@@ -632,6 +661,22 @@ if err != nil {
 [Back to Contents](#content)
 ## Insert
 On Insert if the primary key value is auto-increment, the new Id will be stored on the object after the insert.
+
+### Create
+
+Use create when you want to insert a record on database and return it.
+
+```
+myPage, err := goe.Create(db.Page).ByValue(Page{Number: 1})
+if err != nil {
+	//handler error
+}
+```
+
+> Use **goe.CreateContext** for specify a context
+
+[Back to Contents](#content)
+
 ### Insert One
 ```
 a := Animal{Name: "Cat", Emoji: "🐘"}
@@ -677,8 +722,20 @@ err = goe.Save(db.Animal).Value(a)
 if err != nil {
 	//handler error
 }
+
+// save will try to update the record, if the record don't exist it will be created
+createdAnimal, err = goe.Save(db.Animal).OrCreateByValue(Animal{Name: "Create Cat"})
+
+if err != nil {
+	//handler error
+}
+
+// save will update the record and return it from database
+updateAnimal, err := goe.Save(db.Animal).AndFindByValue(Animal{Id: 2, Name: "Little Cat"})
 ```
 > Use **goe.SaveContext** for specify a context
+
+> Use **OnErrNotFound** to replace ErrNotFound with a new error
 
 [Back to Contents](#content)
 
@@ -718,6 +775,8 @@ if err != nil {
 ```
 
 > Use **goe.RemoveContext** for specify a context
+
+> Use **OnErrNotFound** to replace ErrNotFound with a new error
 
 [Back to Contents](#content)
 

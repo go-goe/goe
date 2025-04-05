@@ -60,6 +60,7 @@ func (f *find[T]) OnTransaction(tx Transaction) *find[T] {
 	return f
 }
 
+// Replace the ErrNotFound with err
 func (f *find[T]) OnErrNotFound(err error) *find[T] {
 	f.errNotFound = err
 	return f

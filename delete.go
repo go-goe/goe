@@ -48,6 +48,7 @@ func (r *remove[T]) OnTransaction(tx Transaction) *remove[T] {
 	return r
 }
 
+// Replace the ErrNotFound with err
 func (r *remove[T]) OnErrNotFound(err error) *remove[T] {
 	r.errNotFound = err
 	return r

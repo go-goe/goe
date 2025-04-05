@@ -48,6 +48,7 @@ func (s *save[T]) OnTransaction(tx Transaction) *save[T] {
 	return s
 }
 
+// Replace the ErrNotFound with err
 func (s *save[T]) OnErrNotFound(err error) *save[T] {
 	s.errNotFound = err
 	return s
