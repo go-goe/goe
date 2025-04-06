@@ -582,7 +582,7 @@ if err != nil {
 	//handler error
 }
 ```
-> AsPagination returns a ErrInvalidPagination if page or size is equals 0
+> AsPagination default values for page and size are 1 and 10 respectively
 
 #### List Pagination
 ```
@@ -594,7 +594,7 @@ if err != nil {
 }
 ```
 
-> AsPagination returns a ErrInvalidPagination if page or size is equals 0
+> AsPagination default values for page and size are 1 and 10 respectively
 
 [Back to Contents](#content)
 ### Aggregates

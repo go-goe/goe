@@ -41,8 +41,8 @@ type Query struct {
 	Tables     []string
 
 	Joins   []Join   //Select
-	Limit   uint     //Select
-	Offset  uint     //Select
+	Limit   int      //Select
+	Offset  int      //Select
 	OrderBy *OrderBy //Select
 
 	WhereOperations []Where //Select, Update and Delete

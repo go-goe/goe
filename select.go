@@ -17,7 +17,6 @@ import (
 )
 
 var ErrNotFound = errors.New("goe: not found any element on result set")
-var ErrInvalidPagination = errors.New("goe: size or page equals 0 is invalid")
 
 type stateSelect[T any] struct {
 	conn            Connection
@@ -163,13 +162,21 @@ func (s *stateSelect[T]) Wheres(brs ...model.Operation) *stateSelect[T] {
 }
 
 // Take takes i elements
-func (s *stateSelect[T]) Take(i uint) *stateSelect[T] {
+func (s *stateSelect[T]) Take(i int) *stateSelect[T] {
+	if i <= 0 {
+		s.err = errors.New("invalid take value")
+		return s
+	}
 	s.builder.query.Limit = i
 	return s
 }
 
 // Skip skips i elements
-func (s *stateSelect[T]) Skip(i uint) *stateSelect[T] {
+func (s *stateSelect[T]) Skip(i int) *stateSelect[T] {
+	if i <= 0 {
+		s.err = errors.New("invalid skip value")
+		return s
+	}
 	s.builder.query.Offset = i
 	return s
 }
@@ -254,33 +261,36 @@ func (s *stateSelect[T]) AsQuery() (*model.Query, error) {
 }
 
 type Pagination[T any] struct {
-	TotalValues int64
-	TotalPages  uint
+	TotalValues int64 `json:"total_values"`
+	TotalPages  int   `json:"total_pages"`
 
-	PageValues int
-	PageSize   uint
+	PageValues int `json:"page_values"`
+	PageSize   int `json:"page_size"`
 
-	CurrentPage     uint
-	HasPreviousPage bool
-	PreviousPage    uint
-	HasNextPage     bool
-	NextPage        uint
+	CurrentPage     int  `json:"current_page"`
+	HasPreviousPage bool `json:"has_previous_page"`
+	PreviousPage    int  `json:"previous_page"`
+	HasNextPage     bool `json:"has_next_page"`
+	NextPage        int  `json:"next_page"`
 
-	StartIndex uint
-	EndIndex   uint
-	Values     []T
+	StartIndex int `json:"start_index"`
+	EndIndex   int `json:"end_index"`
+	Values     []T `json:"values"`
 }
 
 // AsPagination return a paginated query as [Pagination].
 //
-// If page or size is equals zero returns [ErrInvalidPagination].
-func (s *stateSelect[T]) AsPagination(page, size uint) (*Pagination[T], error) {
+// Default values for page and size are 1 and 10 respectively.
+func (s *stateSelect[T]) AsPagination(page, size int) (*Pagination[T], error) {
 	if s.err != nil {
 		return nil, s.err
 	}
 
-	if size == 0 || page == 0 {
-		return nil, ErrInvalidPagination
+	if size <= 0 {
+		size = 10
+	}
+	if page <= 0 {
+		page = 1
 	}
 
 	var err error
@@ -321,7 +331,7 @@ func (s *stateSelect[T]) AsPagination(page, size uint) (*Pagination[T], error) {
 
 	p.TotalValues = count
 
-	p.TotalPages = uint(math.Ceil(float64(count) / float64(size)))
+	p.TotalPages = int(math.Ceil(float64(count) / float64(size)))
 	p.CurrentPage = page
 
 	if page == p.TotalPages {
@@ -344,7 +354,7 @@ func (s *stateSelect[T]) AsPagination(page, size uint) (*Pagination[T], error) {
 	p.StartIndex = (page-1)*size + 1
 
 	if !p.HasNextPage {
-		p.EndIndex = uint(p.TotalValues)
+		p.EndIndex = int(p.TotalValues)
 	} else {
 		p.EndIndex = size * page
 	}
@@ -461,10 +471,10 @@ func (l *list[T]) AsSlice() ([]T, error) {
 	return l.sSelect.AsSlice()
 }
 
-// AsPagination return a paginated query as [Pagination]
+// AsPagination return a paginated query as [Pagination].
 //
-// If page or size is equals zero returns [ErrInvalidPagination].
-func (l *list[T]) AsPagination(page, size uint) (*Pagination[T], error) {
+// Default values for page and size are 1 and 10 respectively.
+func (l *list[T]) AsPagination(page, size int) (*Pagination[T], error) {
 	if l.err != nil {
 		return nil, l.err
 	}
