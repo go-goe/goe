@@ -33,7 +33,7 @@ type find[T any] struct {
 	sSelect     *stateSelect[T]
 }
 
-// Find returns a matched record by primary keys,
+// Find returns a matched record,
 // if non record is found returns a [ErrNotFound].
 //
 // Find uses [context.Background] internally;
@@ -46,7 +46,7 @@ func Find[T any](t *T) *find[T] {
 	return FindContext(context.Background(), t)
 }
 
-// FindContext returns a matched record by primary keys,
+// FindContext returns a matched,
 // if non record is found returns a [ErrNotFound].
 //
 // See [Find] for examples
@@ -93,7 +93,9 @@ func (f *find[T]) ById(value T) (*T, error) {
 	return nil, f.errNotFound
 }
 
-// Finds the record by non-zero values
+// Finds the record by non-zero values,
+// if returns more than one it's returns the first
+// and ignores the rest
 func (f *find[T]) ByValue(value T) (*T, error) {
 	pks, valuesPks, err := getNonZeroFields(getArgs{
 		addrMap:     addrMap.mapField,

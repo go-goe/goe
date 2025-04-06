@@ -378,13 +378,16 @@ if err != nil {
 > You can use the postgres.Config{} to active a log that will print all the queries. Also db.Log() it's a alternativly way of active or deactive the logs at any time.
 ## Select
 ### Find
-Find is used when you want to return a single result by primary key.
+Find is used when you want to return a single result.
 ```
 // one primary key
 animal, err = goe.Find(db.Animal).ById(Animal{Id: 2})
 
 // two primary keys
 animalFood, err = goe.Find(db.AnimalFood).ById(AnimalFood{IdAnimal: 3, IdFood: 2})
+
+// find record by value, if have more than one it will returns the first
+cat, err = goe.Find(db.Animal).ByValue(Animal{Name: "Cat"})
 ```
 
 > Use **goe.FindContext** for specify a context
