@@ -219,40 +219,6 @@ func getArgsSave[T any](addrMap map[uintptr]field, table *T, value T) argSave {
 	return argSave{sets: sets, argsWhere: pksWhere, valuesWhere: valuesWhere}
 }
 
-func getArgsPks[T any](addrMap map[uintptr]field, table *T, value T, errNotFound error) ([]any, []any, error) {
-	if table == nil {
-		return nil, nil, errors.New("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
-	}
-
-	tableOf := reflect.ValueOf(table).Elem()
-
-	if tableOf.Kind() != reflect.Struct {
-		return nil, nil, errors.New("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
-	}
-
-	valueOf := reflect.ValueOf(value)
-
-	args, values := make([]any, 0, valueOf.NumField()), make([]any, 0, valueOf.NumField())
-	var addr uintptr
-	for i := 0; i < valueOf.NumField(); i++ {
-		if !valueOf.Field(i).IsZero() {
-			addr = uintptr(tableOf.Field(i).Addr().UnsafePointer())
-			if addrMap[addr] != nil {
-				if addrMap[addr].isPrimaryKey() {
-					args = append(args, tableOf.Field(i).Addr().Interface())
-					values = append(values, valueOf.Field(i).Interface())
-					continue
-				}
-			}
-		}
-	}
-
-	if len(args) == 0 && len(values) == 0 {
-		return nil, nil, errNotFound
-	}
-	return args, values, nil
-}
-
 func createUpdateState[T any](ctx context.Context) *stateUpdate[T] {
 	return &stateUpdate[T]{builder: createBuilder(enum.UpdateQuery), ctx: ctx}
 }

@@ -55,7 +55,12 @@ func (r *remove[T]) OnErrNotFound(err error) *remove[T] {
 }
 
 func (r *remove[T]) ById(value T) error {
-	pks, valuesPks, err := getArgsPks(addrMap.mapField, r.table, value, r.errNotFound)
+	pks, valuesPks, err := getArgsPks(getArgs{
+		addrMap:     addrMap.mapField,
+		table:       r.table,
+		value:       value,
+		errNotFound: r.errNotFound})
+
 	if err != nil {
 		return err
 	}

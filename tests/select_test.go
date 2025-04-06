@@ -304,13 +304,13 @@ func TestSelect(t *testing.T) {
 		{
 			desc: "List_Filter",
 			testCase: func(t *testing.T) {
-				var a []Animal
-				a, err = goe.List(db.Animal).Filter(Animal{Name: "Cat", Id: animals[0].Id, IdHabitat: &habitats[0].Id}).AsSlice()
+				var a *goe.Pagination[Animal]
+				a, err = goe.List(db.Animal).Filter(Animal{Name: "Cat", Id: animals[0].Id, IdHabitat: &habitats[0].Id}).AsPagination(1, 10)
 				if err != nil {
 					t.Fatalf("Expected List, got error: %v", err)
 				}
-				if len(a) != 1 {
-					t.Errorf("Expected %v animal, got %v", 1, len(a))
+				if len(a.Values) != 1 {
+					t.Errorf("Expected %v animal, got %v", 1, len(a.Values))
 				}
 			},
 		},
@@ -764,6 +764,39 @@ func TestSelect(t *testing.T) {
 
 				if p.TotalValues != 3 {
 					t.Errorf("Expected 3, got %v", p.TotalValues)
+				}
+			},
+		},
+		{
+			desc: "List_Empty_Filter",
+			testCase: func(t *testing.T) {
+				_, err = goe.List(db.Animal).Filter(Animal{}).AsPagination(1, 10)
+				if err != nil {
+					t.Fatalf("Expected list, got: %v", err)
+				}
+			},
+		},
+		{
+			desc: "Find_ByValue",
+			testCase: func(t *testing.T) {
+				var a *Animal
+				a, err = goe.Find(db.Animal).ByValue(Animal{Name: "Cat"})
+				if err != nil {
+					t.Fatalf("Expected find, got: %v", err)
+				}
+				if a.Name != "Cat" {
+					t.Fatalf("Expected Cat, got: %v", a.Name)
+				}
+
+				_, err = goe.Find(db.Animal).ByValue(Animal{})
+				if !errors.Is(err, goe.ErrNotFound) {
+					t.Fatalf("Expected goe.ErrNotFound, got: %v", err)
+				}
+
+				customErr := errors.New("my custom error")
+				_, err = goe.Find(db.Animal).OnErrNotFound(customErr).ByValue(Animal{})
+				if !errors.Is(err, customErr) {
+					t.Fatalf("Expected customErr, got: %v", err)
 				}
 			},
 		},

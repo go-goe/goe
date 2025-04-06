@@ -65,8 +65,42 @@ func (f *find[T]) OnErrNotFound(err error) *find[T] {
 	return f
 }
 
+// Finds the record by values on Ids
 func (f *find[T]) ById(value T) (*T, error) {
-	pks, valuesPks, err := getArgsPks(addrMap.mapField, f.table, value, f.errNotFound)
+	pks, valuesPks, err := getArgsPks(getArgs{
+		addrMap:     addrMap.mapField,
+		table:       f.table,
+		value:       value,
+		errNotFound: f.errNotFound})
+
+	if err != nil {
+		return nil, err
+	}
+
+	f.sSelect.Wheres(where.Equals(&pks[0], valuesPks[0]))
+	for i := 1; i < len(pks); i++ {
+		f.sSelect.Wheres(where.And())
+		f.sSelect.Wheres(where.Equals(&pks[i], valuesPks[i]))
+	}
+
+	for row, err := range f.sSelect.Rows() {
+		if err != nil {
+			return nil, err
+		}
+		return &row, nil
+	}
+
+	return nil, f.errNotFound
+}
+
+// Finds the record by non-zero values
+func (f *find[T]) ByValue(value T) (*T, error) {
+	pks, valuesPks, err := getNonZeroFields(getArgs{
+		addrMap:     addrMap.mapField,
+		table:       f.table,
+		value:       value,
+		errNotFound: f.errNotFound})
+
 	if err != nil {
 		return nil, err
 	}
@@ -443,7 +477,7 @@ func (l *list[T]) OrderByDesc(a any) *list[T] {
 
 // Filter creates a where on non-zero values.
 func (l *list[T]) Filter(v T) *list[T] {
-	args, values, err := getNonZeroFields(addrMap.mapField, l.table, v)
+	args, values, err := getNonZeroFields(getArgs{addrMap: addrMap.mapField, table: l.table, value: v})
 	if err != nil {
 		l.err = err
 		return l
@@ -482,33 +516,77 @@ func (l *list[T]) AsPagination(page, size int) (*Pagination[T], error) {
 	return l.sSelect.AsPagination(page, size)
 }
 
-func getNonZeroFields[T any](addrMap map[uintptr]field, table *T, value T) ([]any, []any, error) {
-	args, values := make([]any, 0), make([]any, 0)
+type getArgs struct {
+	addrMap     map[uintptr]field
+	table       any
+	value       any
+	errNotFound error
+}
 
-	tableOf := reflect.ValueOf(table).Elem()
+func getArgsPks(a getArgs) ([]any, []any, error) {
+	if a.table == nil {
+		return nil, nil, errors.New("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
+	}
+
+	tableOf := reflect.ValueOf(a.table).Elem()
+
 	if tableOf.Kind() != reflect.Struct {
 		return nil, nil, errors.New("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
 	}
 
-	valueOf := reflect.ValueOf(value)
+	valueOf := reflect.ValueOf(a.value)
+
+	args, values := make([]any, 0, valueOf.NumField()), make([]any, 0, valueOf.NumField())
 	var addr uintptr
 	for i := 0; i < valueOf.NumField(); i++ {
 		if !valueOf.Field(i).IsZero() {
 			addr = uintptr(tableOf.Field(i).Addr().UnsafePointer())
-			if addrMap[addr] != nil {
+			if a.addrMap[addr] != nil {
+				if a.addrMap[addr].isPrimaryKey() {
+					args = append(args, tableOf.Field(i).Addr().Interface())
+					values = append(values, valueOf.Field(i).Interface())
+				}
+			}
+		}
+	}
+
+	if len(args) == 0 && len(values) == 0 {
+		return nil, nil, a.errNotFound
+	}
+	return args, values, nil
+}
+
+func getNonZeroFields(a getArgs) ([]any, []any, error) {
+	args, values := make([]any, 0), make([]any, 0)
+
+	tableOf := reflect.ValueOf(a.table).Elem()
+	if tableOf.Kind() != reflect.Struct {
+		return nil, nil, errors.New("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
+	}
+
+	valueOf := reflect.ValueOf(a.value)
+	var addr uintptr
+	for i := 0; i < valueOf.NumField(); i++ {
+		if !valueOf.Field(i).IsZero() {
+			addr = uintptr(tableOf.Field(i).Addr().UnsafePointer())
+			if a.addrMap[addr] != nil {
 				args = append(args, tableOf.Field(i).Addr().Interface())
 				values = append(values, valueOf.Field(i).Interface())
 			}
 		}
 	}
 
-	if len(args) == 0 {
-		return nil, nil, errors.New("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
+	if a.errNotFound != nil && len(args) == 0 {
+		return nil, nil, a.errNotFound
 	}
 	return args, values, nil
 }
 
 func helperNonZeroOperation[T any](stateSelect *stateSelect[T], args []any, values []any) {
+	if len(args) == 0 || len(values) == 0 {
+		return
+	}
+
 	stateSelect.Wheres(equalsOrLike(args[0], values[0]))
 	for i := 1; i < len(args); i++ {
 		stateSelect.Wheres(where.And())
