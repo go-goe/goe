@@ -1,6 +1,6 @@
 package aggregate
 
-import "github.com/olauro/goe/query"
+import "github.com/go-goe/goe/query"
 
 // Aggregate Count uses database aggregate to make a count on the target
 //

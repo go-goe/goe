@@ -8,12 +8,12 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/olauro/goe/enum"
-	"github.com/olauro/goe/model"
-	"github.com/olauro/goe/query"
-	"github.com/olauro/goe/query/aggregate"
-	"github.com/olauro/goe/query/function"
-	"github.com/olauro/goe/query/where"
+	"github.com/go-goe/goe/enum"
+	"github.com/go-goe/goe/model"
+	"github.com/go-goe/goe/query"
+	"github.com/go-goe/goe/query/aggregate"
+	"github.com/go-goe/goe/query/function"
+	"github.com/go-goe/goe/query/where"
 )
 
 var ErrNotFound = errors.New("goe: not found any element on result set")

@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/olauro/goe"
-	"github.com/olauro/goe/query/where"
+	"github.com/go-goe/goe"
+	"github.com/go-goe/goe/query/where"
 )
 
 func TestDelete(t *testing.T) {

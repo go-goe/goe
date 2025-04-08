@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-goe/goe"
 	"github.com/google/uuid"
-	"github.com/olauro/goe"
 )
 
 func TestInsert(t *testing.T) {

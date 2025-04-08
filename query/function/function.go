@@ -1,8 +1,8 @@
 package function
 
 import (
-	"github.com/olauro/goe/enum"
-	"github.com/olauro/goe/query"
+	"github.com/go-goe/goe/enum"
+	"github.com/go-goe/goe/query"
 )
 
 // ToUpper uses database function to converts the target string to uppercase

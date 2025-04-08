@@ -5,9 +5,9 @@ import (
 	"errors"
 	"reflect"
 
-	"github.com/olauro/goe/enum"
-	"github.com/olauro/goe/model"
-	"github.com/olauro/goe/query/where"
+	"github.com/go-goe/goe/enum"
+	"github.com/go-goe/goe/model"
+	"github.com/go-goe/goe/query/where"
 )
 
 type save[T any] struct {

@@ -2,7 +2,7 @@
  A type safe SQL like ORM for Go
 
 
-[![Go.Dev reference](https://img.shields.io/badge/go.dev-reference-blue?logo=go&logoColor=white)](https://pkg.go.dev/github.com/olauro/goe)
+[![Go.Dev reference](https://img.shields.io/badge/go.dev-reference-blue?logo=go&logoColor=white)](https://pkg.go.dev/github.com/go-goe/goe)
 [![MIT license](https://img.shields.io/badge/license-MIT-brightgreen.svg)](https://opensource.org/licenses/MIT)
 
 ![](goe.png)
@@ -55,14 +55,14 @@
 
 ## Install
 ```
-go get github.com/olauro/goe
+go get github.com/go-goe/goe
 ```
 As any database/sql support in go, you have to get a specific driver for your database, check [Available Drivers](#available-drivers)
 
 ## Available Drivers
 ### PostgreSQL
 ```
-go get github.com/olauro/postgres
+go get github.com/go-goe/postgres
 ```
 ## Quick Start
 ```
@@ -71,8 +71,8 @@ package main
 import (
 	"fmt"
 
-	"github.com/olauro/goe"
-	"github.com/olauro/postgres"
+	"github.com/go-goe/goe"
+	"github.com/go-goe/postgres"
 )
 
 type Animal struct {

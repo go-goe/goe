@@ -6,7 +6,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/olauro/goe/utils"
+	"github.com/go-goe/goe/utils"
 )
 
 type Migrator struct {

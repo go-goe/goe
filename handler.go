@@ -5,7 +5,7 @@ import (
 	"iter"
 	"reflect"
 
-	"github.com/olauro/goe/model"
+	"github.com/go-goe/goe/model"
 )
 
 func handlerValues(conn Connection, query model.Query, ctx context.Context) error {

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/olauro/goe/enum"
+	"github.com/go-goe/goe/enum"
 )
 
 type Function[T any] struct {

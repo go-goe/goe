@@ -3,8 +3,8 @@ package where
 import (
 	"reflect"
 
-	"github.com/olauro/goe/enum"
-	"github.com/olauro/goe/model"
+	"github.com/go-goe/goe/enum"
+	"github.com/go-goe/goe/model"
 )
 
 type valueOperation struct {

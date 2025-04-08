@@ -5,8 +5,8 @@ import (
 	"reflect"
 	"slices"
 
-	"github.com/olauro/goe/enum"
-	"github.com/olauro/goe/model"
+	"github.com/go-goe/goe/enum"
+	"github.com/go-goe/goe/model"
 )
 
 type builder struct {

@@ -3,9 +3,9 @@ package goe
 import (
 	"reflect"
 
-	"github.com/olauro/goe/enum"
-	"github.com/olauro/goe/model"
-	"github.com/olauro/goe/utils"
+	"github.com/go-goe/goe/enum"
+	"github.com/go-goe/goe/model"
+	"github.com/go-goe/goe/utils"
 )
 
 type oneToOne struct {

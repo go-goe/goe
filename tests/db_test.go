@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-goe/goe"
+	"github.com/go-goe/postgres"
 	"github.com/google/uuid"
-	"github.com/olauro/goe"
-	"github.com/olauro/postgres"
 )
 
 type Animal struct {

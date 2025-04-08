@@ -1,6 +1,6 @@
 package model
 
-import "github.com/olauro/goe/enum"
+import "github.com/go-goe/goe/enum"
 
 type Attribute struct {
 	Table         string

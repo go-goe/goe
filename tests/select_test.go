@@ -9,13 +9,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-goe/goe"
+	"github.com/go-goe/goe/query"
+	"github.com/go-goe/goe/query/aggregate"
+	"github.com/go-goe/goe/query/function"
+	"github.com/go-goe/goe/query/join"
+	"github.com/go-goe/goe/query/where"
 	"github.com/google/uuid"
-	"github.com/olauro/goe"
-	"github.com/olauro/goe/query"
-	"github.com/olauro/goe/query/aggregate"
-	"github.com/olauro/goe/query/function"
-	"github.com/olauro/goe/query/join"
-	"github.com/olauro/goe/query/where"
 )
 
 func TestSelect(t *testing.T) {

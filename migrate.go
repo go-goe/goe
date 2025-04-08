@@ -3,7 +3,7 @@ package goe
 import (
 	"context"
 
-	"github.com/olauro/goe/utils"
+	"github.com/go-goe/goe/utils"
 )
 
 func AutoMigrate(dbTarget any) error {

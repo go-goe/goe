@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 
-	"github.com/olauro/goe/model"
+	"github.com/go-goe/goe/model"
 )
 
 type field interface {

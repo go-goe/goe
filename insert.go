@@ -5,7 +5,7 @@ import (
 	"errors"
 	"reflect"
 
-	"github.com/olauro/goe/enum"
+	"github.com/go-goe/goe/enum"
 )
 
 type stateInsert[T any] struct {
