@@ -32,12 +32,12 @@ func (o *oneToOne) getAttributeName() string {
 	return o.attributeName
 }
 
-func createOneToOne(db *DB, typeOf reflect.Type, targetTypeOf reflect.Type, tableId, fieldId int, Driver Driver, prefix, fieldName string) *oneToOne {
+func createOneToOne(b body, typeOf reflect.Type) any {
 	mto := new(oneToOne)
 	targetPks := primaryKeys(typeOf)
 	count := 0
 	for i := range targetPks {
-		if targetPks[i].Name == prefix {
+		if targetPks[i].Name == b.prefixName {
 			count++
 		}
 	}
@@ -47,12 +47,12 @@ func createOneToOne(db *DB, typeOf reflect.Type, targetTypeOf reflect.Type, tabl
 	}
 
 	mto.attributeStrings = createAttributeStrings(
-		db,
-		Driver.KeywordHandler(utils.TableNamePattern(targetTypeOf.Name())),
-		fieldName,
-		tableId,
-		fieldId,
-		Driver,
+		b.mapp.db,
+		b.driver.KeywordHandler(utils.TableNamePattern(b.typeOf.Name())),
+		b.fieldName,
+		b.mapp.tableId,
+		b.fieldId,
+		b.driver,
 	)
 	return mto
 }
@@ -81,12 +81,12 @@ func (m *manyToOne) getAttributeName() string {
 	return m.attributeName
 }
 
-func createManyToOne(db *DB, typeOf reflect.Type, targetTypeOf reflect.Type, tableId, fieldId int, Driver Driver, prefix, fieldName string) *manyToOne {
+func createManyToOne(b body, typeOf reflect.Type) any {
 	mto := new(manyToOne)
 	targetPks := primaryKeys(typeOf)
 	count := 0
 	for i := range targetPks {
-		if targetPks[i].Name == prefix {
+		if targetPks[i].Name == b.prefixName {
 			count++
 		}
 	}
@@ -96,12 +96,12 @@ func createManyToOne(db *DB, typeOf reflect.Type, targetTypeOf reflect.Type, tab
 	}
 
 	mto.attributeStrings = createAttributeStrings(
-		db,
-		Driver.KeywordHandler(utils.TableNamePattern(targetTypeOf.Name())),
-		fieldName,
-		tableId,
-		fieldId,
-		Driver,
+		b.mapp.db,
+		b.driver.KeywordHandler(utils.TableNamePattern(b.typeOf.Name())),
+		b.fieldName,
+		b.mapp.tableId,
+		b.fieldId,
+		b.driver,
 	)
 	return mto
 }
