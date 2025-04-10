@@ -37,5 +37,6 @@ jobs:
           go-version: ${{ matrix.go }}
 
       - name: Test
-        run: go test . -v -race -count=1
-        working-directory: tests
+        run: 
+            cd tests
+            go test . -v -race -count=1
