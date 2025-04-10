@@ -6,6 +6,9 @@ on:
     pull_request:
       branches: [ "main" ]
 
+permissions:
+  contents: read
+
 jobs:
     postgres:
       strategy:
@@ -35,8 +38,10 @@ jobs:
         uses: actions/setup-go@v4
         with:
           go-version: ${{ matrix.go }}
+        
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v4
 
       - name: Test
-        run: 
-            cd tests
-            go test . -v -race -count=1
+        run: go test . -v -race -count=1
+        working-directory: tests
