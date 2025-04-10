@@ -38,4 +38,4 @@ jobs:
 
       - name: Test
         run: go test . -v -race -count=1
-        working-directory: ./tests
+        working-directory: tests
