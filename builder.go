@@ -144,12 +144,12 @@ func (b *builder) buildWhere() error {
 			switch valueOf.Kind() {
 			case reflect.Slice:
 				for i := range valueOf.Len() {
-					b.query.Arguments = append(b.query.Arguments, valueOf.Index(i))
+					b.query.Arguments = append(b.query.Arguments, valueOf.Index(i).Interface())
 					where.SizeIn++
 				}
 			case reflect.Array:
 				for i := range valueOf.Len() {
-					b.query.Arguments = append(b.query.Arguments, valueOf.Index(i))
+					b.query.Arguments = append(b.query.Arguments, valueOf.Index(i).Interface())
 					where.SizeIn++
 				}
 			default:
