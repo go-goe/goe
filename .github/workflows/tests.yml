@@ -10,12 +10,44 @@ permissions:
   contents: read
 
 jobs:
+    sqlite:
+        strategy:
+          matrix:
+            go: ['1.24']
+            platform: [ubuntu-latest]
+            driver: [SQLite]
+        runs-on: ${{ matrix.platform }}
+
+        steps:
+        - name: Set up Go
+          uses: actions/setup-go@v4
+          with:
+            go-version: ${{ matrix.go }}
+          
+        - name: Check out code into the Go module directory
+          uses: actions/checkout@v4
+
+        - name: go mod package cache
+          uses: actions/cache@v4
+          with:
+            path: ~/go/pkg/mod
+            key: ${{ runner.os }}-go-${{ matrix.go }}-${{ hashFiles('go.mod') }}
+
+        - name: Go get
+          run: go get -u -t
+          working-directory: tests
+
+        - name: Test
+          run: GOE_DRIVER=${{ matrix.driver }} go test . -v -race -count=1
+          working-directory: tests
+          
     postgres:
       strategy:
         matrix:
           dbversion: ['postgres:16.3-alpine']
           go: ['1.24']
           platform: [ubuntu-latest]
+          driver: [PostgreSQL]
       runs-on: ${{ matrix.platform }}
 
       services:
@@ -47,5 +79,5 @@ jobs:
         working-directory: tests
 
       - name: Test
-        run: go test . -v -race -count=1
+        run: GOE_DRIVER=${{ matrix.driver }} go test . -v -race -count=1
         working-directory: tests
