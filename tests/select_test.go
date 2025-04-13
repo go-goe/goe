@@ -19,7 +19,7 @@ import (
 )
 
 func TestSelect(t *testing.T) {
-	db, err := SetupPostgres()
+	db, err := Setup()
 	if err != nil {
 		t.Fatalf("Expected database, got error: %v", err)
 	}
@@ -930,9 +930,9 @@ func TestSelect(t *testing.T) {
 			desc: "Select_Where_Like",
 			testCase: func(t *testing.T) {
 				a := runSelect(t, goe.Select(db.Animal).
-					From(db.Animal).Wheres(where.Like(&db.Animal.Name, "%Cat%")).Rows())
-				if len(a) != 2 {
-					t.Errorf("Expected %v animals, got %v", 2, len(a))
+					From(db.Animal).Wheres(where.Like(&db.Animal.Name, "%at%")).Rows())
+				if len(a) != 3 {
+					t.Errorf("Expected %v animals, got %v", 3, len(a))
 				}
 			},
 		},
@@ -940,9 +940,9 @@ func TestSelect(t *testing.T) {
 			desc: "Select_Where_NotLike",
 			testCase: func(t *testing.T) {
 				a := runSelect(t, goe.Select(db.Animal).
-					From(db.Animal).Wheres(where.NotLike(&db.Animal.Name, "%Cat%")).Rows())
-				if len(a) != len(animals)-2 {
-					t.Errorf("Expected %v animals, got %v", len(animals)-2, len(a))
+					From(db.Animal).Wheres(where.NotLike(&db.Animal.Name, "%at%")).Rows())
+				if len(a) != len(animals)-3 {
+					t.Errorf("Expected %v animals, got %v", len(animals)-3, len(a))
 				}
 			},
 		},
@@ -1290,7 +1290,7 @@ func TestSelect(t *testing.T) {
 						join.RightJoin[int](&db.UserRole.UserId, &db.User.Id),
 						join.RightJoin[int](&db.Role.Id, &db.UserRole.RoleId),
 					).
-					OrderByAsc(&db.User.Id).Rows() {
+					OrderByAsc(&db.Role.Id).Rows() {
 
 					if err != nil {
 						t.Fatal(err)

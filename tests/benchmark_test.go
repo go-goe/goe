@@ -14,7 +14,7 @@ var animals []Animal
 var size int = 10000
 
 func BenchmarkSelect(b *testing.B) {
-	db, _ := SetupPostgres()
+	db, _ := Setup()
 
 	goe.Delete(db.AnimalFood).Wheres()
 	goe.Delete(db.Animal).Wheres()
@@ -31,7 +31,7 @@ func BenchmarkSelect(b *testing.B) {
 }
 
 func BenchmarkSelectRaw(b *testing.B) {
-	db, _ := SetupPostgres()
+	db, _ := Setup()
 
 	goe.Delete(db.AnimalFood).Wheres()
 	goe.Delete(db.Animal).Wheres()
@@ -55,7 +55,7 @@ func BenchmarkSelectRaw(b *testing.B) {
 var foods []Food
 
 func BenchmarkJoin(b *testing.B) {
-	db, _ := SetupPostgres()
+	db, _ := Setup()
 
 	goe.Delete(db.Weather)
 	goe.Delete(db.Habitat)
@@ -100,7 +100,7 @@ func BenchmarkJoin(b *testing.B) {
 }
 
 func BenchmarkJoinSql(b *testing.B) {
-	db, _ := SetupPostgres()
+	db, _ := Setup()
 
 	goe.Delete(db.Weather)
 	goe.Delete(db.Habitat)

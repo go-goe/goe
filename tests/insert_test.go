@@ -12,7 +12,7 @@ import (
 )
 
 func TestInsert(t *testing.T) {
-	db, err := SetupPostgres()
+	db, err := Setup()
 	if err != nil {
 		t.Fatalf("Expected database, got error: %v", err)
 	}

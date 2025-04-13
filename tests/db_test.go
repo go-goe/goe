@@ -4,12 +4,15 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"os"
+	"path/filepath"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/go-goe/goe"
 	"github.com/go-goe/postgres"
+	"github.com/go-goe/sqlite"
 	"github.com/google/uuid"
 )
 
@@ -156,12 +159,40 @@ type Database struct {
 
 var db *Database
 
-func SetupPostgres() (*Database, error) {
+var mapDriver = map[string]func() (*Database, error){
+	"PostgreSQL": SetupPostgres,
+	"SQLite":     SetupSqlite,
+}
+
+func Setup() (*Database, error) {
 	if db != nil {
 		return db, nil
 	}
 	var err error
-	db, err = goe.Open[Database](postgres.Open("user=postgres password=postgres host=localhost port=5432 database=postgres", postgres.Config{}))
+	db, err = mapDriver[os.Getenv("GOE_DRIVER")]()
+	if err != nil {
+		return nil, err
+	}
+
+	return db, nil
+}
+
+func SetupPostgres() (*Database, error) {
+	var err error
+	db, err := goe.Open[Database](postgres.Open("user=postgres password=postgres host=localhost port=5432 database=postgres", postgres.Config{}))
+	if err != nil {
+		return nil, err
+	}
+	err = goe.AutoMigrate(db)
+	if err != nil {
+		return nil, err
+	}
+	return db, nil
+}
+
+func SetupSqlite() (*Database, error) {
+	var err error
+	db, err := goe.Open[Database](sqlite.Open(filepath.Join(os.TempDir(), "goe.db"), sqlite.Config{}))
 	if err != nil {
 		return nil, err
 	}
@@ -173,13 +204,18 @@ func SetupPostgres() (*Database, error) {
 }
 
 func TestConnection(t *testing.T) {
-	_, err := SetupPostgres()
+	_, err := Setup()
 	if err != nil {
 		t.Fatalf("Expected Postgres Connection, got error %v", err)
 	}
 }
 
 func TestTx(t *testing.T) {
+	db, err := Setup()
+	if err != nil {
+		t.Fatalf("Expected setup, got error %v", err)
+	}
+
 	testCases := []struct {
 		desc     string
 		testCase func(t *testing.T)
@@ -214,8 +250,21 @@ func TestTx(t *testing.T) {
 	}
 }
 
+func TestRace(t *testing.T) {
+	var wg sync.WaitGroup
+	for range 10 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			raceDb, _ := mapDriver[os.Getenv("GOE_DRIVER")]()
+			goe.Close(raceDb)
+		}()
+	}
+	wg.Wait()
+}
+
 func TestMigrate(t *testing.T) {
-	_, err := SetupPostgres()
+	db, err := Setup()
 	if err != nil {
 		t.Fatalf("Expected Postgres Connection, got error %v", err)
 	}
@@ -241,17 +290,4 @@ func TestMigrate(t *testing.T) {
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("Expected context.Canceled, got %v", err)
 	}
-}
-
-func TestRace(t *testing.T) {
-	var wg sync.WaitGroup
-	for range 10 {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			raceDb, _ := goe.Open[Database](postgres.Open("user=postgres password=postgres host=localhost port=5432 database=postgres", postgres.Config{}))
-			goe.Close(raceDb)
-		}()
-	}
-	wg.Wait()
 }
