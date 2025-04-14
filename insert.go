@@ -136,7 +136,7 @@ func createInsertState[T any](ctx context.Context) *stateInsert[T] {
 	return &stateInsert[T]{builder: createBuilder(enum.InsertQuery), ctx: ctx}
 }
 
-func getArgsTable[T any](AddrMap map[uintptr]field, table *T) ([]field, error) {
+func getArgsTable[T any](addrMap map[uintptr]field, table *T) ([]field, error) {
 	if table == nil {
 		return nil, errors.New("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
 	}
@@ -154,8 +154,8 @@ func getArgsTable[T any](AddrMap map[uintptr]field, table *T) ([]field, error) {
 			continue
 		}
 		addr := uintptr(fieldOf.Addr().UnsafePointer())
-		if AddrMap[addr] != nil {
-			fields = append(fields, AddrMap[addr])
+		if addrMap[addr] != nil {
+			fields = append(fields, addrMap[addr])
 		}
 	}
 

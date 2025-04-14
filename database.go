@@ -39,14 +39,17 @@ type DB struct {
 	driver Driver
 }
 
+// Return the database stats as [sql.DBStats].
 func (db *DB) Stats() sql.DBStats {
 	return db.driver.Stats()
 }
 
+// Enable or disable logs.
 func (db *DB) Log(b bool) {
 	db.driver.Log(b)
 }
 
+// Get the database name; SQLite, PostgreSQL...
 func (db *DB) Name() string {
 	return db.driver.Name()
 }
@@ -74,6 +77,7 @@ func (db *DB) NewTransactionContext(ctx context.Context, isolation sql.Isolation
 	return db.driver.NewTransaction(ctx, &sql.TxOptions{Isolation: isolation})
 }
 
+// Closes the database connection.
 func Close(dbTarget any) error {
 	goeDb := getDatabase(dbTarget)
 	err := goeDb.driver.Close()

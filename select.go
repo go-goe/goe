@@ -42,8 +42,8 @@ type find[T any] struct {
 // # Example
 //
 //	goe.Find(db.Animal).ById(Animal{Id: 2})
-func Find[T any](t *T) *find[T] {
-	return FindContext(context.Background(), t)
+func Find[T any](table *T) *find[T] {
+	return FindContext(context.Background(), table)
 }
 
 // FindContext returns a matched,
@@ -164,15 +164,15 @@ func (f *find[T]) ByValue(value T) (*T, error) {
 //		Role:    &db.Role.Name,
 //		EndTime: &db.UserRole.EndDate,
 //	}).From(db.User).AsSlice()
-func Select[T any](t *T) *stateSelect[T] {
-	return SelectContext(context.Background(), t)
+func Select[T any](table *T) *stateSelect[T] {
+	return SelectContext(context.Background(), table)
 }
 
 // SelectContext retrieves rows from tables.
 //
 // See [Select] for examples
-func SelectContext[T any](ctx context.Context, t *T) *stateSelect[T] {
-	argsSelect := getArgsSelect(addrMap.mapField, t)
+func SelectContext[T any](ctx context.Context, table *T) *stateSelect[T] {
+	argsSelect := getArgsSelect(addrMap.mapField, table)
 
 	var state *stateSelect[T]
 	if argsSelect.err != nil {
@@ -454,15 +454,15 @@ type list[T any] struct {
 //	// pagination list
 //	var p *goe.Pagination[Animal]
 //	p, err = goe.List(db.Animal).AsPagination(1, 10)
-func List[T any](t *T) *list[T] {
-	return ListContext(context.Background(), t)
+func List[T any](table *T) *list[T] {
+	return ListContext(context.Background(), table)
 }
 
 // ListContext is a wrapper over [Select] for more simple queries using filters, pagination and ordering.
 //
 // See [List] for examples.
-func ListContext[T any](ctx context.Context, t *T) *list[T] {
-	return &list[T]{sSelect: SelectContext(ctx, t).From(t), table: t}
+func ListContext[T any](ctx context.Context, table *T) *list[T] {
+	return &list[T]{sSelect: SelectContext(ctx, table).From(table), table: table}
 }
 
 // OrderByAsc makes a ordained by arg ascending query.
