@@ -1,7 +1,8 @@
 # GOE
- A type safe SQL like ORM for Go
+A type safe SQL like ORM for Go
 
-
+[![Go Coverage](https://github.com/go-goe/goe/wiki/coverage.svg)](https://raw.githack.com/wiki/go-goe/goe/coverage.html)
+[![Go Report Card](https://goreportcard.com/badge/github.com/go-goe/goe)](https://goreportcard.com/report/github.com/go-goe/goe)
 [![Go.Dev reference](https://img.shields.io/badge/go.dev-reference-blue?logo=go&logoColor=white)](https://pkg.go.dev/github.com/go-goe/goe)
 [![MIT license](https://img.shields.io/badge/license-MIT-brightgreen.svg)](https://opensource.org/licenses/MIT)
 
