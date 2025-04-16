@@ -1,6 +1,7 @@
 package goe
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"reflect"
@@ -48,9 +49,10 @@ func Open[T any](driver Driver) (*T, error) {
 		}
 	}
 
+	driver.GetDatabaseConfig().databaseName = driver.Name()
 	err = driver.Init()
 	if err != nil {
-		return nil, err
+		return nil, driver.GetDatabaseConfig().ErrorHandler(context.TODO(), err)
 	}
 
 	dbTarget.driver = driver

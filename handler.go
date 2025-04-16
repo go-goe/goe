@@ -8,51 +8,59 @@ import (
 	"github.com/go-goe/goe/model"
 )
 
-func handlerValues(conn Connection, query model.Query, ctx context.Context) error {
-	err := conn.ExecContext(ctx, query)
-	if err != nil {
-		return err
+func handlerValues(ctx context.Context, conn Connection, query model.Query, dbConfig *DatabaseConfig) error {
+	query.Header.Err = conn.ExecContext(ctx, &query)
+	if query.Header.Err != nil {
+		return dbConfig.ErrorQueryHandler(ctx, query)
 	}
+	dbConfig.InfoHandler(ctx, query)
 	return nil
 }
 
-func handlerValuesReturning(conn Connection, query model.Query, value reflect.Value, pkFieldId int, ctx context.Context) error {
-	row := conn.QueryRowContext(ctx, query)
+func handlerValuesReturning(ctx context.Context, conn Connection, query model.Query, value reflect.Value, pkFieldId int, dbConfig *DatabaseConfig) error {
+	row := conn.QueryRowContext(ctx, &query)
 
-	err := row.Scan(value.Field(pkFieldId).Addr().Interface())
-	if err != nil {
-		return err
+	query.Header.Err = row.Scan(value.Field(pkFieldId).Addr().Interface())
+	if query.Header.Err != nil {
+		return dbConfig.ErrorQueryHandler(ctx, query)
 	}
+	dbConfig.InfoHandler(ctx, query)
 	return nil
 }
 
-func handlerValuesReturningBatch(conn Connection, query model.Query, value reflect.Value, pkFieldId int, ctx context.Context) error {
-	rows, err := conn.QueryContext(ctx, query)
-	if err != nil {
-		return err
+func handlerValuesReturningBatch(ctx context.Context, conn Connection, query model.Query, value reflect.Value, pkFieldId int, dbConfig *DatabaseConfig) error {
+	var rows Rows
+	rows, query.Header.Err = conn.QueryContext(ctx, &query)
+
+	if query.Header.Err != nil {
+		return dbConfig.ErrorQueryHandler(ctx, query)
 	}
 	defer rows.Close()
+	dbConfig.InfoHandler(ctx, query)
 
 	i := 0
 	for rows.Next() {
-		err = rows.Scan(value.Index(i).Field(pkFieldId).Addr().Interface())
-		if err != nil {
-			return err
+		query.Header.Err = rows.Scan(value.Index(i).Field(pkFieldId).Addr().Interface())
+		if query.Header.Err != nil {
+			//TODO: add infos about row
+			return dbConfig.ErrorQueryHandler(ctx, query)
 		}
 		i++
 	}
 	return nil
 }
 
-func handlerResult[T any](ctx context.Context, conn Connection, query model.Query, numFields int, anonymous bool) iter.Seq2[T, error] {
-	rows, err := conn.QueryContext(ctx, query)
+func handlerResult[T any](ctx context.Context, conn Connection, query model.Query, numFields int, anonymous bool, dbConfig *DatabaseConfig) iter.Seq2[T, error] {
+	var rows Rows
+	rows, query.Header.Err = conn.QueryContext(ctx, &query)
 
 	var v T
-	if err != nil {
+	if query.Header.Err != nil {
 		return func(yield func(T, error) bool) {
-			yield(v, err)
+			yield(v, dbConfig.ErrorQueryHandler(ctx, query))
 		}
 	}
+	dbConfig.InfoHandler(ctx, query)
 
 	value := reflect.TypeOf(v)
 	dest := make([]any, numFields)
@@ -66,30 +74,30 @@ func handlerResult[T any](ctx context.Context, conn Connection, query model.Quer
 			}
 			dest[i] = reflect.New(value.Field(i).Type).Interface()
 		}
-		return mapAnonymousStructQuery[T](rows, dest, value, fieldElem)
+		return mapAnonymousStructQuery[T](ctx, rows, dest, value, fieldElem, dbConfig, query)
 	}
 
 	for i := range dest {
 		dest[i] = reflect.New(value.Field(i).Type).Interface()
 	}
 
-	return mapStructQuery[T](rows, dest, value)
+	return mapStructQuery[T](ctx, rows, dest, value, dbConfig, query)
 }
 
-func mapStructQuery[T any](rows Rows, dest []any, value reflect.Type) iter.Seq2[T, error] {
+func mapStructQuery[T any](ctx context.Context, rows Rows, dest []any, value reflect.Type, dbConfig *DatabaseConfig, query model.Query) iter.Seq2[T, error] {
 	return func(yield func(T, error) bool) {
 		var (
-			err  error
 			s, f reflect.Value
 		)
 		defer rows.Close()
 		s = reflect.New(value).Elem()
 
 		for rows.Next() {
-			err = rows.Scan(dest...)
+			query.Header.Err = rows.Scan(dest...)
 
-			if err != nil {
-				yield(s.Interface().(T), err)
+			if query.Header.Err != nil {
+				//TODO: add infos about row
+				yield(s.Interface().(T), dbConfig.ErrorQueryHandler(ctx, query))
 				return
 			}
 
@@ -97,27 +105,27 @@ func mapStructQuery[T any](rows Rows, dest []any, value reflect.Type) iter.Seq2[
 				f = s.Field(i)
 				f.Set(reflect.ValueOf(a).Elem())
 			}
-			if !yield(s.Interface().(T), err) {
+			if !yield(s.Interface().(T), nil) {
 				return
 			}
 		}
 	}
 }
 
-func mapAnonymousStructQuery[T any](rows Rows, dest []any, value reflect.Type, fieldMap map[int]bool) iter.Seq2[T, error] {
+func mapAnonymousStructQuery[T any](ctx context.Context, rows Rows, dest []any, value reflect.Type, fieldMap map[int]bool, dbConfig *DatabaseConfig, query model.Query) iter.Seq2[T, error] {
 	return func(yield func(T, error) bool) {
 		var (
-			err  error
 			s, f reflect.Value
 		)
 		defer rows.Close()
 		s = reflect.New(value).Elem()
 
 		for rows.Next() {
-			err = rows.Scan(dest...)
+			query.Header.Err = rows.Scan(dest...)
 
-			if err != nil {
-				yield(s.Interface().(T), err)
+			if query.Header.Err != nil {
+				//TODO: add infos about row
+				yield(s.Interface().(T), dbConfig.ErrorQueryHandler(ctx, query))
 				return
 			}
 
@@ -129,7 +137,7 @@ func mapAnonymousStructQuery[T any](rows Rows, dest []any, value reflect.Type, f
 				}
 				f.Set(reflect.ValueOf(a).Elem())
 			}
-			if !yield(s.Interface().(T), err) {
+			if !yield(s.Interface().(T), nil) {
 				return
 			}
 		}

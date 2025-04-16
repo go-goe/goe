@@ -54,6 +54,11 @@ type Query struct {
 	SizeArguments  int        //Insert
 
 	RawSql string
+	Header QueryHeader
+}
+
+type QueryHeader struct {
+	Err error
 }
 
 type Operation struct {

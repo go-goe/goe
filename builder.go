@@ -1,7 +1,6 @@
 package goe
 
 import (
-	"errors"
 	"reflect"
 	"slices"
 
@@ -58,16 +57,10 @@ func (b *builder) buildSelectJoins(join enum.JoinType, fields []field) {
 	b.joinsArgs[j+1] = fields[1]
 }
 
-func (b *builder) buildSqlSelect() (err error) {
-	if b.query.Tables == nil {
-		return errors.New("goe: none table specified, use From() function to specify")
-	}
+func (b *builder) buildSqlSelect() {
 	b.buildSelect()
-	err = b.buildTables()
-	if err != nil {
-		return err
-	}
-	return b.buildWhere()
+	b.buildTables()
+	b.buildWhere()
 }
 
 func (b *builder) buildSqlInsert(v reflect.Value) (pkFieldId int) {
@@ -82,16 +75,15 @@ func (b *builder) buildSqlInsertBatch(v reflect.Value) (pkFieldId int) {
 	return pkFieldId
 }
 
-func (b *builder) buildSqlDelete() (err error) {
+func (b *builder) buildSqlDelete() {
 	b.query.Tables = make([]string, 1)
 	b.query.Tables[0] = b.fields[0].table()
-	err = b.buildWhere()
-	return err
+	b.buildWhere()
 }
 
-func (b *builder) buildWhere() error {
+func (b *builder) buildWhere() {
 	if len(b.brs) == 0 {
-		return nil
+		return
 	}
 	b.query.WhereOperations = make([]model.Where, 0, len(b.brs))
 
@@ -167,10 +159,9 @@ func (b *builder) buildWhere() error {
 
 		}
 	}
-	return nil
 }
 
-func (b *builder) buildTables() (err error) {
+func (b *builder) buildTables() {
 	if len(b.joins) != 0 {
 		b.query.Joins = make([]model.Join, 0, len(b.joins))
 	}
@@ -179,7 +170,6 @@ func (b *builder) buildTables() (err error) {
 		buildJoins(b, b.joins[i], b.joinsArgs[i+c-1], b.joinsArgs[i+c-1+1], b.tables, i+1)
 		c++
 	}
-	return nil
 }
 
 func buildJoins(b *builder, join enum.JoinType, f1, f2 field, tables []int, tableIndice int) {
@@ -264,12 +254,9 @@ func buildBatchValues(value reflect.Value, b *builder, c *int) {
 	}
 }
 
-func (b *builder) buildUpdate() (err error) {
-	if len(b.sets) == 0 {
-		return errors.New("goe: can't update on empty set")
-	}
+func (b *builder) buildUpdate() {
 	b.buildSets()
-	return b.buildWhere()
+	b.buildWhere()
 }
 
 func (b *builder) buildSets() {

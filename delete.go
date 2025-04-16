@@ -129,16 +129,14 @@ func (s *stateDelete) Wheres(brs ...model.Operation) error {
 		return s.err
 	}
 
-	s.err = s.builder.buildSqlDelete()
-	if s.err != nil {
-		return s.err
-	}
+	s.builder.buildSqlDelete()
 
+	driver := s.builder.fields[0].getDb().driver
 	if s.conn == nil {
-		s.conn = s.builder.fields[0].getDb().driver.NewConnection()
+		s.conn = driver.NewConnection()
 	}
 
-	return handlerValues(s.conn, s.builder.query, s.ctx)
+	return handlerValues(s.ctx, s.conn, s.builder.query, driver.GetDatabaseConfig())
 }
 
 func createDeleteState(ctx context.Context) *stateDelete {
