@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"reflect"
 	"sync"
+	"time"
 
 	"github.com/go-goe/goe/enum"
 	"github.com/go-goe/goe/model"
@@ -44,22 +45,30 @@ func (db *DB) Stats() sql.DBStats {
 	return db.driver.Stats()
 }
 
-// Enable or disable logs.
-func (db *DB) Log(b bool) {
-	db.driver.Log(b)
-}
-
 // Get the database name; SQLite, PostgreSQL...
 func (db *DB) Name() string {
 	return db.driver.Name()
 }
 
-func (db *DB) RawQueryContext(ctx context.Context, query string, args ...any) (Rows, error) {
-	return db.driver.NewConnection().QueryContext(ctx, model.Query{Type: enum.RawQuery, RawSql: query, Arguments: args})
+func (db *DB) RawQueryContext(ctx context.Context, rawSql string, args ...any) (Rows, error) {
+	query := model.Query{Type: enum.RawQuery, RawSql: rawSql, Arguments: args}
+	var rows Rows
+	rows, query.Header.Err = wrapperQuery(ctx, db.driver.NewConnection(), &query)
+	if query.Header.Err != nil {
+		return nil, db.driver.GetDatabaseConfig().ErrorQueryHandler(ctx, query)
+	}
+	db.driver.GetDatabaseConfig().InfoHandler(ctx, query)
+	return rows, nil
 }
 
-func (db *DB) RawExecContext(ctx context.Context, query string, args ...any) error {
-	return db.driver.NewConnection().ExecContext(ctx, model.Query{Type: enum.RawQuery, RawSql: query, Arguments: args})
+func (db *DB) RawExecContext(ctx context.Context, rawSql string, args ...any) error {
+	query := model.Query{Type: enum.RawQuery, RawSql: rawSql, Arguments: args}
+	query.Header.Err = wrapperExec(ctx, db.driver.NewConnection(), &query)
+	if query.Header.Err != nil {
+		return db.driver.GetDatabaseConfig().ErrorQueryHandler(ctx, query)
+	}
+	db.driver.GetDatabaseConfig().InfoHandler(ctx, query)
+	return nil
 }
 
 // NewTransaction creates a new Transaction using the specified database target.
@@ -74,7 +83,11 @@ func (db *DB) NewTransaction() (Transaction, error) {
 }
 
 func (db *DB) NewTransactionContext(ctx context.Context, isolation sql.IsolationLevel) (Transaction, error) {
-	return db.driver.NewTransaction(ctx, &sql.TxOptions{Isolation: isolation})
+	t, err := db.driver.NewTransaction(ctx, &sql.TxOptions{Isolation: isolation})
+	if err != nil {
+		return nil, db.driver.GetDatabaseConfig().ErrorHandler(ctx, err)
+	}
+	return t, nil
 }
 
 // Closes the database connection.
@@ -82,7 +95,7 @@ func Close(dbTarget any) error {
 	goeDb := getDatabase(dbTarget)
 	err := goeDb.driver.Close()
 	if err != nil {
-		return err
+		return goeDb.driver.GetDatabaseConfig().ErrorHandler(context.TODO(), err)
 	}
 
 	valueOf := reflect.ValueOf(dbTarget).Elem()
@@ -95,6 +108,51 @@ func Close(dbTarget any) error {
 	}
 
 	return nil
+}
+
+type DatabaseConfig struct {
+	Logger           Logger
+	IncludeArguments bool
+	QueryThreshold   time.Duration
+	databaseName     string
+}
+
+func (c DatabaseConfig) ErrorHandler(ctx context.Context, err error) error {
+	if c.Logger != nil {
+		c.Logger.ErrorContext(ctx, "error", "database", c.databaseName, "err", err)
+	}
+	return err
+}
+
+func (c DatabaseConfig) ErrorQueryHandler(ctx context.Context, query model.Query) error {
+	if c.Logger == nil {
+		return query.Header.Err
+	}
+
+	c.Logger.ErrorContext(ctx, "error", "database", c.databaseName, "err", query.Header.Err)
+	return query.Header.Err
+}
+
+func (c DatabaseConfig) InfoHandler(ctx context.Context, query model.Query) {
+	if c.Logger == nil {
+		return
+	}
+	qr := query.Header.QueryDuration + query.Header.QueryBuild + query.Header.ModelBuild
+
+	logs := make([]any, 0)
+	logs = append(logs, "database", c.databaseName)
+	logs = append(logs, "query_duration", qr)
+	if c.IncludeArguments {
+		logs = append(logs, "arguments", query.Arguments)
+	}
+	logs = append(logs, "sql", query.RawSql)
+
+	if c.QueryThreshold != 0 && qr > c.QueryThreshold {
+		c.Logger.WarnContext(ctx, "query_threshold", logs...)
+		return
+	}
+
+	c.Logger.InfoContext(ctx, "query_runned", logs...)
 }
 
 func getDatabase(dbTarget any) *DB {

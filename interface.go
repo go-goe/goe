@@ -43,14 +43,20 @@ type Driver interface {
 }
 
 type Config interface {
-	Log(bool)
 	Name() string
+	GetDatabaseConfig() *DatabaseConfig
+}
+
+type Logger interface {
+	InfoContext(ctx context.Context, msg string, kv ...any)
+	WarnContext(ctx context.Context, msg string, kv ...any)
+	ErrorContext(ctx context.Context, msg string, kv ...any)
 }
 
 type Connection interface {
-	ExecContext(ctx context.Context, query model.Query) error
-	QueryRowContext(ctx context.Context, query model.Query) Row
-	QueryContext(ctx context.Context, query model.Query) (Rows, error)
+	ExecContext(ctx context.Context, query *model.Query) error
+	QueryRowContext(ctx context.Context, query *model.Query) Row
+	QueryContext(ctx context.Context, query *model.Query) (Rows, error)
 }
 
 type Transaction interface {

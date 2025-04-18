@@ -164,16 +164,14 @@ func (s *stateUpdate[T]) Wheres(brs ...model.Operation) error {
 		return s.err
 	}
 
-	s.err = s.builder.buildUpdate()
-	if s.err != nil {
-		return s.err
-	}
+	s.builder.buildUpdate()
 
+	driver := s.builder.sets[0].attribute.getDb().driver
 	if s.conn == nil {
-		s.conn = s.builder.sets[0].attribute.getDb().driver.NewConnection()
+		s.conn = driver.NewConnection()
 	}
 
-	return handlerValues(s.conn, s.builder.query, s.ctx)
+	return handlerValues(s.ctx, s.conn, s.builder.query, driver.GetDatabaseConfig())
 }
 
 type argSave struct {

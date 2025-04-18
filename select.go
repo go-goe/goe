@@ -172,16 +172,12 @@ func Select[T any](table *T) *stateSelect[T] {
 //
 // See [Select] for examples
 func SelectContext[T any](ctx context.Context, table *T) *stateSelect[T] {
+	var state *stateSelect[T] = createSelectState[T](ctx)
 	argsSelect := getArgsSelect(addrMap.mapField, table)
-
-	var state *stateSelect[T]
 	if argsSelect.err != nil {
-		state = new(stateSelect[T])
 		state.err = argsSelect.err
 		return state
 	}
-
-	state = createSelectState[T](ctx)
 
 	state.builder.fieldsSelect = argsSelect.fields
 	state.anonymousStruct = argsSelect.anonymous
@@ -292,8 +288,8 @@ func (s *stateSelect[T]) AsQuery() (*model.Query, error) {
 	if s.err != nil {
 		return nil, s.err
 	}
-
-	return &s.builder.query, s.builder.buildSqlSelect()
+	s.builder.buildSqlSelect()
+	return &s.builder.query, nil
 }
 
 type Pagination[T any] struct {
@@ -412,19 +408,14 @@ func (s *stateSelect[T]) Rows() iter.Seq2[T, error] {
 		}
 	}
 
-	s.err = s.builder.buildSqlSelect()
-	if s.err != nil {
-		var v T
-		return func(yield func(T, error) bool) {
-			yield(v, s.err)
-		}
-	}
+	s.builder.buildSqlSelect()
 
+	driver := s.builder.fieldsSelect[0].getDb().driver
 	if s.conn == nil {
-		s.conn = s.builder.fieldsSelect[0].getDb().driver.NewConnection()
+		s.conn = driver.NewConnection()
 	}
 
-	return handlerResult[T](s.ctx, s.conn, s.builder.query, len(s.builder.fieldsSelect), s.anonymousStruct)
+	return handlerResult[T](s.ctx, s.conn, s.builder.query, len(s.builder.fieldsSelect), s.anonymousStruct, driver.GetDatabaseConfig())
 }
 
 func createSelectState[T any](ctx context.Context) *stateSelect[T] {
