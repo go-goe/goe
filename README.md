@@ -29,6 +29,8 @@ A type safe SQL like ORM for Go
 		- [Unique Index](#unique-index)
 		- [Function Index](#function-index)
 		- [Two Columns Index](#two-columns-index)
+	- [Logging](#logging)
+	- [Open And Migrate](#open-and-migrate)
 - [Select](#select)
 	- [Find](#find)
 	- [List](#list)
@@ -347,6 +349,32 @@ type User struct {
 Just as creating a [Two Column Index](#two-columns-index) but added the "unique" value inside the index function.
 
 > Function indexes will be added in future features.
+
+[Back to Contents](#content)
+
+## Logging
+
+GOE supports any logger that implements the Logger interface
+
+```go
+type Logger interface {
+	InfoContext(ctx context.Context, msg string, kv ...any)
+	WarnContext(ctx context.Context, msg string, kv ...any)
+	ErrorContext(ctx context.Context, msg string, kv ...any)
+}
+```
+
+The logger is defined on database opening
+```go
+db, err := goe.Open[Database](sqlite.Open("goe.db", sqlite.Config{
+		DatabaseConfig: goe.DatabaseConfig{
+			Logger:           slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo})),
+			IncludeArguments: true,
+			QueryThreshold:   time.Second},
+	}))
+```
+
+> You can use slog as your standard logger or make a adapt over the Logger interface 
 
 [Back to Contents](#content)
 
