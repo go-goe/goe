@@ -1,6 +1,10 @@
 package model
 
-import "github.com/go-goe/goe/enum"
+import (
+	"time"
+
+	"github.com/go-goe/goe/enum"
+)
 
 type Attribute struct {
 	Table         string
@@ -58,7 +62,10 @@ type Query struct {
 }
 
 type QueryHeader struct {
-	Err error
+	Err           error
+	QueryBuild    time.Duration
+	ModelBuild    time.Duration
+	QueryDuration time.Duration
 }
 
 type Operation struct {

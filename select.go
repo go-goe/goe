@@ -172,16 +172,12 @@ func Select[T any](table *T) *stateSelect[T] {
 //
 // See [Select] for examples
 func SelectContext[T any](ctx context.Context, table *T) *stateSelect[T] {
+	var state *stateSelect[T] = createSelectState[T](ctx)
 	argsSelect := getArgsSelect(addrMap.mapField, table)
-
-	var state *stateSelect[T]
 	if argsSelect.err != nil {
-		state = new(stateSelect[T])
 		state.err = argsSelect.err
 		return state
 	}
-
-	state = createSelectState[T](ctx)
 
 	state.builder.fieldsSelect = argsSelect.fields
 	state.anonymousStruct = argsSelect.anonymous

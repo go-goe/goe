@@ -4,12 +4,13 @@ import (
 	"context"
 	"iter"
 	"reflect"
+	"time"
 
 	"github.com/go-goe/goe/model"
 )
 
 func handlerValues(ctx context.Context, conn Connection, query model.Query, dbConfig *DatabaseConfig) error {
-	query.Header.Err = conn.ExecContext(ctx, &query)
+	query.Header.Err = wrapperExec(ctx, conn, &query)
 	if query.Header.Err != nil {
 		return dbConfig.ErrorQueryHandler(ctx, query)
 	}
@@ -18,7 +19,7 @@ func handlerValues(ctx context.Context, conn Connection, query model.Query, dbCo
 }
 
 func handlerValuesReturning(ctx context.Context, conn Connection, query model.Query, value reflect.Value, pkFieldId int, dbConfig *DatabaseConfig) error {
-	row := conn.QueryRowContext(ctx, &query)
+	row := wrapperQueryRow(ctx, conn, &query)
 
 	query.Header.Err = row.Scan(value.Field(pkFieldId).Addr().Interface())
 	if query.Header.Err != nil {
@@ -30,7 +31,7 @@ func handlerValuesReturning(ctx context.Context, conn Connection, query model.Qu
 
 func handlerValuesReturningBatch(ctx context.Context, conn Connection, query model.Query, value reflect.Value, pkFieldId int, dbConfig *DatabaseConfig) error {
 	var rows Rows
-	rows, query.Header.Err = conn.QueryContext(ctx, &query)
+	rows, query.Header.Err = wrapperQuery(ctx, conn, &query)
 
 	if query.Header.Err != nil {
 		return dbConfig.ErrorQueryHandler(ctx, query)
@@ -52,7 +53,7 @@ func handlerValuesReturningBatch(ctx context.Context, conn Connection, query mod
 
 func handlerResult[T any](ctx context.Context, conn Connection, query model.Query, numFields int, anonymous bool, dbConfig *DatabaseConfig) iter.Seq2[T, error] {
 	var rows Rows
-	rows, query.Header.Err = conn.QueryContext(ctx, &query)
+	rows, query.Header.Err = wrapperQuery(ctx, conn, &query)
 
 	var v T
 	if query.Header.Err != nil {
@@ -142,4 +143,22 @@ func mapAnonymousStructQuery[T any](ctx context.Context, rows Rows, dest []any, 
 			}
 		}
 	}
+}
+
+func wrapperQuery(ctx context.Context, conn Connection, query *model.Query) (Rows, error) {
+	queryStart := time.Now()
+	defer func() { query.Header.QueryDuration = time.Since(queryStart) }()
+	return conn.QueryContext(ctx, query)
+}
+
+func wrapperQueryRow(ctx context.Context, conn Connection, query *model.Query) Row {
+	queryStart := time.Now()
+	defer func() { query.Header.QueryDuration = time.Since(queryStart) }()
+	return conn.QueryRowContext(ctx, query)
+}
+
+func wrapperExec(ctx context.Context, conn Connection, query *model.Query) error {
+	queryStart := time.Now()
+	defer func() { query.Header.QueryDuration = time.Since(queryStart) }()
+	return conn.ExecContext(ctx, query)
 }

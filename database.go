@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"reflect"
 	"sync"
+	"time"
 
 	"github.com/go-goe/goe/enum"
 	"github.com/go-goe/goe/model"
@@ -52,7 +53,7 @@ func (db *DB) Name() string {
 func (db *DB) RawQueryContext(ctx context.Context, rawSql string, args ...any) (Rows, error) {
 	query := model.Query{Type: enum.RawQuery, RawSql: rawSql, Arguments: args}
 	var rows Rows
-	rows, query.Header.Err = db.driver.NewConnection().QueryContext(ctx, &query)
+	rows, query.Header.Err = wrapperQuery(ctx, db.driver.NewConnection(), &query)
 	if query.Header.Err != nil {
 		return nil, db.driver.GetDatabaseConfig().ErrorQueryHandler(ctx, query)
 	}
@@ -62,7 +63,7 @@ func (db *DB) RawQueryContext(ctx context.Context, rawSql string, args ...any) (
 
 func (db *DB) RawExecContext(ctx context.Context, rawSql string, args ...any) error {
 	query := model.Query{Type: enum.RawQuery, RawSql: rawSql, Arguments: args}
-	query.Header.Err = db.driver.NewConnection().ExecContext(ctx, &query)
+	query.Header.Err = wrapperExec(ctx, db.driver.NewConnection(), &query)
 	if query.Header.Err != nil {
 		return db.driver.GetDatabaseConfig().ErrorQueryHandler(ctx, query)
 	}
@@ -110,8 +111,10 @@ func Close(dbTarget any) error {
 }
 
 type DatabaseConfig struct {
-	Logger       Logger
-	databaseName string
+	Logger           Logger
+	IncludeArguments bool
+	QueryThreshold   time.Duration
+	databaseName     string
 }
 
 func (c DatabaseConfig) ErrorHandler(ctx context.Context, err error) error {
@@ -134,7 +137,22 @@ func (c DatabaseConfig) InfoHandler(ctx context.Context, query model.Query) {
 	if c.Logger == nil {
 		return
 	}
-	c.Logger.InfoContext(ctx, "info", "sql", query.RawSql)
+	qr := query.Header.QueryDuration + query.Header.QueryBuild + query.Header.ModelBuild
+
+	logs := make([]any, 0)
+	logs = append(logs, "database", c.databaseName)
+	logs = append(logs, "query_duration", qr)
+	if c.IncludeArguments {
+		logs = append(logs, "arguments", query.Arguments)
+	}
+	logs = append(logs, "sql", query.RawSql)
+
+	if c.QueryThreshold != 0 && qr > c.QueryThreshold {
+		c.Logger.WarnContext(ctx, "query_threshold", logs...)
+		return
+	}
+
+	c.Logger.InfoContext(ctx, "query_runned", logs...)
 }
 
 func getDatabase(dbTarget any) *DB {

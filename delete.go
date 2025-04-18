@@ -2,7 +2,6 @@ package goe
 
 import (
 	"context"
-	"errors"
 
 	"github.com/go-goe/goe/enum"
 	"github.com/go-goe/goe/model"
@@ -98,18 +97,8 @@ func Delete[T any](table *T) *stateDelete {
 //
 // See [Delete] for examples
 func DeleteContext[T any](ctx context.Context, table *T) *stateDelete {
-	field := getArg(table, addrMap.mapField, nil)
-
-	var state *stateDelete
-	if field == nil {
-		state = new(stateDelete)
-		state.err = errors.New("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
-		return state
-	}
-
-	state = createDeleteState(ctx)
-
-	state.builder.fields = append(state.builder.fields, field)
+	var state *stateDelete = createDeleteState(ctx)
+	state.builder.fields = append(state.builder.fields, getArg(table, addrMap.mapField, nil))
 	return state
 }
 

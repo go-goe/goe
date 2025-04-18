@@ -74,17 +74,8 @@ func Insert[T any](table *T) *stateInsert[T] {
 //
 // See [Insert] for examples.
 func InsertContext[T any](ctx context.Context, table *T) *stateInsert[T] {
-	fields, err := getArgsTable(addrMap.mapField, table)
-
-	var state *stateInsert[T]
-	if err != nil {
-		state = new(stateInsert[T])
-		state.err = err
-		return state
-	}
-	state = createInsertState[T](ctx)
-
-	state.builder.fields = fields
+	var state *stateInsert[T] = createInsertState[T](ctx)
+	state.builder.fields, state.err = getArgsTable(addrMap.mapField, table)
 	return state
 }
 

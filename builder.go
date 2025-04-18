@@ -3,6 +3,7 @@ package goe
 import (
 	"reflect"
 	"slices"
+	"time"
 
 	"github.com/go-goe/goe/enum"
 	"github.com/go-goe/goe/model"
@@ -10,6 +11,7 @@ import (
 
 type builder struct {
 	query        model.Query
+	modelStart   time.Time
 	pkFieldId    int //insert
 	inserts      []field
 	fields       []field
@@ -29,7 +31,8 @@ type set struct {
 
 func createBuilder(typeQuery enum.QueryType) builder {
 	return builder{
-		query: model.Query{Type: typeQuery},
+		query:      model.Query{Type: typeQuery},
+		modelStart: time.Now(),
 	}
 }
 
@@ -61,17 +64,20 @@ func (b *builder) buildSqlSelect() {
 	b.buildSelect()
 	b.buildTables()
 	b.buildWhere()
+	b.query.Header.ModelBuild = time.Since(b.modelStart)
 }
 
 func (b *builder) buildSqlInsert(v reflect.Value) (pkFieldId int) {
 	b.buildInsert()
 	pkFieldId = b.buildValues(v)
+	b.query.Header.ModelBuild = time.Since(b.modelStart)
 	return pkFieldId
 }
 
 func (b *builder) buildSqlInsertBatch(v reflect.Value) (pkFieldId int) {
 	b.buildInsert()
 	pkFieldId = b.buildBatchValues(v)
+	b.query.Header.ModelBuild = time.Since(b.modelStart)
 	return pkFieldId
 }
 
@@ -79,6 +85,7 @@ func (b *builder) buildSqlDelete() {
 	b.query.Tables = make([]string, 1)
 	b.query.Tables[0] = b.fields[0].table()
 	b.buildWhere()
+	b.query.Header.ModelBuild = time.Since(b.modelStart)
 }
 
 func (b *builder) buildWhere() {
@@ -257,6 +264,7 @@ func buildBatchValues(value reflect.Value, b *builder, c *int) {
 func (b *builder) buildUpdate() {
 	b.buildSets()
 	b.buildWhere()
+	b.query.Header.ModelBuild = time.Since(b.modelStart)
 }
 
 func (b *builder) buildSets() {
