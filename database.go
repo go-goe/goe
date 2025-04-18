@@ -110,10 +110,11 @@ func Close(dbTarget any) error {
 	return nil
 }
 
+// Database config used by all GOE drivers
 type DatabaseConfig struct {
 	Logger           Logger
-	IncludeArguments bool
-	QueryThreshold   time.Duration
+	IncludeArguments bool          // include all arguments used on query
+	QueryThreshold   time.Duration // query threshold to warning on slow queries
 	databaseName     string
 }
 
@@ -128,8 +129,14 @@ func (c DatabaseConfig) ErrorQueryHandler(ctx context.Context, query model.Query
 	if c.Logger == nil {
 		return query.Header.Err
 	}
+	logs := make([]any, 0)
+	logs = append(logs, "database", c.databaseName)
+	if c.IncludeArguments {
+		logs = append(logs, "arguments", query.Arguments)
+	}
+	logs = append(logs, "err", query.Header.Err)
 
-	c.Logger.ErrorContext(ctx, "error", "database", c.databaseName, "err", query.Header.Err)
+	c.Logger.ErrorContext(ctx, "error", logs...)
 	return query.Header.Err
 }
 
