@@ -107,14 +107,15 @@ type stateUpdate[T any] struct {
 //	// update only the attribute IdJobTitle from PersonJobTitle with the value 3
 //	err = goe.Update(db.PersonJobTitle).
 //	Sets(update.Set(&db.PersonJobTitle.IdJobTitle, 3)).
-//	Wheres(
-//		where.Equals(&db.PersonJobTitle.PersonId, 2),
-//		where.And(),
-//		where.Equals(&db.PersonJobTitle.IdJobTitle, 1),
+//	Where(
+//		where.And(
+//			where.Equals(&db.PersonJobTitle.PersonId, 2),
+//			where.Equals(&db.PersonJobTitle.IdJobTitle, 1),
+//	    ),
 //	)
 //
 //	// update all animals name to Cat
-//	goe.Update(db.Animal).Sets(update.Set(&db.Animal.Name, "Cat")).Wheres()
+//	goe.Update(db.Animal).Sets(update.Set(&db.Animal.Name, "Cat")).All()
 func Update[T any](table *T) *stateUpdate[T] {
 	return UpdateContext(context.Background(), table)
 }

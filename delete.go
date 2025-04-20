@@ -78,9 +78,9 @@ func (r *remove[T]) ById(value T) error {
 // # Examples
 //
 //	// delete all records
-//	err = goe.Delete(db.UserRole).Wheres()
+//	err = goe.Delete(db.UserRole).All()
 //	// delete one record
-//	err = goe.Delete(db.Animal).Wheres(where.Equals(&db.Animal.Id, 2))
+//	err = goe.Delete(db.Animal).Where(where.Equals(&db.Animal.Id, 2))
 func Delete[T any](table *T) *stateDelete {
 	return DeleteContext(context.Background(), table)
 }

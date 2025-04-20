@@ -140,10 +140,11 @@ func (f *find[T]) ByValue(value T) (*T, error) {
 //			join.Join[uuid.UUID](&db.Animal.IdHabitat, &db.Habitat.Id),
 //			join.Join[int](&db.Habitat.IdWeather, &db.Weather.Id),
 //		).
-//		Wheres(
-//			where.Equals(&db.Food.Id, foods[0].Id),
-//			where.And(),
-//			where.Equals(&db.Food.Name, foods[0].Name),
+//		Where(
+//			where.And(
+//				where.Equals(&db.Food.Id, 1),
+//				where.Equals(&db.Food.Name, "Beef"),
+//			),
 //		).OrderByAsc(&db.Food.Name).AsSlice()
 //
 //	// select any argument
@@ -332,7 +333,7 @@ func (s *stateSelect[T]) AsPagination(page, size int) (*Pagination[T], error) {
 	copy(stateCount.builder.tables, s.builder.tables)
 	stateCount.builder.query.Tables = s.builder.query.Tables
 
-	// copy wheres
+	// copy operations
 	stateCount.builder.brs = s.builder.brs
 
 	var count int64

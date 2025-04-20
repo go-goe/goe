@@ -8,7 +8,7 @@ import "github.com/go-goe/goe/model"
 //
 //	// set animal name as cat on record of id 2
 //	err = goe.Update(db.Animal).Sets(update.Set(&db.Animal.Name, "Cat")).
-//	Wheres(where.Equals(&db.Animal.Id, 2))
+//	Where(where.Equals(&db.Animal.Id, 2))
 func Set[T any, A *T | **T](a A, v T) model.Set {
 	return model.Set{Attribute: a, Value: v}
 }
