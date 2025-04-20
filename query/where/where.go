@@ -128,18 +128,26 @@ func NotIn[T any, V []T | *model.Query](a *T, mq V) model.Operation {
 //		where.Equals(&db.Animal.Status, "Eating"),
 //		where.And(),
 //		where.Like(&db.Animal.Name, "%Cat%"))
-func And() model.Operation {
-	return model.Operation{Operator: enum.And, Type: enum.LogicalWhere}
+// func And() model.Operation {
+// 	return model.Operation{Operator: enum.And, Type: enum.LogicalWhere}
+// }
+
+func And(fo, so model.Operation) model.Operation {
+	return model.Operation{
+		Operator:        enum.And,
+		Type:            enum.LogicalWhere,
+		FirstOperation:  &fo,
+		SecondOperation: &so,
+	}
 }
 
-// # Example
-//
-//	Wheres(
-//		where.Equals(&db.Animal.Status, "Eating"),
-//		where.Or(),
-//		where.Like(&db.Animal.Name, "%Cat%"))
-func Or() model.Operation {
-	return model.Operation{Operator: enum.Or, Type: enum.LogicalWhere}
+func Or(fo, so model.Operation) model.Operation {
+	return model.Operation{
+		Operator:        enum.Or,
+		Type:            enum.LogicalWhere,
+		FirstOperation:  &fo,
+		SecondOperation: &so,
+	}
 }
 
 // # Example

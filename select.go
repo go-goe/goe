@@ -77,11 +77,7 @@ func (f *find[T]) ById(value T) (*T, error) {
 		return nil, err
 	}
 
-	f.sSelect.Wheres(where.Equals(&pks[0], valuesPks[0]))
-	for i := 1; i < len(pks); i++ {
-		f.sSelect.Wheres(where.And())
-		f.sSelect.Wheres(where.Equals(&pks[i], valuesPks[i]))
-	}
+	f.sSelect.Where(operations(pks, valuesPks))
 
 	for row, err := range f.sSelect.Rows() {
 		if err != nil {
@@ -107,11 +103,7 @@ func (f *find[T]) ByValue(value T) (*T, error) {
 		return nil, err
 	}
 
-	f.sSelect.Wheres(where.Equals(&pks[0], valuesPks[0]))
-	for i := 1; i < len(pks); i++ {
-		f.sSelect.Wheres(where.And())
-		f.sSelect.Wheres(where.Equals(&pks[i], valuesPks[i]))
-	}
+	f.sSelect.Where(operations(pks, valuesPks))
 
 	for row, err := range f.sSelect.Rows() {
 		if err != nil {
@@ -184,12 +176,13 @@ func SelectContext[T any](ctx context.Context, table *T) *stateSelect[T] {
 	return state
 }
 
-// Wheres receives [model.Operation] as where operations from where sub package
-func (s *stateSelect[T]) Wheres(brs ...model.Operation) *stateSelect[T] {
+// Where receives [model.Operation] as where operations from where sub package
+func (s *stateSelect[T]) Where(o model.Operation) *stateSelect[T] {
 	if s.err != nil {
 		return s
 	}
-	s.err = helperWhere(&s.builder, addrMap.mapField, brs...)
+	s.builder.brs = nil
+	helperWhere(&s.builder, addrMap.mapField, o)
 	return s
 }
 
@@ -580,11 +573,26 @@ func helperNonZeroOperation[T any](stateSelect *stateSelect[T], args []any, valu
 		return
 	}
 
-	stateSelect.Wheres(equalsOrLike(args[0], values[0]))
-	for i := 1; i < len(args); i++ {
-		stateSelect.Wheres(where.And())
-		stateSelect.Wheres(equalsOrLike(args[i], values[i]))
+	if len(args) == 1 || len(values) == 1 {
+		stateSelect.Where(equalsOrLike(args[0], values[0]))
+		return
 	}
+
+	stateSelect.Where(operations(args, values))
+}
+
+func operations(args, values []any) model.Operation {
+	if len(args) == 1 {
+		return equalsOrLike(args[0], values[0])
+	}
+
+	if len(args) == 2 {
+		return where.And(equalsOrLike(args[0], values[0]), equalsOrLike(args[1], values[1]))
+	}
+
+	middle := len(args) / 2
+
+	return where.And(operations(args[:middle], values[:middle]), operations(args[middle:], values[middle:]))
 }
 
 func equalsOrLike(f any, a any) model.Operation {
@@ -811,50 +819,41 @@ func getAnyArg(value reflect.Value, addrMap map[uintptr]field) field {
 	return nil
 }
 
-func helperWhere(builder *builder, addrMap map[uintptr]field, brs ...model.Operation) error {
-	for _, br := range brs {
-		switch br.Type {
-		case enum.OperationWhere:
-			if a := getArg(br.Arg, addrMap, &br); a != nil {
-				br.Table = a.table()
-				br.Attribute = a.getAttributeName()
+func helperWhere(builder *builder, addrMap map[uintptr]field, br model.Operation) {
+	switch br.Type {
+	case enum.OperationWhere:
+		if a := getArg(br.Arg, addrMap, &br); a != nil {
+			br.Table = a.table()
+			br.Attribute = a.getAttributeName()
 
-				builder.brs = append(builder.brs, br)
-				continue
-			}
-			return errors.New("goe: invalid where operation. try sending a pointer as parameter")
-		case enum.OperationAttributeWhere:
-			if a, b := getArg(br.Arg, addrMap, nil), getArg(br.Value.GetValue(), addrMap, nil); a != nil && b != nil {
-				br.Table = a.table()
-				br.Attribute = a.getAttributeName()
-
-				br.AttributeValue = b.getAttributeName()
-				br.AttributeValueTable = b.table()
-				builder.brs = append(builder.brs, br)
-				continue
-			}
-			return errors.New("goe: invalid where operation. try sending a pointer as parameter")
-		case enum.OperationInWhere:
-			if a := getArg(br.Arg, addrMap, &br); a != nil {
-				br.Table = a.table()
-				br.Attribute = a.getAttributeName()
-
-				builder.brs = append(builder.brs, br)
-				continue
-			}
-			return errors.New("goe: invalid where operation. try sending a pointer as parameter")
-		case enum.OperationIsWhere:
-			if a := getArg(br.Arg, addrMap, nil); a != nil {
-				br.Table = a.table()
-				br.Attribute = a.getAttributeName()
-
-				builder.brs = append(builder.brs, br)
-				continue
-			}
-			return errors.New("goe: invalid where operation. try sending a pointer as parameter")
-		default:
 			builder.brs = append(builder.brs, br)
 		}
+	case enum.OperationAttributeWhere:
+		if a, b := getArg(br.Arg, addrMap, nil), getArg(br.Value.GetValue(), addrMap, nil); a != nil && b != nil {
+			br.Table = a.table()
+			br.Attribute = a.getAttributeName()
+
+			br.AttributeValue = b.getAttributeName()
+			br.AttributeValueTable = b.table()
+			builder.brs = append(builder.brs, br)
+		}
+	case enum.OperationInWhere:
+		if a := getArg(br.Arg, addrMap, &br); a != nil {
+			br.Table = a.table()
+			br.Attribute = a.getAttributeName()
+
+			builder.brs = append(builder.brs, br)
+		}
+	case enum.OperationIsWhere:
+		if a := getArg(br.Arg, addrMap, nil); a != nil {
+			br.Table = a.table()
+			br.Attribute = a.getAttributeName()
+
+			builder.brs = append(builder.brs, br)
+		}
+	case enum.LogicalWhere:
+		helperWhere(builder, addrMap, *br.FirstOperation)
+		builder.brs = append(builder.brs, br)
+		helperWhere(builder, addrMap, *br.SecondOperation)
 	}
-	return nil
 }

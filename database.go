@@ -134,6 +134,7 @@ func (c DatabaseConfig) ErrorQueryHandler(ctx context.Context, query model.Query
 	if c.IncludeArguments {
 		logs = append(logs, "arguments", query.Arguments)
 	}
+	logs = append(logs, "sql", query.RawSql)
 	logs = append(logs, "err", query.Header.Err)
 
 	c.Logger.ErrorContext(ctx, "error", logs...)
