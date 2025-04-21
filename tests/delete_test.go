@@ -24,43 +24,43 @@ func TestDelete(t *testing.T) {
 	if db.DB.Stats().InUse != 0 {
 		t.Errorf("Expected closed connection, got: %v", db.DB.Stats().InUse)
 	}
-	err = goe.Delete(db.AnimalFood).Wheres()
+	err = goe.Delete(db.AnimalFood).All()
 	if err != nil {
 		t.Fatalf("Expected delete AnimalFood, got error: %v", err)
 	}
-	err = goe.Delete(db.Flag).Wheres()
+	err = goe.Delete(db.Flag).All()
 	if err != nil {
 		t.Fatalf("Expected delete flags, got error: %v", err)
 	}
-	err = goe.Delete(db.Animal).Wheres()
+	err = goe.Delete(db.Animal).All()
 	if err != nil {
 		t.Fatalf("Expected delete animals, got error: %v", err)
 	}
-	err = goe.Delete(db.Food).Wheres()
+	err = goe.Delete(db.Food).All()
 	if err != nil {
 		t.Fatalf("Expected delete foods, got error: %v", err)
 	}
-	err = goe.Delete(db.Habitat).Wheres()
+	err = goe.Delete(db.Habitat).All()
 	if err != nil {
 		t.Fatalf("Expected delete habitats, got error: %v", err)
 	}
-	err = goe.Delete(db.Info).Wheres()
+	err = goe.Delete(db.Info).All()
 	if err != nil {
 		t.Fatalf("Expected delete infos, got error: %v", err)
 	}
-	err = goe.Delete(db.Status).Wheres()
+	err = goe.Delete(db.Status).All()
 	if err != nil {
 		t.Fatalf("Expected delete status, got error: %v", err)
 	}
-	err = goe.Delete(db.UserRole).Wheres()
+	err = goe.Delete(db.UserRole).All()
 	if err != nil {
 		t.Fatalf("Expected delete user roles, got error: %v", err)
 	}
-	err = goe.Delete(db.User).Wheres()
+	err = goe.Delete(db.User).All()
 	if err != nil {
 		t.Fatalf("Expected delete users, got error: %v", err)
 	}
-	err = goe.Delete(db.Role).Wheres()
+	err = goe.Delete(db.Role).All()
 	if err != nil {
 		t.Fatalf("Expected delete roles, got error: %v", err)
 	}
@@ -169,7 +169,7 @@ func TestDelete(t *testing.T) {
 				}
 
 				animals = nil
-				animals, err = goe.Select(db.Animal).From(db.Animal).Wheres(where.Like(&db.Animal.Name, "%Cat%")).AsSlice()
+				animals, err = goe.Select(db.Animal).From(db.Animal).Where(where.Like(&db.Animal.Name, "%Cat%")).AsSlice()
 				if err != nil {
 					t.Fatalf("Expected a select, got error: %v", err)
 				}
@@ -178,13 +178,13 @@ func TestDelete(t *testing.T) {
 					t.Errorf("Expected 3, got %v", len(animals))
 				}
 
-				err = goe.Delete(db.Animal).Wheres(where.Like(&db.Animal.Name, "%Cat%"))
+				err = goe.Delete(db.Animal).Where(where.Like(&db.Animal.Name, "%Cat%"))
 				if err != nil {
 					t.Fatalf("Expected a delete, got error: %v", err)
 				}
 
 				animals = nil
-				animals, err = goe.Select(db.Animal).From(db.Animal).Wheres(where.Like(&db.Animal.Name, "%Cat%")).AsSlice()
+				animals, err = goe.Select(db.Animal).From(db.Animal).Where(where.Like(&db.Animal.Name, "%Cat%")).AsSlice()
 				if err != nil {
 					t.Fatalf("Expected a select, got error: %v", err)
 				}
@@ -215,14 +215,14 @@ func TestDelete(t *testing.T) {
 				}
 				defer tx.Rollback()
 
-				err = goe.Delete(db.Animal).OnTransaction(tx).Wheres(where.Like(&db.Animal.Name, "%Cat%"))
+				err = goe.Delete(db.Animal).OnTransaction(tx).Where(where.Like(&db.Animal.Name, "%Cat%"))
 				if err != nil {
 					tx.Rollback()
 					t.Fatalf("Expected a delete, got error: %v", err)
 				}
 
 				animals = nil
-				animals, err = goe.Select(db.Animal).From(db.Animal).Wheres(where.Like(&db.Animal.Name, "%Cat%")).AsSlice()
+				animals, err = goe.Select(db.Animal).From(db.Animal).Where(where.Like(&db.Animal.Name, "%Cat%")).AsSlice()
 				if err != nil {
 					tx.Rollback()
 					t.Fatalf("Expected a select, got error: %v", err)
@@ -238,7 +238,7 @@ func TestDelete(t *testing.T) {
 				}
 
 				animals = nil
-				animals, err = goe.Select(db.Animal).From(db.Animal).Wheres(where.Like(&db.Animal.Name, "%Cat%")).AsSlice()
+				animals, err = goe.Select(db.Animal).From(db.Animal).Where(where.Like(&db.Animal.Name, "%Cat%")).AsSlice()
 				if err != nil {
 					t.Fatalf("Expected a select, got error: %v", err)
 				}
@@ -256,7 +256,7 @@ func TestDelete(t *testing.T) {
 					wg.Add(1)
 					go func() {
 						defer wg.Done()
-						goe.Delete(db.PersonJobTitle).Wheres()
+						goe.Delete(db.PersonJobTitle).All()
 					}()
 				}
 				wg.Wait()
@@ -286,7 +286,7 @@ func TestDelete(t *testing.T) {
 			testCase: func(t *testing.T) {
 				ctx, cancel := context.WithCancel(context.Background())
 				cancel()
-				err = goe.DeleteContext(ctx, db.Animal).Wheres()
+				err = goe.DeleteContext(ctx, db.Animal).All()
 				if !errors.Is(err, context.Canceled) {
 					t.Errorf("Expected a context.Canceled, got error: %v", err)
 				}
@@ -297,7 +297,7 @@ func TestDelete(t *testing.T) {
 			testCase: func(t *testing.T) {
 				ctx, cancel := context.WithTimeout(context.Background(), time.Nanosecond*1)
 				defer cancel()
-				err = goe.DeleteContext(ctx, db.Animal).Wheres()
+				err = goe.DeleteContext(ctx, db.Animal).All()
 				if !errors.Is(err, context.DeadlineExceeded) {
 					t.Errorf("Expected a context.DeadlineExceeded, got error: %v", err)
 				}

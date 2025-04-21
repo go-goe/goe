@@ -66,7 +66,7 @@ func TestUpdate(t *testing.T) {
 					update.Set(&db.Flag.Float64, ff.Float64),
 					update.Set(&db.Flag.Float32, ff.Float32),
 					update.Set(&db.Flag.Byte, ff.Byte)).
-					Wheres(where.Equals(&db.Flag.Id, f.Id))
+					Where(where.Equals(&db.Flag.Id, f.Id))
 				if err != nil {
 					t.Fatalf("Expected a update, got error: %v", err)
 				}
@@ -226,7 +226,7 @@ func TestUpdate(t *testing.T) {
 
 				aselect.IdHabitat = nil
 				err = goe.Update(db.Animal).Sets(update.Set(&db.Animal.IdHabitat, aselect.IdHabitat)).
-					Wheres(where.Equals(&db.Animal.Id, aselect.Id))
+					Where(where.Equals(&db.Animal.Id, aselect.Id))
 				if err != nil {
 					t.Fatalf("Expected a update, got error: %v", err)
 				}
@@ -371,7 +371,7 @@ func TestUpdate(t *testing.T) {
 						join.Join[int](&db.Person.Id, &db.PersonJobTitle.PersonId),
 						join.Join[int](&db.JobTitle.Id, &db.PersonJobTitle.IdJobTitle),
 					).
-					Wheres(where.Equals(&db.JobTitle.Id, jobs[0].Id)).Rows() {
+					Where(where.Equals(&db.JobTitle.Id, jobs[0].Id)).Rows() {
 
 					if err != nil {
 						t.Fatalf("Expected a select, got error: %v", err)
@@ -388,10 +388,14 @@ func TestUpdate(t *testing.T) {
 				if len(pj) != 2 {
 					t.Errorf("Expected %v, got : %v", 2, len(pj))
 				}
-				err = goe.Update(db.PersonJobTitle).OnTransaction(tx).Sets(update.Set(&db.PersonJobTitle.IdJobTitle, jobs[0].Id)).Wheres(
-					where.Equals(&db.PersonJobTitle.PersonId, persons[2].Id),
-					where.And(),
-					where.Equals(&db.PersonJobTitle.IdJobTitle, jobs[1].Id))
+				err = goe.Update(db.PersonJobTitle).OnTransaction(tx).Sets(update.Set(&db.PersonJobTitle.IdJobTitle, jobs[0].Id)).
+					Where(
+						where.And(
+							where.Equals(&db.PersonJobTitle.PersonId, persons[2].Id),
+							where.Equals(&db.PersonJobTitle.IdJobTitle, jobs[1].Id),
+						),
+					)
+
 				if err != nil {
 					tx.Rollback()
 					t.Fatalf("Expected a update, got error: %v", err)
@@ -409,7 +413,7 @@ func TestUpdate(t *testing.T) {
 						join.Join[int](&db.Person.Id, &db.PersonJobTitle.PersonId),
 						join.Join[int](&db.JobTitle.Id, &db.PersonJobTitle.IdJobTitle),
 					).
-					Wheres(where.Equals(&db.JobTitle.Id, jobs[0].Id)).Rows() {
+					Where(where.Equals(&db.JobTitle.Id, jobs[0].Id)).Rows() {
 
 					if err != nil {
 						t.Fatalf("Expected a select, got error: %v", err)
@@ -444,7 +448,7 @@ func TestUpdate(t *testing.T) {
 						join.Join[int](&db.Person.Id, &db.PersonJobTitle.PersonId),
 						join.Join[int](&db.JobTitle.Id, &db.PersonJobTitle.IdJobTitle),
 					).
-					Wheres(where.Equals(&db.JobTitle.Id, jobs[0].Id)).Rows() {
+					Where(where.Equals(&db.JobTitle.Id, jobs[0].Id)).Rows() {
 
 					if err != nil {
 						t.Fatalf("Expected a select, got error: %v", err)
@@ -510,7 +514,7 @@ func TestUpdate(t *testing.T) {
 						join.Join[int](&db.Person.Id, &db.PersonJobTitle.PersonId),
 						join.Join[int](&db.JobTitle.Id, &db.PersonJobTitle.IdJobTitle),
 					).
-					Wheres(where.Equals(&db.JobTitle.Id, jobs[0].Id)).Rows() {
+					Where(where.Equals(&db.JobTitle.Id, jobs[0].Id)).Rows() {
 
 					if err != nil {
 						t.Fatalf("Expected a select, got error: %v", err)
@@ -528,10 +532,8 @@ func TestUpdate(t *testing.T) {
 					t.Errorf("Expected %v, got : %v", 2, len(pj))
 				}
 
-				err = goe.Update(db.PersonJobTitle).Sets(update.Set(&db.PersonJobTitle.IdJobTitle, jobs[0].Id)).Wheres(
-					where.Equals(&db.PersonJobTitle.PersonId, persons[2].Id),
-					where.And(),
-					where.Equals(&db.PersonJobTitle.IdJobTitle, jobs[1].Id))
+				err = goe.Update(db.PersonJobTitle).Sets(update.Set(&db.PersonJobTitle.IdJobTitle, jobs[0].Id)).Where(
+					where.And(where.Equals(&db.PersonJobTitle.PersonId, persons[2].Id), where.Equals(&db.PersonJobTitle.IdJobTitle, jobs[1].Id)))
 				if err != nil {
 					t.Fatalf("Expected a update, got error: %v", err)
 				}
@@ -548,7 +550,7 @@ func TestUpdate(t *testing.T) {
 						join.Join[int](&db.Person.Id, &db.PersonJobTitle.PersonId),
 						join.Join[int](&db.JobTitle.Id, &db.PersonJobTitle.IdJobTitle),
 					).
-					Wheres(where.Equals(&db.JobTitle.Id, jobs[0].Id)).Rows() {
+					Where(where.Equals(&db.JobTitle.Id, jobs[0].Id)).Rows() {
 
 					if err != nil {
 						t.Fatalf("Expected a select, got error: %v", err)
@@ -624,7 +626,7 @@ func TestUpdate(t *testing.T) {
 				}
 				ctx, cancel := context.WithCancel(context.Background())
 				cancel()
-				err = goe.UpdateContext(ctx, db.Animal).Sets(update.Set(&db.Animal.Name, a.Name)).Wheres(where.Equals(&db.Animal.Id, a.Id))
+				err = goe.UpdateContext(ctx, db.Animal).Sets(update.Set(&db.Animal.Name, a.Name)).Where(where.Equals(&db.Animal.Id, a.Id))
 				if !errors.Is(err, context.Canceled) {
 					t.Errorf("Expected a context.Canceled, got error: %v", err)
 				}
@@ -638,7 +640,7 @@ func TestUpdate(t *testing.T) {
 				}
 				ctx, cancel := context.WithTimeout(context.Background(), time.Nanosecond*1)
 				defer cancel()
-				err = goe.UpdateContext(ctx, db.Animal).Sets(update.Set(&db.Animal.Name, a.Name)).Wheres(where.Equals(&db.Animal.Id, a.Id))
+				err = goe.UpdateContext(ctx, db.Animal).Sets(update.Set(&db.Animal.Name, a.Name)).Where(where.Equals(&db.Animal.Id, a.Id))
 				if !errors.Is(err, context.DeadlineExceeded) {
 					t.Errorf("Expected a context.DeadlineExceeded, got error: %v", err)
 				}

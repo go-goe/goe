@@ -16,8 +16,8 @@ var size int = 10000
 func BenchmarkSelect(b *testing.B) {
 	db, _ := Setup()
 
-	goe.Delete(db.AnimalFood).Wheres()
-	goe.Delete(db.Animal).Wheres()
+	goe.Delete(db.AnimalFood).All()
+	goe.Delete(db.Animal).All()
 
 	animals = make([]Animal, size)
 	goe.Insert(db.Animal).All(animals)
@@ -33,8 +33,8 @@ func BenchmarkSelect(b *testing.B) {
 func BenchmarkSelectRaw(b *testing.B) {
 	db, _ := Setup()
 
-	goe.Delete(db.AnimalFood).Wheres()
-	goe.Delete(db.Animal).Wheres()
+	goe.Delete(db.AnimalFood).All()
+	goe.Delete(db.Animal).All()
 
 	animals = make([]Animal, size)
 	goe.Insert(db.Animal).All(animals)
@@ -59,9 +59,9 @@ func BenchmarkJoin(b *testing.B) {
 
 	goe.Delete(db.Weather)
 	goe.Delete(db.Habitat)
-	goe.Delete(db.AnimalFood).Wheres()
-	goe.Delete(db.Animal).Wheres()
-	goe.Delete(db.Food).Wheres()
+	goe.Delete(db.AnimalFood).All()
+	goe.Delete(db.Animal).All()
+	goe.Delete(db.Food).All()
 
 	w := Weather{Name: "Weather"}
 	goe.Insert(db.Weather).One(&w)
@@ -88,10 +88,8 @@ func BenchmarkJoin(b *testing.B) {
 				join.Join[uuid.UUID](&db.Animal.IdHabitat, &db.Habitat.Id),
 				join.Join[int](&db.Habitat.IdWeather, &db.Weather.Id),
 			).
-			Wheres(
-				where.Equals(&db.Food.Id, f.Id),
-				where.And(),
-				where.Equals(&db.Food.Name, f.Name),
+			Where(
+				where.And(where.Equals(&db.Food.Id, f.Id), where.Equals(&db.Food.Name, f.Name)),
 			).
 			Rows() {
 			foods = append(foods, row)
@@ -104,9 +102,9 @@ func BenchmarkJoinSql(b *testing.B) {
 
 	goe.Delete(db.Weather)
 	goe.Delete(db.Habitat)
-	goe.Delete(db.AnimalFood).Wheres()
-	goe.Delete(db.Animal).Wheres()
-	goe.Delete(db.Food).Wheres()
+	goe.Delete(db.AnimalFood).All()
+	goe.Delete(db.Animal).All()
+	goe.Delete(db.Food).All()
 
 	w := Weather{Name: "Weather"}
 	goe.Insert(db.Weather).One(&w)
