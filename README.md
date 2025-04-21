@@ -107,7 +107,7 @@ func main() {
 		panic(err)
 	}
 
-	err = goe.Delete(db.Animal).Wheres()
+	err = goe.Delete(db.Animal).All()
 	if err != nil {
 		panic(err)
 	}
@@ -537,20 +537,22 @@ For specific field is used a new struct, each new field guards the reference for
 ### Where
 For where, goe uses a sub-package where, on where package you have all the goe available where operations.
 ```go
-animals, err = goe.Select(db.Animal).From(db.Animal).Wheres(where.Equals(&db.Animal.Id, 2)).AsSlice()
+animals, err = goe.Select(db.Animal).From(db.Animal).Where(where.Equals(&db.Animal.Id, 2)).AsSlice()
 
 if err != nil {
 	//handler error
 }
 ```
 
-It's possible to call a list of where operations inside Wheres()
+It's possible to group a list of where operations inside Where()
 
 ```go
-animals, err = goe.Select(db.Animal).From(db.Animal).Wheres(
-					where.LessEquals(&db.Animal.Id, 30),
-					where.And(),
-					where.In(&db.Animal.Name, []string{"Cat", "Dog"})).AsSlice()
+animals, err = goe.Select(db.Animal).From(db.Animal).Where(
+					where.And(
+						where.LessEquals(&db.Animal.Id, 2), 
+						where.In(&db.Animal.Name, []string{"Cat", "Dog"}),
+					),
+				).AsSlice()
 
 if err != nil {
 	//handler error
@@ -559,10 +561,15 @@ if err != nil {
 
 You can use a if to call a where operation only if it's match
 ```go
-selectQuery := goe.Select(db.Animal).From(db.Animal).Wheres(where.LessEquals(&db.Animal.Id, 30))
+selectQuery := goe.Select(db.Animal).From(db.Animal).Where(where.LessEquals(&db.Animal.Id, 30))
 
 if filter.In {
-	selectQuery.Wheres(where.And(), where.In(&db.Animal.Name, []string{"Cat", "Dog"}))
+	selectQuery.Where(
+		where.And(
+			where.LessEquals(&db.Animal.Id, 30), 
+			where.In(&db.Animal.Name, []string{"Cat", "Dog"}),
+		),
+	)
 }
 
 animals, err = selectQuery.AsSlice()
@@ -680,7 +687,7 @@ for row, err := range goe.Select(&struct {
 Functions can be used inside where.
 ```go
 animals, err = goe.Select(db.Animal).From(db.Animal).
-Wheres(
+Where(
 	where.Like(function.ToUpper(&db.Animal.Name), "%CAT%")
 ).AsSlice()
 
@@ -692,7 +699,7 @@ if err != nil {
 
 ```go
 animals, err = goe.Select(db.Animal).From(db.Animal).
-			   Wheres(
+			   Where(
 					where.Equals(function.ToUpper(&db.Animal.Name), function.Argument("CAT")),
 			   ).AsSlice()
 
@@ -793,7 +800,7 @@ a := Animal{Id: 2}
 // a.IdHabitat is nil, so is ignored by Save
 err = goe.Update(db.Animal).
 	  Sets(update.Set(&db.Animal.IdHabitat, a.IdHabitat)).
-	  Wheres(where.Equals(&db.Animal.Id, a.Id))
+	  Where(where.Equals(&db.Animal.Id, a.Id))
 
 if err != nil {
 	//handler error
@@ -828,7 +835,7 @@ if err != nil {
 ### Delete Batch
 Delete all records from Animal
 ```go
-err = goe.Delete(db.Animal).Wheres()
+err = goe.Delete(db.Animal).All()
 
 if err != nil {
 	//handler error
@@ -837,7 +844,7 @@ if err != nil {
 
 Delete all matched records
 ```go
-err = goe.Delete(db.Animal).Wheres(where.Like(&db.Animal.Name, "%Cat%"))
+err = goe.Delete(db.Animal).Where(where.Like(&db.Animal.Name, "%Cat%"))
 
 if err != nil {
 	//handler error
