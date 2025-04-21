@@ -78,6 +78,8 @@ type Operation struct {
 	Function            enum.FunctionType
 	AttributeValue      string
 	AttributeValueTable string
+	FirstOperation      *Operation
+	SecondOperation     *Operation
 }
 
 type Set struct {

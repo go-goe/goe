@@ -7,7 +7,6 @@ import (
 
 	"github.com/go-goe/goe/enum"
 	"github.com/go-goe/goe/model"
-	"github.com/go-goe/goe/query/where"
 )
 
 type save[T any] struct {
@@ -68,15 +67,8 @@ func (s *save[T]) ByValue(v T) error {
 		return argsSave.err
 	}
 
-	wheres := make([]model.Operation, 0, len(argsSave.argsWhere))
-	wheres = append(wheres, where.Equals(&argsSave.argsWhere[0], argsSave.valuesWhere[0]))
-	for i := 1; i < len(argsSave.argsWhere); i++ {
-		wheres = append(wheres, where.And())
-		wheres = append(wheres, where.Equals(&argsSave.argsWhere[i], argsSave.valuesWhere[i]))
-	}
-
 	s.update.builder.sets = argsSave.sets
-	return s.update.Wheres(wheres...)
+	return s.update.Where(operations(argsSave.argsWhere, argsSave.valuesWhere))
 }
 
 func (s *save[T]) AndFindByValue(v T) (*T, error) {
@@ -115,14 +107,15 @@ type stateUpdate[T any] struct {
 //	// update only the attribute IdJobTitle from PersonJobTitle with the value 3
 //	err = goe.Update(db.PersonJobTitle).
 //	Sets(update.Set(&db.PersonJobTitle.IdJobTitle, 3)).
-//	Wheres(
-//		where.Equals(&db.PersonJobTitle.PersonId, 2),
-//		where.And(),
-//		where.Equals(&db.PersonJobTitle.IdJobTitle, 1),
+//	Where(
+//		where.And(
+//			where.Equals(&db.PersonJobTitle.PersonId, 2),
+//			where.Equals(&db.PersonJobTitle.IdJobTitle, 1),
+//	    ),
 //	)
 //
 //	// update all animals name to Cat
-//	goe.Update(db.Animal).Sets(update.Set(&db.Animal.Name, "Cat")).Wheres()
+//	goe.Update(db.Animal).Sets(update.Set(&db.Animal.Name, "Cat")).All()
 func Update[T any](table *T) *stateUpdate[T] {
 	return UpdateContext(context.Background(), table)
 }
@@ -154,15 +147,17 @@ func (s *stateUpdate[T]) OnTransaction(tx Transaction) *stateUpdate[T] {
 	return s
 }
 
-// Wheres receives [model.Operation] as where operations from where sub package
-func (s *stateUpdate[T]) Wheres(brs ...model.Operation) error {
+// Update all records
+func (s *stateUpdate[T]) All() error {
+	return s.Where(model.Operation{})
+}
+
+// Where receives [model.Operation] as where operations from where sub package
+func (s *stateUpdate[T]) Where(o model.Operation) error {
 	if s.err != nil {
 		return s.err
 	}
-	s.err = helperWhere(&s.builder, addrMap.mapField, brs...)
-	if s.err != nil {
-		return s.err
-	}
+	helperWhere(&s.builder, addrMap.mapField, o)
 
 	s.builder.buildUpdate()
 

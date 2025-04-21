@@ -5,7 +5,6 @@ import (
 
 	"github.com/go-goe/goe/enum"
 	"github.com/go-goe/goe/model"
-	"github.com/go-goe/goe/query/where"
 )
 
 type stateDelete struct {
@@ -68,14 +67,7 @@ func (r *remove[T]) ById(value T) error {
 		return err
 	}
 
-	brs := make([]model.Operation, 0, len(pks))
-	brs = append(brs, where.Equals(&pks[0], valuesPks[0]))
-	for i := 1; i < len(pks); i++ {
-		brs = append(brs, where.And())
-		brs = append(brs, where.Equals(&pks[i], valuesPks[i]))
-	}
-
-	return r.delete.Wheres(brs...)
+	return r.delete.Where(operations(pks, valuesPks))
 }
 
 // Delete remove records in the given table
@@ -86,9 +78,9 @@ func (r *remove[T]) ById(value T) error {
 // # Examples
 //
 //	// delete all records
-//	err = goe.Delete(db.UserRole).Wheres()
+//	err = goe.Delete(db.UserRole).All()
 //	// delete one record
-//	err = goe.Delete(db.Animal).Wheres(where.Equals(&db.Animal.Id, 2))
+//	err = goe.Delete(db.Animal).Where(where.Equals(&db.Animal.Id, 2))
 func Delete[T any](table *T) *stateDelete {
 	return DeleteContext(context.Background(), table)
 }
@@ -107,16 +99,17 @@ func (s *stateDelete) OnTransaction(tx Transaction) *stateDelete {
 	return s
 }
 
-// Wheres receives [model.Operation] as where operations from where sub package
-func (s *stateDelete) Wheres(brs ...model.Operation) error {
-	if s.err != nil {
-		return s.err
-	}
+// Delete all records
+func (s *stateDelete) All() error {
+	return s.Where(model.Operation{})
+}
 
-	s.err = helperWhere(&s.builder, addrMap.mapField, brs...)
+// Where receives [model.Operation] as where operations from where sub package
+func (s *stateDelete) Where(o model.Operation) error {
 	if s.err != nil {
 		return s.err
 	}
+	helperWhere(&s.builder, addrMap.mapField, o)
 
 	s.builder.buildSqlDelete()
 
