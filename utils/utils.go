@@ -19,7 +19,20 @@ func ColumnNamePattern(name string) string {
 	return namePattern(name)
 }
 
+func isUpper(name string) bool {
+	for _, r := range name[1:] {
+		if unicode.IsLower(r) {
+			return false
+		}
+	}
+	return true
+}
+
 func namePattern(name string) string {
+	if isUpper(name) {
+		return strings.ToLower(name)
+	}
+
 	result := strings.Builder{}
 	result.WriteRune(unicode.ToLower(rune(name[0])))
 	for _, r := range name[1:] {
