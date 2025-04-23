@@ -68,10 +68,38 @@ As any database/sql support in go, you have to get a specific driver for your da
 ```
 go get github.com/go-goe/postgres
 ```
+#### Usage
+```go
+type Animal struct {
+	// animal fields
+}
+
+type Database struct {
+	Animal         *Animal
+	*goe.DB
+}
+
+dns := "user=postgres password=postgres host=localhost port=5432 database=postgres"
+db, err := goe.Open[Database](postgres.Open(dns, postgres.Config{}))
+```
 
 ### SQLite
 ```
 go get github.com/go-goe/sqlite
+```
+
+#### Usage
+```go
+type Animal struct {
+	// animal fields
+}
+
+type Database struct {
+	Animal         *Animal
+	*goe.DB
+}
+
+db, err := goe.Open[Database](sqlite.Open("goe.db", sqlite.Config{}))
 ```
 ## Quick Start
 ```go
@@ -771,21 +799,11 @@ a := Animal{Id: 2}
 a.Name = "Update Cat"
 
 // update animal of id 2
-err = goe.Save(db.Animal).Value(a)
+err = goe.Save(db.Animal).ByValue(a)
 
 if err != nil {
 	//handler error
 }
-
-// save will try to update the record, if the record don't exist it will be created
-createdAnimal, err = goe.Save(db.Animal).OrCreateByValue(Animal{Name: "Create Cat"})
-
-if err != nil {
-	//handler error
-}
-
-// save will update the record and return it from database
-updateAnimal, err := goe.Save(db.Animal).AndFindByValue(Animal{Id: 2, Name: "Little Cat"})
 ```
 > Use **goe.SaveContext** for specify a context
 
