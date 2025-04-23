@@ -28,9 +28,10 @@ type stateSelect[T any] struct {
 }
 
 type find[T any] struct {
-	table       *T
-	errNotFound error
-	sSelect     *stateSelect[T]
+	table         *T
+	errNotFound   error
+	errBadRequest error
+	sSelect       *stateSelect[T]
 }
 
 // Find returns a matched record,
@@ -46,12 +47,13 @@ func Find[T any](table *T) *find[T] {
 	return FindContext(context.Background(), table)
 }
 
-// FindContext returns a matched,
-// if non record is found returns a [ErrNotFound].
+// FindContext returns a matched record,
+// if non record is found returns a [ErrNotFound],
+// also if the struct don't have values returns a [ErrBadRequest].
 //
 // See [Find] for examples
 func FindContext[T any](ctx context.Context, table *T) *find[T] {
-	return &find[T]{table: table, sSelect: SelectContext(ctx, table).From(table), errNotFound: ErrNotFound}
+	return &find[T]{table: table, sSelect: SelectContext(ctx, table).From(table), errNotFound: ErrNotFound, errBadRequest: ErrBadRequest}
 }
 
 func (f *find[T]) OnTransaction(tx Transaction) *find[T] {
@@ -65,13 +67,19 @@ func (f *find[T]) OnErrNotFound(err error) *find[T] {
 	return f
 }
 
+// Replace the ErrBadRequest with err
+func (f *find[T]) OnErrBadRequest(err error) *find[T] {
+	f.errBadRequest = err
+	return f
+}
+
 // Finds the record by values on Ids
 func (f *find[T]) ById(value T) (*T, error) {
 	pks, valuesPks, err := getArgsPks(getArgs{
-		addrMap:     addrMap.mapField,
-		table:       f.table,
-		value:       value,
-		errNotFound: f.errNotFound})
+		addrMap:       addrMap.mapField,
+		table:         f.table,
+		value:         value,
+		errBadRequest: f.errBadRequest})
 
 	if err != nil {
 		return nil, err
@@ -94,10 +102,10 @@ func (f *find[T]) ById(value T) (*T, error) {
 // and ignores the rest
 func (f *find[T]) ByValue(value T) (*T, error) {
 	pks, valuesPks, err := getNonZeroFields(getArgs{
-		addrMap:     addrMap.mapField,
-		table:       f.table,
-		value:       value,
-		errNotFound: f.errNotFound})
+		addrMap:       addrMap.mapField,
+		table:         f.table,
+		value:         value,
+		errBadRequest: f.errBadRequest})
 
 	if err != nil {
 		return nil, err
@@ -504,10 +512,10 @@ func (l *list[T]) AsPagination(page, size int) (*Pagination[T], error) {
 }
 
 type getArgs struct {
-	addrMap     map[uintptr]field
-	table       any
-	value       any
-	errNotFound error
+	addrMap       map[uintptr]field
+	table         any
+	value         any
+	errBadRequest error
 }
 
 func getArgsPks(a getArgs) ([]any, []any, error) {
@@ -538,7 +546,7 @@ func getArgsPks(a getArgs) ([]any, []any, error) {
 	}
 
 	if len(args) == 0 && len(values) == 0 {
-		return nil, nil, a.errNotFound
+		return nil, nil, a.errBadRequest
 	}
 	return args, values, nil
 }
@@ -563,8 +571,8 @@ func getNonZeroFields(a getArgs) ([]any, []any, error) {
 		}
 	}
 
-	if a.errNotFound != nil && len(args) == 0 {
-		return nil, nil, a.errNotFound
+	if a.errBadRequest != nil && len(args) == 0 {
+		return nil, nil, a.errBadRequest
 	}
 	return args, values, nil
 }

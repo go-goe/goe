@@ -263,19 +263,19 @@ func TestDelete(t *testing.T) {
 			},
 		},
 		{
-			desc: "Delete_NotFound",
+			desc: "Remove_BadRequest",
 			testCase: func(t *testing.T) {
 				err = goe.Remove(db.Animal).ById(Animal{Name: "Cat"})
-				if !errors.Is(err, goe.ErrNotFound) {
-					t.Fatalf("Expected goe.ErrNotFound, got %v", err)
+				if !errors.Is(err, goe.ErrBadRequest) {
+					t.Fatalf("Expected goe.ErrBadRequest, got %v", err)
 				}
 			},
 		},
 		{
-			desc: "Remove_Custom_NotFound",
+			desc: "Remove_Custom_BadRequest",
 			testCase: func(t *testing.T) {
 				customErr := errors.New("my custom error")
-				err = goe.Remove(db.Animal).OnErrNotFound(customErr).ById(Animal{Name: "Create Cat"})
+				err = goe.Remove(db.Animal).OnErrBadRequest(customErr).ById(Animal{Name: "Create Cat"})
 				if !errors.Is(err, customErr) {
 					t.Fatalf("Expected customErr, got error: %v", err)
 				}

@@ -428,6 +428,8 @@ cat, err = goe.Find(db.Animal).ByValue(Animal{Name: "Cat"})
 
 > Use **OnErrNotFound** to replace ErrNotFound with a new error
 
+> Use **OnErrBadRequest** to replace ErrBadRequest with a new error
+
 [Back to Contents](#content)
 ### List
 
@@ -787,7 +789,7 @@ updateAnimal, err := goe.Save(db.Animal).AndFindByValue(Animal{Id: 2, Name: "Lit
 ```
 > Use **goe.SaveContext** for specify a context
 
-> Use **OnErrNotFound** to replace ErrNotFound with a new error
+> Use **OnErrBadRequest** to replace ErrBadRequest with a new error
 
 [Back to Contents](#content)
 
@@ -828,7 +830,7 @@ if err != nil {
 
 > Use **goe.RemoveContext** for specify a context
 
-> Use **OnErrNotFound** to replace ErrNotFound with a new error
+> Use **OnErrBadRequest** to replace ErrBadRequest with a new error
 
 [Back to Contents](#content)
 

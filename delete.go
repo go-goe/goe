@@ -2,6 +2,7 @@ package goe
 
 import (
 	"context"
+	"errors"
 
 	"github.com/go-goe/goe/enum"
 	"github.com/go-goe/goe/model"
@@ -15,15 +16,17 @@ type stateDelete struct {
 }
 
 type remove[T any] struct {
-	table       *T
-	tx          Transaction
-	errNotFound error
-	delete      *stateDelete
+	table         *T
+	tx            Transaction
+	errBadRequest error
+	delete        *stateDelete
 }
+
+var ErrBadRequest = errors.New("goe: not found any value on struct")
 
 // Remove is a wrapper over [Delete] for more simple deletes,
 // uses the value for create a where matching the primary keys.
-// If the record don't exists returns a [ErrNotFound].
+// If the struct don't have values returns a [ErrBadRequest].
 //
 // Remove uses [context.Background] internally;
 // to specify the context, use [RemoveContext].
@@ -37,7 +40,7 @@ func Remove[T any](table *T) *remove[T] {
 }
 
 func RemoveContext[T any](ctx context.Context, table *T) *remove[T] {
-	return &remove[T]{table: table, delete: DeleteContext(ctx, table), errNotFound: ErrNotFound}
+	return &remove[T]{table: table, delete: DeleteContext(ctx, table), errBadRequest: ErrBadRequest}
 }
 
 func (r *remove[T]) OnTransaction(tx Transaction) *remove[T] {
@@ -46,24 +49,20 @@ func (r *remove[T]) OnTransaction(tx Transaction) *remove[T] {
 	return r
 }
 
-// Replace the ErrNotFound with err
-func (r *remove[T]) OnErrNotFound(err error) *remove[T] {
-	r.errNotFound = err
+// Replace the ErrBadRequest with err
+func (r *remove[T]) OnErrBadRequest(err error) *remove[T] {
+	r.errBadRequest = err
 	return r
 }
 
 func (r *remove[T]) ById(value T) error {
 	pks, valuesPks, err := getArgsPks(getArgs{
-		addrMap:     addrMap.mapField,
-		table:       r.table,
-		value:       value,
-		errNotFound: r.errNotFound})
+		addrMap:       addrMap.mapField,
+		table:         r.table,
+		value:         value,
+		errBadRequest: r.errBadRequest})
 
 	if err != nil {
-		return err
-	}
-
-	if _, err := Find(r.table).OnErrNotFound(r.errNotFound).OnTransaction(r.tx).ById(value); err != nil {
 		return err
 	}
 
