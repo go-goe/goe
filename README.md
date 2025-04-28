@@ -10,7 +10,7 @@ A type safe SQL like ORM for Go
 *GOE logo by [Luanexs](https://www.instagram.com/luanexs/)*
 
 ## Features
-Checkout the [Benchmarks](#benchmarks) section for a overview on GOE performance compared to other packages like, ent, GORM, sqlc, and others.
+Check out the [Benchmarks](#benchmarks) section for a overview on GOE performance compared to other packages like, ent, GORM, sqlc, and others.
 
 - 🚫 Non-String Usage;
 	- write queries with only Go code
@@ -46,7 +46,7 @@ Checkout the [Benchmarks](#benchmarks) section for a overview on GOE performance
 	- [Index](#index)
 		- [Create Index](#create-index)
 		- [Unique Index](#unique-index)
-		- [Function Index](#function-index)
+		<!-- - [Function Index](#function-index) -->
 		- [Two Columns Index](#two-columns-index)
 	- [Logging](#logging)
 	- [Open And Migrate](#open-and-migrate)
@@ -205,7 +205,8 @@ type User struct {
 	Password  	string
 }
 ```
-> By default the field "Id" is primary key and all ids of integers are auto increment
+> [!NOTE] 
+> By default the field "Id" is primary key and all ids of integers are auto increment.
 
 [Back to Contents](#content)
 ### Setting primary key
@@ -242,11 +243,13 @@ type User struct {
 }
 ```
 
-A pointer is considered a null column in Database.
+> [!IMPORTANT] 
+> A pointer is considered a null column in Database.
+
+> [!IMPORTANT] 
+> Default values will be added in future features.
 
 [Back to Contents](#content)
-
-> Default values will be added in future features.
 
 ### Relationship
 In goe relational fields are created using the pattern TargetTable+TargetTableId, so if you want to have a foreign key to User, you will have to write a field like "UserId" or "IdUser".
@@ -396,8 +399,6 @@ type User struct {
 
 Just as creating a [Two Column Index](#two-columns-index) but added the "unique" value inside the index function.
 
-> Function indexes will be added in future features.
-
 [Back to Contents](#content)
 
 ## Logging
@@ -422,7 +423,8 @@ db, err := goe.Open[Database](sqlite.Open("goe.db", sqlite.Config{
 	}))
 ```
 
-> You can use slog as your standard logger or make a adapt over the Logger interface 
+> [!TIP]
+> You can use slog as your standard logger or make a adapt over the Logger interface .
 
 [Back to Contents](#content)
 
@@ -457,7 +459,6 @@ if err != nil {
 }
 ```
 
-> You can use the postgres.Config{} to active a log that will print all the queries. Also db.Log() it's a alternativly way of active or deactive the logs at any time.
 ## Select
 ### Find
 Find is used when you want to return a single result.
@@ -472,11 +473,14 @@ animalFood, err = goe.Find(db.AnimalFood).ById(AnimalFood{IdAnimal: 3, IdFood: 2
 cat, err = goe.Find(db.Animal).ByValue(Animal{Name: "Cat"})
 ```
 
-> Use **goe.FindContext** for specify a context
+> [!TIP]
+> Use **goe.FindContext** for specify a context.
 
-> Use **OnErrNotFound** to replace ErrNotFound with a new error
+> [!TIP]
+> Use **OnErrNotFound** to replace ErrNotFound with a new error.
 
-> Use **OnErrBadRequest** to replace ErrBadRequest with a new error
+> [!TIP]
+> Use **OnErrBadRequest** to replace ErrBadRequest with a new error.
 
 [Back to Contents](#content)
 ### List
@@ -494,7 +498,8 @@ animals, err = goe.List(db.Animal).Filter(Animal{Name: "Cat", Id: 3, IdHabitat: 
 animals, err = goe.List(db.Animal).Filter(Animal{Name: "%Cat%"}).AsSlice()
 ```
 
-> Use **goe.ListContext** for specify a context
+> [!TIP]
+> Use **goe.ListContext** for specify a context.
 
 [Back to Contents](#content)
 ### Select From
@@ -509,7 +514,8 @@ if err != nil {
 }
 ```
 
-> Use **goe.SelectContext** for specify a context
+> [!TIP]
+> Use **goe.SelectContext** for specify a context.
 
 [Back to Contents](#content)
 
@@ -684,7 +690,6 @@ if err != nil {
 	//handler error
 }
 ```
-> AsPagination default values for page and size are 1 and 10 respectively
 
 #### List Pagination
 ```go
@@ -696,7 +701,8 @@ if err != nil {
 }
 ```
 
-> AsPagination default values for page and size are 1 and 10 respectively
+> [!NOTE]
+> AsPagination default values for page and size are 1 and 10 respectively.
 
 [Back to Contents](#content)
 ### Aggregates
@@ -745,7 +751,9 @@ if err != nil {
 	//handler error
 }
 ```
-> where like expected a second argument always as string
+
+> [!NOTE] 
+> where like expected a second argument always as string.
 
 ```go
 animals, err = goe.Select(db.Animal).From(db.Animal).
@@ -758,7 +766,8 @@ if err != nil {
 }
 ```
 
-> to by pass the compiler type warning, use function.Argument. This way the compiler will check the argument value
+> [!IMPORTANT]
+> to by pass the compiler type warning, use function.Argument. This way the compiler will check the argument value.
 
 [Back to Contents](#content)
 ## Insert
@@ -774,8 +783,8 @@ if err != nil {
 	//handler error
 }
 ```
-
-> Use **goe.CreateContext** for specify a context
+> [!TIP] 
+> Use **goe.CreateContext** for specify a context.
 
 [Back to Contents](#content)
 
@@ -791,7 +800,9 @@ if err != nil {
 // new generated id
 a.Id
 ```
-> Use **goe.InsertContext** for specify a context
+
+> [!TIP] 
+> Use **goe.InsertContext** for specify a context.
 
 [Back to Contents](#content)
 ### Insert Batch
@@ -807,7 +818,9 @@ if err != nil {
 	//handler error
 }
 ```
-> Use **goe.InsertContext** for specify a context
+
+> [!TIP] 
+> Use **goe.InsertContext** for specify a context.
 
 [Back to Contents](#content)
 ## Update
@@ -825,9 +838,12 @@ if err != nil {
 	//handler error
 }
 ```
-> Use **goe.SaveContext** for specify a context
 
-> Use **OnErrBadRequest** to replace ErrBadRequest with a new error
+> [!TIP] 
+> Use **goe.SaveContext** for specify a context.
+
+> [!TIP] 
+> Use **OnErrBadRequest** to replace ErrBadRequest with a new error.
 
 [Back to Contents](#content)
 
@@ -849,9 +865,11 @@ if err != nil {
 
 Check out the [Where](#where) section for more information about where operations.
 
+> [!CAUTION]
 > The where call ensures that only the matched rows will be updated.
 
-> Use **goe.UpdateContext** for specify a context
+> [!TIP] 
+> Use **goe.UpdateContext** for specify a context.
 
 [Back to Contents](#content)
 ## Delete
@@ -866,9 +884,11 @@ if err != nil {
 }
 ```
 
-> Use **goe.RemoveContext** for specify a context
+> [!TIP] 
+> Use **goe.RemoveContext** for specify a context.
 
-> Use **OnErrBadRequest** to replace ErrBadRequest with a new error
+> [!TIP] 
+> Use **OnErrBadRequest** to replace ErrBadRequest with a new error.
 
 [Back to Contents](#content)
 
@@ -893,7 +913,11 @@ if err != nil {
 
 Check out the [Where](#where) section for more information about where operations.
 
-> Use **goe.DeleteContext** for specify a context
+> [!CAUTION]
+> The where call ensures that only the matched rows will be deleted.
+
+> [!TIP]
+> Use **goe.DeleteContext** for specify a context.
 
 [Back to Contents](#content)
 
@@ -911,8 +935,10 @@ defer tx.Rollback()
 
 You can use the `OnTransaction()` function to setup a transaction for [Select](#select), [Insert](#insert), [Update](#update) and [Delete](#delete).
 
+> [!TIP]
 > Ensure to call `defer tx.Rollback()`; this will make the Rollback happens if something go wrong
 
+> [!TIP]
 > Use **goe.NewTransactionContext** for specify a context
 
 [Back to Contents](#content)
