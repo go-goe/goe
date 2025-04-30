@@ -12,7 +12,7 @@ import "github.com/go-goe/goe/query"
 //		*query.Count
 //	}{
 //		aggregate.Count(&db.Animal.Id),
-//	}).From(db.Animal)
+//	})
 func Count(t any) *query.Count {
 	return &query.Count{Field: t}
 }

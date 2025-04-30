@@ -75,9 +75,11 @@ type Operation struct {
 	Operator            enum.OperatorType
 	Attribute           string
 	Table               string
+	TableId             int
 	Function            enum.FunctionType
 	AttributeValue      string
 	AttributeValueTable string
+	AttributeTableId    int
 	FirstOperation      *Operation
 	SecondOperation     *Operation
 }

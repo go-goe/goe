@@ -26,6 +26,8 @@ type fieldDb interface {
 type fieldSelect interface {
 	fieldDb
 	buildAttributeSelect(*builder)
+	table() string
+	getTableId() int
 }
 
 type Driver interface {

@@ -2,7 +2,6 @@ package goe
 
 import (
 	"reflect"
-	"slices"
 	"time"
 
 	"github.com/go-goe/goe/enum"
@@ -19,7 +18,7 @@ type builder struct {
 	fieldIds     []int           //insert and update
 	joins        []enum.JoinType //select
 	joinsArgs    []field         //select
-	tables       []int
+	tables       map[int]int
 	brs          []model.Operation
 	sets         []set
 }
@@ -54,7 +53,6 @@ func (b *builder) buildSelect() {
 func (b *builder) buildSelectJoins(join enum.JoinType, fields []field) {
 	j := len(b.joinsArgs)
 	b.joinsArgs = append(b.joinsArgs, make([]field, 2)...)
-	b.tables = append(b.tables, make([]int, 1)...)
 	b.joins = append(b.joins, join)
 	b.joinsArgs[j] = fields[0]
 	b.joinsArgs[j+1] = fields[1]
@@ -170,24 +168,41 @@ func (b *builder) buildWhere() {
 
 func (b *builder) buildTables() {
 	if len(b.joins) != 0 {
+		b.tables[b.joinsArgs[0].getTableId()] = 1
+		b.query.Tables = append(b.query.Tables, b.joinsArgs[0].table())
+
 		b.query.Joins = make([]model.Join, 0, len(b.joins))
+		c := 1
+		for i := range b.joins {
+			buildJoins(b, b.joins[i], b.joinsArgs[i+c-1], b.joinsArgs[i+c-1+1], b.tables)
+			c++
+		}
+		return
 	}
-	c := 1
-	for i := range b.joins {
-		buildJoins(b, b.joins[i], b.joinsArgs[i+c-1], b.joinsArgs[i+c-1+1], b.tables, i+1)
-		c++
+	b.tables[b.fieldsSelect[0].getTableId()] = 1
+	b.query.Tables = append(b.query.Tables, b.fieldsSelect[0].table())
+
+	for i := range b.brs {
+		if b.brs[i].TableId != 0 && b.tables[b.brs[i].TableId] == 0 {
+			b.tables[b.brs[i].TableId] = 1
+			b.query.Tables = append(b.query.Tables, b.brs[i].Table)
+		}
+		if b.brs[i].AttributeTableId != 0 && b.tables[b.brs[i].AttributeTableId] == 0 {
+			b.tables[b.brs[i].AttributeTableId] = 1
+			b.query.Tables = append(b.query.Tables, b.brs[i].AttributeValueTable)
+		}
 	}
 }
 
-func buildJoins(b *builder, join enum.JoinType, f1, f2 field, tables []int, tableIndice int) {
-	if slices.Contains(tables, f1.getTableId()) {
+func buildJoins(b *builder, join enum.JoinType, f1, f2 field, tables map[int]int) {
+	if tables[f1.getTableId()] == 1 {
 		b.query.Joins = append(b.query.Joins, model.Join{
 			Table:          f2.table(),
 			FirstArgument:  model.JoinArgument{Table: f1.table(), Name: f1.getAttributeName()},
 			JoinOperation:  join,
 			SecondArgument: model.JoinArgument{Table: f2.table(), Name: f2.getAttributeName()}})
 
-		tables[tableIndice] = f2.getTableId()
+		tables[f2.getTableId()] = 1
 		return
 	}
 	b.query.Joins = append(b.query.Joins, model.Join{
@@ -196,7 +211,7 @@ func buildJoins(b *builder, join enum.JoinType, f1, f2 field, tables []int, tabl
 		JoinOperation:  join,
 		SecondArgument: model.JoinArgument{Table: f2.table(), Name: f2.getAttributeName()}})
 
-	tables[tableIndice] = f1.getTableId()
+	tables[f1.getTableId()] = 1
 }
 
 func (b *builder) buildInsert() {

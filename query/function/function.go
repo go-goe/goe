@@ -13,7 +13,7 @@ import (
 //		UpperName *query.Function[string]
 //	}{
 //		UpperName: function.ToUpper(&db.Animal.Name),
-//	}).From(db.Animal)
+//	})
 func ToUpper(target *string) *query.Function[string] {
 	return &query.Function[string]{Field: target, Type: enum.UpperFunction}
 }
@@ -26,7 +26,7 @@ func ToUpper(target *string) *query.Function[string] {
 //		LowerName *query.Function[string]
 //	}{
 //		LowerName: function.ToLower(&db.Animal.Name),
-//	}).From(db.Animal)
+//	})
 func ToLower(target *string) *query.Function[string] {
 	return &query.Function[string]{Field: target, Type: enum.LowerFunction}
 }
@@ -35,7 +35,7 @@ func ToLower(target *string) *query.Function[string] {
 //
 // # Example
 //
-//	goe.Select(db.Animal).From(db.Animal).Where(where.Equals(function.ToUpper(&db.Animal.Name), function.Argument("CAT"))).AsSlice()
+//	goe.Select(db.Animal).Where(where.Equals(function.ToUpper(&db.Animal.Name), function.Argument("CAT"))).AsSlice()
 func Argument[T any](value T) query.Function[T] {
 	return query.Function[T]{Value: value}
 }

@@ -169,7 +169,7 @@ func TestDelete(t *testing.T) {
 				}
 
 				animals = nil
-				animals, err = goe.Select(db.Animal).From(db.Animal).Where(where.Like(&db.Animal.Name, "%Cat%")).AsSlice()
+				animals, err = goe.Select(db.Animal).Where(where.Like(&db.Animal.Name, "%Cat%")).AsSlice()
 				if err != nil {
 					t.Fatalf("Expected a select, got error: %v", err)
 				}
@@ -184,7 +184,7 @@ func TestDelete(t *testing.T) {
 				}
 
 				animals = nil
-				animals, err = goe.Select(db.Animal).From(db.Animal).Where(where.Like(&db.Animal.Name, "%Cat%")).AsSlice()
+				animals, err = goe.Select(db.Animal).Where(where.Like(&db.Animal.Name, "%Cat%")).AsSlice()
 				if err != nil {
 					t.Fatalf("Expected a select, got error: %v", err)
 				}
@@ -222,7 +222,7 @@ func TestDelete(t *testing.T) {
 				}
 
 				animals = nil
-				animals, err = goe.Select(db.Animal).From(db.Animal).Where(where.Like(&db.Animal.Name, "%Cat%")).AsSlice()
+				animals, err = goe.Select(db.Animal).Where(where.Like(&db.Animal.Name, "%Cat%")).AsSlice()
 				if err != nil {
 					tx.Rollback()
 					t.Fatalf("Expected a select, got error: %v", err)
@@ -238,7 +238,7 @@ func TestDelete(t *testing.T) {
 				}
 
 				animals = nil
-				animals, err = goe.Select(db.Animal).From(db.Animal).Where(where.Like(&db.Animal.Name, "%Cat%")).AsSlice()
+				animals, err = goe.Select(db.Animal).Where(where.Like(&db.Animal.Name, "%Cat%")).AsSlice()
 				if err != nil {
 					t.Fatalf("Expected a select, got error: %v", err)
 				}

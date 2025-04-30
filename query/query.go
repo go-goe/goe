@@ -63,7 +63,6 @@ func (c Count) Aggregate() enum.AggregateType {
 //		Role:    &db.Role.Name,
 //		EndTime: &db.UserRole.EndDate,
 //	}).
-//	From(db.User).
 //	Joins(
 //		join.LeftJoin[int](&db.User.Id, &db.UserRole.UserId),
 //		join.LeftJoin[int](&db.UserRole.RoleId, &db.Role.Id),

@@ -272,16 +272,25 @@ func (o *oneToOne) getFieldId() int {
 
 type aggregateResult struct {
 	attributeName string
-	table         string
+	tableName     string
 	aggregateType enum.AggregateType
+	tableId       int
 	db            *DB
 }
 
 func (a *aggregateResult) buildAttributeSelect(b *builder) {
 	b.query.Attributes = append(b.query.Attributes, model.Attribute{
-		Table:         a.table,
+		Table:         a.tableName,
 		Name:          a.attributeName,
 		AggregateType: a.aggregateType})
+}
+
+func (a *aggregateResult) table() string {
+	return a.tableName
+}
+
+func (a *aggregateResult) getTableId() int {
+	return a.tableId
 }
 
 func (a *aggregateResult) getDb() *DB {
@@ -290,16 +299,25 @@ func (a *aggregateResult) getDb() *DB {
 
 type functionResult struct {
 	attributeName string
-	table         string
+	tableName     string
 	functionType  enum.FunctionType
+	tableId       int
 	db            *DB
 }
 
 func (f *functionResult) buildAttributeSelect(b *builder) {
 	b.query.Attributes = append(b.query.Attributes, model.Attribute{
-		Table:        f.table,
+		Table:        f.tableName,
 		Name:         f.attributeName,
 		FunctionType: f.functionType})
+}
+
+func (f *functionResult) table() string {
+	return f.tableName
+}
+
+func (f *functionResult) getTableId() int {
+	return f.tableId
 }
 
 func (f *functionResult) getDb() *DB {

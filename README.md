@@ -507,7 +507,7 @@ animals, err = goe.List(db.Animal).Filter(Animal{Name: "%Cat%"}).AsSlice()
 Return all animals as a slice
 ```go
 // select * from animals
-animals, err = goe.Select(db.Animal).From(db.Animal).AsSlice()
+animals, err = goe.Select(db.Animal).AsSlice()
 
 if err != nil {
 	// handler error
@@ -523,7 +523,7 @@ if err != nil {
 
 Iterate over the rows
 ```go
-for row, err := range goe.Select(db.Animal).From(db.Animal).Rows() {
+for row, err := range goe.Select(db.Animal).Rows() {
 	// iterator rows
  }
 ```
@@ -541,7 +541,7 @@ animals, err = goe.Select(&struct {
 		User:    &db.User.Name,
 		Role:    &db.Role.Name,
 		EndTime: &db.UserRole.EndDate,
-	}).From(db.User).
+	}).
 	Joins(
 		join.LeftJoin[int](&db.User.Id, &db.UserRole.UserId),
 		join.LeftJoin[int](&db.UserRole.RoleId, &db.Role.Id),
@@ -563,7 +563,7 @@ for row, err := range goe.Select(&struct {
 		User:    &db.User.Name,
 		Role:    &db.Role.Name,
 		EndTime: &db.UserRole.EndDate,
-	}).From(db.User).
+	}).
 	Joins(
 		join.LeftJoin[int](&db.User.Id, &db.UserRole.UserId),
 		join.LeftJoin[int](&db.UserRole.RoleId, &db.Role.Id),
@@ -593,7 +593,7 @@ For specific field is used a new struct, each new field guards the reference for
 ### Where
 For where, goe uses a sub-package where, on where package you have all the goe available where operations.
 ```go
-animals, err = goe.Select(db.Animal).From(db.Animal).Where(where.Equals(&db.Animal.Id, 2)).AsSlice()
+animals, err = goe.Select(db.Animal).Where(where.Equals(&db.Animal.Id, 2)).AsSlice()
 
 if err != nil {
 	//handler error
@@ -603,7 +603,7 @@ if err != nil {
 It's possible to group a list of where operations inside Where()
 
 ```go
-animals, err = goe.Select(db.Animal).From(db.Animal).Where(
+animals, err = goe.Select(db.Animal).Where(
 					where.And(
 						where.LessEquals(&db.Animal.Id, 2), 
 						where.In(&db.Animal.Name, []string{"Cat", "Dog"}),
@@ -617,7 +617,7 @@ if err != nil {
 
 You can use a if to call a where operation only if it's match
 ```go
-selectQuery := goe.Select(db.Animal).From(db.Animal).Where(where.LessEquals(&db.Animal.Id, 30))
+selectQuery := goe.Select(db.Animal).Where(where.LessEquals(&db.Animal.Id, 30))
 
 if filter.In {
 	selectQuery.Where(
@@ -642,7 +642,7 @@ On join, goe uses a sub-package join, on join package you have all the goe avail
 
 For the join operations, you need to specify the type, this make the joins operations more safe. So if you change a type from a field, the compiler will throw a error.
 ```go
-animals, err = goe.Select(db.Animal).From(db.Animal).
+animals, err = goe.Select(db.Animal).
 			   Joins(
 					join.Join[int](&db.Animal.Id, &db.AnimalFood.IdAnimal),
 					join.Join[uuid.UUID](&db.Food.Id, &db.AnimalFood.IdFood),
@@ -670,7 +670,7 @@ if err != nil {
 ```
 #### Select
 ```go
-animals, err = goe.Select(db.Animal).From(db.Animal).OrderByAsc(&db.Animal.Id).AsSlice()
+animals, err = goe.Select(db.Animal).OrderByAsc(&db.Animal.Id).AsSlice()
 
 if err != nil {
 	//handler error
@@ -684,7 +684,7 @@ For pagination, it's possible to run on Select and List functions
 #### Select Pagination
 ```go
 // page 1 of size 10
-page, err = goe.Select(db.Animal).From(db.Animal).AsPagination(1, 10)
+page, err = goe.Select(db.Animal).AsPagination(1, 10)
 
 if err != nil {
 	//handler error
@@ -711,7 +711,7 @@ For aggregates goe uses a sub-package aggregate, on aggregate package you have a
 On select fields, goe uses query sub-package for declaring a aggregate field on struct.
 
 ```go
-result, err := goe.Select(&struct{ *query.Count }{aggregate.Count(&db.Animal.Id)}).From(db.Animal).AsSlice()
+result, err := goe.Select(&struct{ *query.Count }{aggregate.Count(&db.Animal.Id)}).AsSlice()
 
 if err != nil {
 	// handler error
@@ -731,7 +731,7 @@ for row, err := range goe.Select(&struct {
 					UpperName *query.Function[string]
 				}{
 					UpperName: function.ToUpper(&db.Animal.Name),
-				}).From(db.Animal).Rows() {
+				}).Rows() {
 					if err != nil {
 						//handler error
 					}
@@ -742,7 +742,7 @@ for row, err := range goe.Select(&struct {
 
 Functions can be used inside where.
 ```go
-animals, err = goe.Select(db.Animal).From(db.Animal).
+animals, err = goe.Select(db.Animal).
 Where(
 	where.Like(function.ToUpper(&db.Animal.Name), "%CAT%")
 ).AsSlice()
@@ -756,7 +756,7 @@ if err != nil {
 > where like expected a second argument always as string.
 
 ```go
-animals, err = goe.Select(db.Animal).From(db.Animal).
+animals, err = goe.Select(db.Animal).
 			   Where(
 					where.Equals(function.ToUpper(&db.Animal.Name), function.Argument("CAT")),
 			   ).AsSlice()

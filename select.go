@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"iter"
+	"maps"
 	"math"
 	"reflect"
 	"strings"
@@ -21,8 +22,8 @@ var ErrNotFound = errors.New("goe: not found any element on result set")
 type stateSelect[T any] struct {
 	conn            Connection
 	builder         builder
-	tables          []any
 	ctx             context.Context
+	table           any
 	anonymousStruct bool
 	err             error
 }
@@ -53,7 +54,7 @@ func Find[T any](table *T) *find[T] {
 //
 // See [Find] for examples
 func FindContext[T any](ctx context.Context, table *T) *find[T] {
-	return &find[T]{table: table, sSelect: SelectContext(ctx, table).From(table), errNotFound: ErrNotFound, errBadRequest: ErrBadRequest}
+	return &find[T]{table: table, sSelect: SelectContext(ctx, table), errNotFound: ErrNotFound, errBadRequest: ErrBadRequest}
 }
 
 func (f *find[T]) OnTransaction(tx Transaction) *find[T] {
@@ -131,17 +132,17 @@ func (f *find[T]) ByValue(value T) (*T, error) {
 // # Example
 //
 //	// simple select
-//	goe.Select(db.Animal).From(db.Animal).AsSlice()
+//	goe.Select(db.Animal).AsSlice()
 //
 //	// iterator select
-//	for row, err := range goe.Select(db.Animal).From(db.Animal).Rows() { ... }
+//	for row, err := range goe.Select(db.Animal).Rows() { ... }
 //
 //	// pagination select
 //	var p *goe.Pagination[Animal]
-//	p, err = goe.Select(db.Animal).From(db.Animal).AsPagination(1, 10)
+//	p, err = goe.Select(db.Animal).AsPagination(1, 10)
 //
 //	// select with where, joins and order by
-//	goe.Select(db.Food).From(db.Food).
+//	goe.Select(db.Food).
 //		Joins(
 //			join.Join[uuid.UUID](&db.Food.Id, &db.AnimalFood.IdFood),
 //			join.Join[int](&db.AnimalFood.IdAnimal, &db.Animal.Id),
@@ -164,7 +165,7 @@ func (f *find[T]) ByValue(value T) (*T, error) {
 //		User:    &db.User.Name,
 //		Role:    &db.Role.Name,
 //		EndTime: &db.UserRole.EndDate,
-//	}).From(db.User).AsSlice()
+//	}).AsSlice()
 func Select[T any](table *T) *stateSelect[T] {
 	return SelectContext(context.Background(), table)
 }
@@ -180,6 +181,8 @@ func SelectContext[T any](ctx context.Context, table *T) *stateSelect[T] {
 		return state
 	}
 
+	state.builder.tables = make(map[int]int)
+	state.table = argsSelect.table
 	state.builder.fieldsSelect = argsSelect.fields
 	state.anonymousStruct = argsSelect.anonymous
 	return state
@@ -236,23 +239,6 @@ func (s *stateSelect[T]) OrderByDesc(arg any) *stateSelect[T] {
 	s.builder.query.OrderBy = &model.OrderBy{
 		Attribute: model.Attribute{Name: field.getAttributeName(), Table: field.table()},
 		Desc:      true}
-	return s
-}
-
-// From specify one or more tables for select
-func (s *stateSelect[T]) From(tables ...any) *stateSelect[T] {
-	if s.err != nil {
-		return s
-	}
-
-	s.builder.tables = make([]int, len(tables))
-	err := getArgsTables(&s.builder, addrMap.mapField, s.builder.tables, tables...)
-	if err != nil {
-		s.err = err
-		return s
-	}
-
-	s.tables = tables
 	return s
 }
 
@@ -331,14 +317,14 @@ func (s *stateSelect[T]) AsPagination(page, size int) (*Pagination[T], error) {
 	stateCount := Select(&struct {
 		*query.Count
 	}{
-		Count: aggregate.Count(s.tables[0]),
+		Count: aggregate.Count(s.table),
 	})
 
 	// copy joins
 	stateCount.builder.joins = s.builder.joins
 	stateCount.builder.joinsArgs = s.builder.joinsArgs
-	stateCount.builder.tables = make([]int, len(s.builder.tables))
-	copy(stateCount.builder.tables, s.builder.tables)
+	stateCount.builder.tables = make(map[int]int, len(s.builder.tables))
+	maps.Copy(stateCount.builder.tables, s.builder.tables)
 	stateCount.builder.query.Tables = s.builder.query.Tables
 
 	// copy operations
@@ -455,7 +441,7 @@ func List[T any](table *T) *list[T] {
 //
 // See [List] for examples.
 func ListContext[T any](ctx context.Context, table *T) *list[T] {
-	return &list[T]{sSelect: SelectContext(ctx, table).From(table), table: table}
+	return &list[T]{sSelect: SelectContext(ctx, table), table: table}
 }
 
 // OrderByAsc makes a ordained by arg ascending query.
@@ -620,6 +606,7 @@ func equalsOrLike(f any, a any) model.Operation {
 
 type argsSelect struct {
 	fields    []fieldSelect
+	table     any
 	anonymous bool
 	err       error
 }
@@ -656,12 +643,13 @@ func getArgsSelect(addrMap map[uintptr]field, arg any) argsSelect {
 		return argsSelect{err: errors.New("goe: invalid argument. try sending a pointer to a database mapped struct as argument")}
 	}
 
-	return argsSelect{fields: fields}
+	return argsSelect{fields: fields, table: arg}
 }
 
 func getArgsSelectAno(addrMap map[uintptr]field, valueOf reflect.Value) argsSelect {
 	fields := make([]fieldSelect, 0)
 	var fieldOf reflect.Value
+	var table any = valueOf.Field(0).Elem().Addr().Interface()
 	for i := 0; i < valueOf.NumField(); i++ {
 		if valueOf.Field(i).Kind() != reflect.Pointer {
 			//TODO: update to get value from one column query
@@ -694,13 +682,14 @@ func getArgsSelectAno(addrMap map[uintptr]field, valueOf reflect.Value) argsSele
 	if len(fields) == 0 {
 		return argsSelect{err: errors.New("goe: invalid argument. try sending a pointer to a database mapped struct as argument")}
 	}
-	return argsSelect{fields: fields, anonymous: true}
+	return argsSelect{fields: fields, anonymous: true, table: table}
 }
 
 func createFunction(field field, a any) fieldSelect {
 	if f, ok := a.(model.FunctionType); ok {
 		return &functionResult{
-			table:         field.table(),
+			tableName:     field.table(),
+			tableId:       field.getTableId(),
 			db:            field.getDb(),
 			attributeName: field.getAttributeName(),
 			functionType:  f.GetType()}
@@ -712,7 +701,8 @@ func createFunction(field field, a any) fieldSelect {
 func createAggregate(field field, a any) fieldSelect {
 	if ag, ok := a.(model.Aggregate); ok {
 		return &aggregateResult{
-			table:         field.table(),
+			tableName:     field.table(),
+			tableId:       field.getTableId(),
 			db:            field.getDb(),
 			attributeName: field.getAttributeName(),
 			aggregateType: ag.Aggregate()}
@@ -740,43 +730,6 @@ func getArgsJoin(addrMap map[uintptr]field, args ...any) ([]field, error) {
 		return nil, errors.New("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
 	}
 	return fields, nil
-}
-
-func getArgsTables(builder *builder, addrMap map[uintptr]field, tables []int, args ...any) error {
-	if reflect.ValueOf(args[0]).Kind() != reflect.Pointer {
-		return errors.New("goe: invalid table. try sending a pointer to a database mapped struct as table")
-	}
-
-	var ptr uintptr
-	var i int
-
-	builder.query.Tables = make([]string, 0, len(args))
-
-	valueOf := reflect.ValueOf(args[0]).Elem()
-	ptr = uintptr(valueOf.Addr().UnsafePointer())
-	if addrMap[ptr] == nil {
-		return errors.New("goe: invalid table. try sending a pointer to a database mapped struct as table")
-	}
-	tables[i] = addrMap[ptr].getTableId()
-	i++
-	builder.query.Tables = append(builder.query.Tables, addrMap[ptr].table())
-
-	for _, a := range args[1:] {
-		if reflect.ValueOf(a).Kind() != reflect.Pointer {
-			return errors.New("goe: invalid table. try sending a pointer to a database mapped struct as table")
-		}
-
-		valueOf = reflect.ValueOf(a).Elem()
-		ptr = uintptr(valueOf.Addr().UnsafePointer())
-		if addrMap[ptr] == nil {
-			return errors.New("goe: invalid table. try sending a pointer to a database mapped struct as table")
-		}
-		tables[i] = addrMap[ptr].getTableId()
-		i++
-		builder.query.Tables = append(builder.query.Tables, addrMap[ptr].table())
-	}
-
-	return nil
 }
 
 func getArgFunction(arg any, addrMap map[uintptr]field, operation *model.Operation) field {
@@ -833,6 +786,7 @@ func helperWhere(builder *builder, addrMap map[uintptr]field, br model.Operation
 	case enum.OperationWhere:
 		if a := getArg(br.Arg, addrMap, &br); a != nil {
 			br.Table = a.table()
+			br.TableId = a.getTableId()
 			br.Attribute = a.getAttributeName()
 
 			builder.brs = append(builder.brs, br)
@@ -840,15 +794,18 @@ func helperWhere(builder *builder, addrMap map[uintptr]field, br model.Operation
 	case enum.OperationAttributeWhere:
 		if a, b := getArg(br.Arg, addrMap, nil), getArg(br.Value.GetValue(), addrMap, nil); a != nil && b != nil {
 			br.Table = a.table()
+			br.TableId = a.getTableId()
 			br.Attribute = a.getAttributeName()
 
 			br.AttributeValue = b.getAttributeName()
 			br.AttributeValueTable = b.table()
+			br.AttributeTableId = b.getTableId()
 			builder.brs = append(builder.brs, br)
 		}
 	case enum.OperationInWhere:
 		if a := getArg(br.Arg, addrMap, &br); a != nil {
 			br.Table = a.table()
+			br.TableId = a.getTableId()
 			br.Attribute = a.getAttributeName()
 
 			builder.brs = append(builder.brs, br)
@@ -856,6 +813,7 @@ func helperWhere(builder *builder, addrMap map[uintptr]field, br model.Operation
 	case enum.OperationIsWhere:
 		if a := getArg(br.Arg, addrMap, nil); a != nil {
 			br.Table = a.table()
+			br.TableId = a.getTableId()
 			br.Attribute = a.getAttributeName()
 
 			builder.brs = append(builder.brs, br)

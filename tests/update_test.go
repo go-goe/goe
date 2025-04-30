@@ -366,7 +366,7 @@ func TestUpdate(t *testing.T) {
 				}{
 					JobTitle: &db.JobTitle.Name,
 					Person:   &db.Person.Name,
-				}).OnTransaction(tx).From(db.Person).
+				}).OnTransaction(tx).
 					Joins(
 						join.Join[int](&db.Person.Id, &db.PersonJobTitle.PersonId),
 						join.Join[int](&db.JobTitle.Id, &db.PersonJobTitle.IdJobTitle),
@@ -408,7 +408,7 @@ func TestUpdate(t *testing.T) {
 				}{
 					JobTitle: &db.JobTitle.Name,
 					Person:   &db.Person.Name,
-				}).OnTransaction(tx).From(db.Person).
+				}).OnTransaction(tx).
 					Joins(
 						join.Join[int](&db.Person.Id, &db.PersonJobTitle.PersonId),
 						join.Join[int](&db.JobTitle.Id, &db.PersonJobTitle.IdJobTitle),
@@ -443,7 +443,7 @@ func TestUpdate(t *testing.T) {
 				}{
 					JobTitle: &db.JobTitle.Name,
 					Person:   &db.Person.Name,
-				}).From(db.Person).
+				}).
 					Joins(
 						join.Join[int](&db.Person.Id, &db.PersonJobTitle.PersonId),
 						join.Join[int](&db.JobTitle.Id, &db.PersonJobTitle.IdJobTitle),
@@ -509,7 +509,7 @@ func TestUpdate(t *testing.T) {
 				}{
 					JobTitle: &db.JobTitle.Name,
 					Person:   &db.Person.Name,
-				}).From(db.Person).
+				}).
 					Joins(
 						join.Join[int](&db.Person.Id, &db.PersonJobTitle.PersonId),
 						join.Join[int](&db.JobTitle.Id, &db.PersonJobTitle.IdJobTitle),
@@ -545,7 +545,7 @@ func TestUpdate(t *testing.T) {
 				}{
 					JobTitle: &db.JobTitle.Name,
 					Person:   &db.Person.Name,
-				}).From(db.Person).
+				}).
 					Joins(
 						join.Join[int](&db.Person.Id, &db.PersonJobTitle.PersonId),
 						join.Join[int](&db.JobTitle.Id, &db.PersonJobTitle.IdJobTitle),
