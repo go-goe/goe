@@ -16,9 +16,8 @@ type stateDelete struct {
 
 type remove[T any] struct {
 	table         *T
-	tx            Transaction
 	errBadRequest error
-	delete        *stateDelete
+	delete        stateDelete
 }
 
 var ErrBadRequest = errors.New("goe: not found any value on struct")
@@ -34,27 +33,26 @@ var ErrBadRequest = errors.New("goe: not found any value on struct")
 //
 //	// remove animal of id 2
 //	err = goe.Remove(db.Animal).ById(Animal{Id: 2})
-func Remove[T any](table *T) *remove[T] {
+func Remove[T any](table *T) remove[T] {
 	return RemoveContext(context.Background(), table)
 }
 
-func RemoveContext[T any](ctx context.Context, table *T) *remove[T] {
-	return &remove[T]{table: table, delete: DeleteContext(ctx, table), errBadRequest: ErrBadRequest}
+func RemoveContext[T any](ctx context.Context, table *T) remove[T] {
+	return remove[T]{table: table, delete: DeleteContext(ctx, table), errBadRequest: ErrBadRequest}
 }
 
-func (r *remove[T]) OnTransaction(tx Transaction) *remove[T] {
-	r.delete.OnTransaction(tx)
-	r.tx = tx
+func (r remove[T]) OnTransaction(tx Transaction) remove[T] {
+	r.delete.conn = tx
 	return r
 }
 
 // Replace the ErrBadRequest with err
-func (r *remove[T]) OnErrBadRequest(err error) *remove[T] {
+func (r remove[T]) OnErrBadRequest(err error) remove[T] {
 	r.errBadRequest = err
 	return r
 }
 
-func (r *remove[T]) ById(value T) error {
+func (r remove[T]) ById(value T) error {
 	pks, valuesPks, err := getArgsPks(getArgs{
 		addrMap:       addrMap.mapField,
 		table:         r.table,
@@ -79,31 +77,31 @@ func (r *remove[T]) ById(value T) error {
 //	err = goe.Delete(db.UserRole).All()
 //	// delete one record
 //	err = goe.Delete(db.Animal).Where(where.Equals(&db.Animal.Id, 2))
-func Delete[T any](table *T) *stateDelete {
+func Delete[T any](table *T) stateDelete {
 	return DeleteContext(context.Background(), table)
 }
 
 // Delete remove records in the given table
 //
 // See [Delete] for examples
-func DeleteContext[T any](ctx context.Context, table *T) *stateDelete {
-	var state *stateDelete = createDeleteState(ctx)
+func DeleteContext[T any](ctx context.Context, table *T) stateDelete {
+	var state stateDelete = createDeleteState(ctx)
 	state.builder.fields = append(state.builder.fields, getArg(table, addrMap.mapField, nil))
 	return state
 }
 
-func (s *stateDelete) OnTransaction(tx Transaction) *stateDelete {
+func (s stateDelete) OnTransaction(tx Transaction) stateDelete {
 	s.conn = tx
 	return s
 }
 
 // Delete all records
-func (s *stateDelete) All() error {
+func (s stateDelete) All() error {
 	return s.Where(model.Operation{})
 }
 
 // Where receives [model.Operation] as where operations from where sub package
-func (s *stateDelete) Where(o model.Operation) error {
+func (s stateDelete) Where(o model.Operation) error {
 	helperWhere(&s.builder, addrMap.mapField, o)
 
 	s.builder.buildSqlDelete()
@@ -116,6 +114,6 @@ func (s *stateDelete) Where(o model.Operation) error {
 	return handlerValues(s.ctx, s.conn, s.builder.query, driver.GetDatabaseConfig())
 }
 
-func createDeleteState(ctx context.Context) *stateDelete {
-	return &stateDelete{builder: createBuilder(enum.DeleteQuery), ctx: ctx}
+func createDeleteState(ctx context.Context) stateDelete {
+	return stateDelete{builder: createBuilder(enum.DeleteQuery), ctx: ctx}
 }

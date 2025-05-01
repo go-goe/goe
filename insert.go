@@ -14,45 +14,6 @@ type stateInsert[T any] struct {
 	ctx     context.Context
 }
 
-type create[T any] struct {
-	table  *T
-	tx     Transaction
-	insert *stateInsert[T]
-}
-
-// Create is a wrapper over [Insert] for simple insert one record
-// and return the inserted record with the new id.
-//
-// Create uses [context.Background] internally;
-// to specify the context, use [CreateContext].
-//
-// # Examples
-//
-//	// create animal
-//	insertedAnimal, err = goe.Create(db.Animal).ByValue(Animal{})
-func Create[T any](table *T) *create[T] {
-	return CreateContext(context.Background(), table)
-}
-
-func CreateContext[T any](ctx context.Context, table *T) *create[T] {
-	return &create[T]{table: table, insert: InsertContext(ctx, table)}
-}
-
-func (c *create[T]) OnTransaction(tx Transaction) *create[T] {
-	c.insert.OnTransaction(tx)
-	c.tx = tx
-	return c
-}
-
-func (c *create[T]) ByValue(value T) (*T, error) {
-	err := c.insert.One(&value)
-	if err != nil {
-		return nil, err
-	}
-
-	return Find(c.table).OnTransaction(c.tx).ById(value)
-}
-
 // Insert inserts a new record into the given table.
 //
 // Insert uses [context.Background] internally;
@@ -65,25 +26,25 @@ func (c *create[T]) ByValue(value T) (*T, error) {
 //	// insert a list of records
 //	persons := []Person{{Name: "Jhon"}, {Name: "Mary"}}
 //	err = goe.Insert(db.Person).All(persons)
-func Insert[T any](table *T) *stateInsert[T] {
+func Insert[T any](table *T) stateInsert[T] {
 	return InsertContext(context.Background(), table)
 }
 
 // InsertContext inserts a new record into the given table.
 //
 // See [Insert] for examples.
-func InsertContext[T any](ctx context.Context, table *T) *stateInsert[T] {
-	var state *stateInsert[T] = createInsertState[T](ctx)
+func InsertContext[T any](ctx context.Context, table *T) stateInsert[T] {
+	var state stateInsert[T] = createInsertState[T](ctx)
 	state.builder.fields = getArgsTable(addrMap.mapField, table)
 	return state
 }
 
-func (s *stateInsert[T]) OnTransaction(tx Transaction) *stateInsert[T] {
+func (s stateInsert[T]) OnTransaction(tx Transaction) stateInsert[T] {
 	s.conn = tx
 	return s
 }
 
-func (s *stateInsert[T]) One(value *T) error {
+func (s stateInsert[T]) One(value *T) error {
 	if value == nil {
 		return errors.New("goe: invalid insert value. try sending a pointer to a struct as value")
 	}
@@ -103,7 +64,7 @@ func (s *stateInsert[T]) One(value *T) error {
 	return handlerValues(s.ctx, s.conn, s.builder.query, driver.GetDatabaseConfig())
 }
 
-func (s *stateInsert[T]) All(value []T) error {
+func (s stateInsert[T]) All(value []T) error {
 	if len(value) == 0 {
 		return errors.New("goe: can't insert a empty batch value")
 	}
@@ -120,8 +81,8 @@ func (s *stateInsert[T]) All(value []T) error {
 	return handlerValuesReturningBatch(s.ctx, s.conn, s.builder.query, valueOf, pkFieldId, driver.GetDatabaseConfig())
 }
 
-func createInsertState[T any](ctx context.Context) *stateInsert[T] {
-	return &stateInsert[T]{builder: createBuilder(enum.InsertQuery), ctx: ctx}
+func createInsertState[T any](ctx context.Context) stateInsert[T] {
+	return stateInsert[T]{builder: createBuilder(enum.InsertQuery), ctx: ctx}
 }
 
 func getArgsTable[T any](addrMap map[uintptr]field, table *T) []field {

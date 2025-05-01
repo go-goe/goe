@@ -10,9 +10,8 @@ import (
 
 type save[T any] struct {
 	table         *T
-	tx            Transaction
 	errBadRequest error
-	update        *stateUpdate[T]
+	update        stateUpdate[T]
 }
 
 // Save is a wrapper over [Update] for more simple updates,
@@ -27,7 +26,7 @@ type save[T any] struct {
 //
 //	// updates animal name on record id 1
 //	err = goe.Save(db.Animal).ByValue(Animal{Id: 1, Name: "Cat"})
-func Save[T any](table *T) *save[T] {
+func Save[T any](table *T) save[T] {
 	return SaveContext(context.Background(), table)
 }
 
@@ -36,23 +35,22 @@ func Save[T any](table *T) *save[T] {
 // and includes for update all non-zero values excluding the primary keys.
 //
 // See [Save] for examples.
-func SaveContext[T any](ctx context.Context, table *T) *save[T] {
-	return &save[T]{update: UpdateContext(ctx, table), table: table, errBadRequest: ErrBadRequest}
+func SaveContext[T any](ctx context.Context, table *T) save[T] {
+	return save[T]{update: UpdateContext(ctx, table), table: table, errBadRequest: ErrBadRequest}
 }
 
-func (s *save[T]) OnTransaction(tx Transaction) *save[T] {
+func (s save[T]) OnTransaction(tx Transaction) save[T] {
 	s.update.conn = tx
-	s.tx = tx
 	return s
 }
 
 // Replace the ErrBadRequest with err
-func (s *save[T]) OnErrBadRequest(err error) *save[T] {
+func (s save[T]) OnErrBadRequest(err error) save[T] {
 	s.errBadRequest = err
 	return s
 }
 
-func (s *save[T]) ByValue(v T) error {
+func (s save[T]) ByValue(v T) error {
 	argsSave := getArgsSave(addrMap.mapField, s.table, v, s.errBadRequest)
 	if argsSave.err != nil {
 		return argsSave.err
@@ -87,19 +85,19 @@ type stateUpdate[T any] struct {
 //
 //	// update all animals name to Cat
 //	goe.Update(db.Animal).Sets(update.Set(&db.Animal.Name, "Cat")).All()
-func Update[T any](table *T) *stateUpdate[T] {
+func Update[T any](table *T) stateUpdate[T] {
 	return UpdateContext(context.Background(), table)
 }
 
 // Update updates records in the given table
 //
 // See [Update] for examples
-func UpdateContext[T any](ctx context.Context, table *T) *stateUpdate[T] {
+func UpdateContext[T any](ctx context.Context, table *T) stateUpdate[T] {
 	return createUpdateState[T](ctx)
 }
 
 // Sets one or more arguments for update
-func (s *stateUpdate[T]) Sets(sets ...model.Set) *stateUpdate[T] {
+func (s stateUpdate[T]) Sets(sets ...model.Set) stateUpdate[T] {
 	for i := range sets {
 		s.builder.sets = append(s.builder.sets, set{attribute: getArg(sets[i].Attribute, addrMap.mapField, nil), value: sets[i].Value})
 	}
@@ -107,18 +105,18 @@ func (s *stateUpdate[T]) Sets(sets ...model.Set) *stateUpdate[T] {
 	return s
 }
 
-func (s *stateUpdate[T]) OnTransaction(tx Transaction) *stateUpdate[T] {
+func (s stateUpdate[T]) OnTransaction(tx Transaction) stateUpdate[T] {
 	s.conn = tx
 	return s
 }
 
 // Update all records
-func (s *stateUpdate[T]) All() error {
+func (s stateUpdate[T]) All() error {
 	return s.Where(model.Operation{})
 }
 
 // Where receives [model.Operation] as where operations from where sub package
-func (s *stateUpdate[T]) Where(o model.Operation) error {
+func (s stateUpdate[T]) Where(o model.Operation) error {
 	helperWhere(&s.builder, addrMap.mapField, o)
 
 	s.builder.buildUpdate()
@@ -174,6 +172,6 @@ func getArgsSave[T any](addrMap map[uintptr]field, table *T, value T, errBadRequ
 	return argSave{sets: sets, argsWhere: pksWhere, valuesWhere: valuesWhere}
 }
 
-func createUpdateState[T any](ctx context.Context) *stateUpdate[T] {
-	return &stateUpdate[T]{builder: createBuilder(enum.UpdateQuery), ctx: ctx}
+func createUpdateState[T any](ctx context.Context) stateUpdate[T] {
+	return stateUpdate[T]{builder: createBuilder(enum.UpdateQuery), ctx: ctx}
 }

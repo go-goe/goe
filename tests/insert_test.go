@@ -123,26 +123,6 @@ func TestInsert(t *testing.T) {
 			},
 		},
 		{
-			desc: "Create_Page",
-			testCase: func(t *testing.T) {
-				p1, err := goe.Create(db.Page).ByValue(Page{Number: 1})
-				if err != nil {
-					t.Fatalf("Expected create page 1, got error: %v", err)
-				}
-				if p1.Id == 0 {
-					t.Fatal("Expected id value, got 0")
-				}
-
-				p1, err = goe.Create(db.Page).ByValue(Page{Number: 2, PageId: &p1.Id})
-				if err != nil {
-					t.Fatalf("Expected create page 2, got error: %v", err)
-				}
-				if p1.Id == 0 {
-					t.Fatal("Expected id value, got 0")
-				}
-			},
-		},
-		{
 			desc: "Insert_Race",
 			testCase: func(t *testing.T) {
 				var wg sync.WaitGroup

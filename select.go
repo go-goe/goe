@@ -31,7 +31,7 @@ type find[T any] struct {
 	table         *T
 	errNotFound   error
 	errBadRequest error
-	sSelect       *stateSelect[T]
+	sSelect       stateSelect[T]
 }
 
 // Find returns a matched record,
@@ -43,7 +43,7 @@ type find[T any] struct {
 // # Example
 //
 //	goe.Find(db.Animal).ById(Animal{Id: 2})
-func Find[T any](table *T) *find[T] {
+func Find[T any](table *T) find[T] {
 	return FindContext(context.Background(), table)
 }
 
@@ -52,29 +52,29 @@ func Find[T any](table *T) *find[T] {
 // also if the struct don't have values returns a [ErrBadRequest].
 //
 // See [Find] for examples
-func FindContext[T any](ctx context.Context, table *T) *find[T] {
-	return &find[T]{table: table, sSelect: SelectContext(ctx, table), errNotFound: ErrNotFound, errBadRequest: ErrBadRequest}
+func FindContext[T any](ctx context.Context, table *T) find[T] {
+	return find[T]{table: table, sSelect: SelectContext(ctx, table), errNotFound: ErrNotFound, errBadRequest: ErrBadRequest}
 }
 
-func (f *find[T]) OnTransaction(tx Transaction) *find[T] {
-	f.sSelect.OnTransaction(tx)
+func (f find[T]) OnTransaction(tx Transaction) find[T] {
+	f.sSelect.conn = tx
 	return f
 }
 
 // Replace the ErrNotFound with err
-func (f *find[T]) OnErrNotFound(err error) *find[T] {
+func (f find[T]) OnErrNotFound(err error) find[T] {
 	f.errNotFound = err
 	return f
 }
 
 // Replace the ErrBadRequest with err
-func (f *find[T]) OnErrBadRequest(err error) *find[T] {
+func (f find[T]) OnErrBadRequest(err error) find[T] {
 	f.errBadRequest = err
 	return f
 }
 
 // Finds the record by values on Ids
-func (f *find[T]) ById(value T) (*T, error) {
+func (f find[T]) ById(value T) (*T, error) {
 	pks, valuesPks, err := getArgsPks(getArgs{
 		addrMap:       addrMap.mapField,
 		table:         f.table,
@@ -85,7 +85,7 @@ func (f *find[T]) ById(value T) (*T, error) {
 		return nil, err
 	}
 
-	f.sSelect.Where(operations(pks, valuesPks))
+	f.sSelect = f.sSelect.Where(operations(pks, valuesPks))
 
 	for row, err := range f.sSelect.Rows() {
 		if err != nil {
@@ -100,7 +100,7 @@ func (f *find[T]) ById(value T) (*T, error) {
 // Finds the record by non-zero values,
 // if returns more than one it's returns the first
 // and ignores the rest
-func (f *find[T]) ByValue(value T) (*T, error) {
+func (f find[T]) ByValue(value T) (*T, error) {
 	pks, valuesPks, err := getNonZeroFields(getArgs{
 		addrMap:       addrMap.mapField,
 		table:         f.table,
@@ -111,7 +111,7 @@ func (f *find[T]) ByValue(value T) (*T, error) {
 		return nil, err
 	}
 
-	f.sSelect.Where(operations(pks, valuesPks))
+	f.sSelect = f.sSelect.Where(operations(pks, valuesPks))
 
 	for row, err := range f.sSelect.Rows() {
 		if err != nil {
@@ -165,15 +165,15 @@ func (f *find[T]) ByValue(value T) (*T, error) {
 //		Role:    &db.Role.Name,
 //		EndTime: &db.UserRole.EndDate,
 //	}).AsSlice()
-func Select[T any](table *T) *stateSelect[T] {
+func Select[T any](table *T) stateSelect[T] {
 	return SelectContext(context.Background(), table)
 }
 
 // SelectContext retrieves rows from tables.
 //
 // See [Select] for examples
-func SelectContext[T any](ctx context.Context, table *T) *stateSelect[T] {
-	var state *stateSelect[T] = createSelectState[T](ctx)
+func SelectContext[T any](ctx context.Context, table *T) stateSelect[T] {
+	var state stateSelect[T] = createSelectState[T](ctx)
 	argsSelect := getArgsSelect(addrMap.mapField, table)
 
 	state.builder.tables = make(map[int]int)
@@ -184,33 +184,33 @@ func SelectContext[T any](ctx context.Context, table *T) *stateSelect[T] {
 }
 
 // Where receives [model.Operation] as where operations from where sub package
-func (s *stateSelect[T]) Where(o model.Operation) *stateSelect[T] {
+func (s stateSelect[T]) Where(o model.Operation) stateSelect[T] {
 	s.builder.brs = nil
 	helperWhere(&s.builder, addrMap.mapField, o)
 	return s
 }
 
 // Take takes i elements
-func (s *stateSelect[T]) Take(i int) *stateSelect[T] {
+func (s stateSelect[T]) Take(i int) stateSelect[T] {
 	s.builder.query.Limit = i
 	return s
 }
 
 // Skip skips i elements
-func (s *stateSelect[T]) Skip(i int) *stateSelect[T] {
+func (s stateSelect[T]) Skip(i int) stateSelect[T] {
 	s.builder.query.Offset = i
 	return s
 }
 
 // OrderByAsc makes a ordained by arg ascending query
-func (s *stateSelect[T]) OrderByAsc(arg any) *stateSelect[T] {
+func (s stateSelect[T]) OrderByAsc(arg any) stateSelect[T] {
 	field := getArg(arg, addrMap.mapField, nil)
 	s.builder.query.OrderBy = &model.OrderBy{Attribute: model.Attribute{Name: field.getAttributeName(), Table: field.table()}}
 	return s
 }
 
 // OrderByDesc makes a ordained by arg descending query
-func (s *stateSelect[T]) OrderByDesc(arg any) *stateSelect[T] {
+func (s stateSelect[T]) OrderByDesc(arg any) stateSelect[T] {
 	field := getArg(arg, addrMap.mapField, nil)
 	s.builder.query.OrderBy = &model.OrderBy{
 		Attribute: model.Attribute{Name: field.getAttributeName(), Table: field.table()},
@@ -219,7 +219,7 @@ func (s *stateSelect[T]) OrderByDesc(arg any) *stateSelect[T] {
 }
 
 // Joins receives [model.Joins] as joins from join sub package
-func (s *stateSelect[T]) Joins(joins ...model.Joins) *stateSelect[T] {
+func (s stateSelect[T]) Joins(joins ...model.Joins) stateSelect[T] {
 	for _, j := range joins {
 		s.builder.buildSelectJoins(j.Join(), getArgsJoin(addrMap.mapField, j.FirstArg(), j.SecondArg()))
 	}
@@ -227,7 +227,7 @@ func (s *stateSelect[T]) Joins(joins ...model.Joins) *stateSelect[T] {
 }
 
 // AsSlice return all the rows as a slice.
-func (s *stateSelect[T]) AsSlice() ([]T, error) {
+func (s stateSelect[T]) AsSlice() ([]T, error) {
 	rows := make([]T, 0, s.builder.query.Limit)
 	for row, err := range s.Rows() {
 		if err != nil {
@@ -239,7 +239,7 @@ func (s *stateSelect[T]) AsSlice() ([]T, error) {
 }
 
 // AsQuery return a [model.Query] for use inside a [where.In].
-func (s *stateSelect[T]) AsQuery() *model.Query {
+func (s stateSelect[T]) AsQuery() *model.Query {
 	s.builder.buildSqlSelect()
 	return &s.builder.query
 }
@@ -265,7 +265,7 @@ type Pagination[T any] struct {
 // AsPagination return a paginated query as [Pagination].
 //
 // Default values for page and size are 1 and 10 respectively.
-func (s *stateSelect[T]) AsPagination(page, size int) (*Pagination[T], error) {
+func (s stateSelect[T]) AsPagination(page, size int) (*Pagination[T], error) {
 	if size <= 0 {
 		size = 10
 	}
@@ -342,13 +342,13 @@ func (s *stateSelect[T]) AsPagination(page, size int) (*Pagination[T], error) {
 	return p, nil
 }
 
-func (s *stateSelect[T]) OnTransaction(tx Transaction) *stateSelect[T] {
+func (s stateSelect[T]) OnTransaction(tx Transaction) stateSelect[T] {
 	s.conn = tx
 	return s
 }
 
 // Rows return a iterator on rows.
-func (s *stateSelect[T]) Rows() iter.Seq2[T, error] {
+func (s stateSelect[T]) Rows() iter.Seq2[T, error] {
 	s.builder.buildSqlSelect()
 
 	driver := s.builder.fieldsSelect[0].getDb().driver
@@ -359,13 +359,13 @@ func (s *stateSelect[T]) Rows() iter.Seq2[T, error] {
 	return handlerResult[T](s.ctx, s.conn, s.builder.query, len(s.builder.fieldsSelect), s.anonymousStruct, driver.GetDatabaseConfig())
 }
 
-func createSelectState[T any](ctx context.Context) *stateSelect[T] {
-	return &stateSelect[T]{builder: createBuilder(enum.SelectQuery), ctx: ctx}
+func createSelectState[T any](ctx context.Context) stateSelect[T] {
+	return stateSelect[T]{builder: createBuilder(enum.SelectQuery), ctx: ctx}
 }
 
 type list[T any] struct {
 	table   *T
-	sSelect *stateSelect[T]
+	sSelect stateSelect[T]
 	err     error
 }
 
@@ -386,53 +386,53 @@ type list[T any] struct {
 //	// pagination list
 //	var p *goe.Pagination[Animal]
 //	p, err = goe.List(db.Animal).AsPagination(1, 10)
-func List[T any](table *T) *list[T] {
+func List[T any](table *T) list[T] {
 	return ListContext(context.Background(), table)
 }
 
 // ListContext is a wrapper over [Select] for more simple queries using filters, pagination and ordering.
 //
 // See [List] for examples.
-func ListContext[T any](ctx context.Context, table *T) *list[T] {
-	return &list[T]{sSelect: SelectContext(ctx, table), table: table}
+func ListContext[T any](ctx context.Context, table *T) list[T] {
+	return list[T]{sSelect: SelectContext(ctx, table), table: table}
 }
 
 // OrderByAsc makes a ordained by arg ascending query.
-func (l *list[T]) OrderByAsc(a any) *list[T] {
-	l.sSelect.OrderByAsc(a)
+func (l list[T]) OrderByAsc(a any) list[T] {
+	l.sSelect = l.sSelect.OrderByAsc(a)
 	return l
 }
 
 // OrderByDesc makes a ordained by arg descending query.
-func (l *list[T]) OrderByDesc(a any) *list[T] {
-	l.sSelect.OrderByDesc(a)
+func (l list[T]) OrderByDesc(a any) list[T] {
+	l.sSelect = l.sSelect.OrderByDesc(a)
 	return l
 }
 
 // Filter creates a where on non-zero values.
-func (l *list[T]) Filter(v T) *list[T] {
+func (l list[T]) Filter(v T) list[T] {
 	args, values, err := getNonZeroFields(getArgs{addrMap: addrMap.mapField, table: l.table, value: v})
 	if err != nil {
 		l.err = err
 		return l
 	}
 
-	helperNonZeroOperation(l.sSelect, args, values)
+	l.sSelect = helperNonZeroOperation(l.sSelect, args, values)
 	return l
 }
 
-func (l *list[T]) Joins(joins ...model.Joins) *list[T] {
-	l.sSelect.Joins(joins...)
+func (l list[T]) Joins(joins ...model.Joins) list[T] {
+	l.sSelect = l.sSelect.Joins(joins...)
 	return l
 }
 
-func (l *list[T]) OnTransaction(tx Transaction) *list[T] {
-	l.sSelect.OnTransaction(tx)
+func (l list[T]) OnTransaction(tx Transaction) list[T] {
+	l.sSelect.conn = tx
 	return l
 }
 
 // AsSlice return all the rows as a slice
-func (l *list[T]) AsSlice() ([]T, error) {
+func (l list[T]) AsSlice() ([]T, error) {
 	if l.err != nil {
 		return nil, l.err
 	}
@@ -442,7 +442,7 @@ func (l *list[T]) AsSlice() ([]T, error) {
 // AsPagination return a paginated query as [Pagination].
 //
 // Default values for page and size are 1 and 10 respectively.
-func (l *list[T]) AsPagination(page, size int) (*Pagination[T], error) {
+func (l list[T]) AsPagination(page, size int) (*Pagination[T], error) {
 	if l.err != nil {
 		return nil, l.err
 	}
@@ -516,17 +516,16 @@ func getNonZeroFields(a getArgs) ([]any, []any, error) {
 	return args, values, nil
 }
 
-func helperNonZeroOperation[T any](stateSelect *stateSelect[T], args []any, values []any) {
+func helperNonZeroOperation[T any](stateSelect stateSelect[T], args []any, values []any) stateSelect[T] {
 	if len(args) == 0 || len(values) == 0 {
-		return
+		return stateSelect
 	}
 
 	if len(args) == 1 || len(values) == 1 {
-		stateSelect.Where(equalsOrLike(args[0], values[0]))
-		return
+		return stateSelect.Where(equalsOrLike(args[0], values[0]))
 	}
 
-	stateSelect.Where(operations(args, values))
+	return stateSelect.Where(operations(args, values))
 }
 
 func operations(args, values []any) model.Operation {
