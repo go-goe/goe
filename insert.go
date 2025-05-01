@@ -12,7 +12,6 @@ type stateInsert[T any] struct {
 	conn    Connection
 	builder builder
 	ctx     context.Context
-	err     error
 }
 
 type create[T any] struct {
@@ -75,7 +74,7 @@ func Insert[T any](table *T) *stateInsert[T] {
 // See [Insert] for examples.
 func InsertContext[T any](ctx context.Context, table *T) *stateInsert[T] {
 	var state *stateInsert[T] = createInsertState[T](ctx)
-	state.builder.fields, state.err = getArgsTable(addrMap.mapField, table)
+	state.builder.fields = getArgsTable(addrMap.mapField, table)
 	return state
 }
 
@@ -85,10 +84,6 @@ func (s *stateInsert[T]) OnTransaction(tx Transaction) *stateInsert[T] {
 }
 
 func (s *stateInsert[T]) One(value *T) error {
-	if s.err != nil {
-		return s.err
-	}
-
 	if value == nil {
 		return errors.New("goe: invalid insert value. try sending a pointer to a struct as value")
 	}
@@ -129,15 +124,15 @@ func createInsertState[T any](ctx context.Context) *stateInsert[T] {
 	return &stateInsert[T]{builder: createBuilder(enum.InsertQuery), ctx: ctx}
 }
 
-func getArgsTable[T any](addrMap map[uintptr]field, table *T) ([]field, error) {
+func getArgsTable[T any](addrMap map[uintptr]field, table *T) []field {
 	if table == nil {
-		return nil, errors.New("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
+		panic("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
 	}
 	fields := make([]field, 0)
 
 	valueOf := reflect.ValueOf(table).Elem()
 	if valueOf.Kind() != reflect.Struct {
-		return nil, errors.New("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
+		panic("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
 	}
 
 	var fieldOf reflect.Value
@@ -153,7 +148,7 @@ func getArgsTable[T any](addrMap map[uintptr]field, table *T) ([]field, error) {
 	}
 
 	if len(fields) == 0 {
-		return nil, errors.New("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
+		panic("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
 	}
-	return fields, nil
+	return fields
 }

@@ -12,7 +12,6 @@ type stateDelete struct {
 	conn    Connection
 	builder builder
 	ctx     context.Context
-	err     error
 }
 
 type remove[T any] struct {
@@ -105,9 +104,6 @@ func (s *stateDelete) All() error {
 
 // Where receives [model.Operation] as where operations from where sub package
 func (s *stateDelete) Where(o model.Operation) error {
-	if s.err != nil {
-		return s.err
-	}
 	helperWhere(&s.builder, addrMap.mapField, o)
 
 	s.builder.buildSqlDelete()

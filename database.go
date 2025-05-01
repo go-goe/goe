@@ -149,7 +149,7 @@ func (c DatabaseConfig) InfoHandler(ctx context.Context, query model.Query) {
 
 	logs := make([]any, 0)
 	logs = append(logs, "database", c.databaseName)
-	logs = append(logs, "query_duration", qr)
+	logs = append(logs, "query_duration", qr.String())
 	if c.IncludeArguments {
 		logs = append(logs, "arguments", query.Arguments)
 	}

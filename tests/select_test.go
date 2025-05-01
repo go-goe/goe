@@ -449,11 +449,7 @@ func TestSelect(t *testing.T) {
 		{
 			desc: "Select_Where_In_Query_No_Values",
 			testCase: func(t *testing.T) {
-				querySelect, err := goe.Select(&struct{ Name *string }{Name: &db.Animal.Name}).
-					AsQuery()
-				if err != nil {
-					t.Fatalf("Expected a query, got error: %v", err)
-				}
+				querySelect := goe.Select(&struct{ Name *string }{Name: &db.Animal.Name}).AsQuery()
 
 				//whereIn as the first where argument
 				a, err := goe.Select(db.Animal).Where(
@@ -474,8 +470,7 @@ func TestSelect(t *testing.T) {
 		{
 			desc: "Select_Where_NotIn_Query_No_Values",
 			testCase: func(t *testing.T) {
-				querySelect, err := goe.Select(&struct{ Name *string }{Name: &db.Animal.Name}).
-					AsQuery()
+				querySelect := goe.Select(&struct{ Name *string }{Name: &db.Animal.Name}).AsQuery()
 				if err != nil {
 					t.Fatalf("Expected a query, got error: %v", err)
 				}
@@ -499,7 +494,7 @@ func TestSelect(t *testing.T) {
 		{
 			desc: "Select_Where_In_Query",
 			testCase: func(t *testing.T) {
-				querySelect, err := goe.Select(&struct{ Name *string }{Name: &db.Animal.Name}).
+				querySelect := goe.Select(&struct{ Name *string }{Name: &db.Animal.Name}).
 					Joins(
 						join.Join[int](&db.Animal.Id, &db.AnimalFood.IdAnimal),
 						join.Join[uuid.UUID](&db.AnimalFood.IdFood, &db.Food.Id)).
@@ -555,7 +550,7 @@ func TestSelect(t *testing.T) {
 		{
 			desc: "Select_Where_NotIn_Query",
 			testCase: func(t *testing.T) {
-				querySelect, err := goe.Select(&struct{ Name *string }{Name: &db.Animal.Name}).
+				querySelect := goe.Select(&struct{ Name *string }{Name: &db.Animal.Name}).
 					Joins(
 						join.Join[int](&db.Animal.Id, &db.AnimalFood.IdAnimal),
 						join.Join[uuid.UUID](&db.AnimalFood.IdFood, &db.Food.Id)).

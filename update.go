@@ -2,7 +2,6 @@ package goe
 
 import (
 	"context"
-	"errors"
 	"reflect"
 
 	"github.com/go-goe/goe/enum"
@@ -54,10 +53,6 @@ func (s *save[T]) OnErrBadRequest(err error) *save[T] {
 }
 
 func (s *save[T]) ByValue(v T) error {
-	if s.update.err != nil {
-		return s.update.err
-	}
-
 	argsSave := getArgsSave(addrMap.mapField, s.table, v, s.errBadRequest)
 	if argsSave.err != nil {
 		return argsSave.err
@@ -71,7 +66,6 @@ type stateUpdate[T any] struct {
 	conn    Connection
 	builder builder
 	ctx     context.Context
-	err     error
 }
 
 // Update updates records in the given table
@@ -106,14 +100,8 @@ func UpdateContext[T any](ctx context.Context, table *T) *stateUpdate[T] {
 
 // Sets one or more arguments for update
 func (s *stateUpdate[T]) Sets(sets ...model.Set) *stateUpdate[T] {
-	if s.err != nil {
-		return s
-	}
-
 	for i := range sets {
-		if field := getArg(sets[i].Attribute, addrMap.mapField, nil); field != nil {
-			s.builder.sets = append(s.builder.sets, set{attribute: field, value: sets[i].Value})
-		}
+		s.builder.sets = append(s.builder.sets, set{attribute: getArg(sets[i].Attribute, addrMap.mapField, nil), value: sets[i].Value})
 	}
 
 	return s
@@ -131,9 +119,6 @@ func (s *stateUpdate[T]) All() error {
 
 // Where receives [model.Operation] as where operations from where sub package
 func (s *stateUpdate[T]) Where(o model.Operation) error {
-	if s.err != nil {
-		return s.err
-	}
 	helperWhere(&s.builder, addrMap.mapField, o)
 
 	s.builder.buildUpdate()
@@ -155,13 +140,13 @@ type argSave struct {
 
 func getArgsSave[T any](addrMap map[uintptr]field, table *T, value T, errBadRequest error) argSave {
 	if table == nil {
-		return argSave{err: errors.New("goe: invalid argument. try sending a pointer to a database mapped struct as argument")}
+		panic("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
 	}
 
 	tableOf := reflect.ValueOf(table).Elem()
 
 	if tableOf.Kind() != reflect.Struct {
-		return argSave{err: errors.New("goe: invalid argument. try sending a pointer to a database mapped struct as argument")}
+		panic("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
 	}
 
 	valueOf := reflect.ValueOf(value)
@@ -183,7 +168,7 @@ func getArgsSave[T any](addrMap map[uintptr]field, table *T, value T, errBadRequ
 			}
 		}
 	}
-	if len(pksWhere) == 0 {
+	if len(pksWhere) == 0 || len(valuesWhere) == 0 {
 		return argSave{err: errBadRequest}
 	}
 	return argSave{sets: sets, argsWhere: pksWhere, valuesWhere: valuesWhere}

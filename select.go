@@ -25,7 +25,6 @@ type stateSelect[T any] struct {
 	ctx             context.Context
 	table           any
 	anonymousStruct bool
-	err             error
 }
 
 type find[T any] struct {
@@ -176,10 +175,6 @@ func Select[T any](table *T) *stateSelect[T] {
 func SelectContext[T any](ctx context.Context, table *T) *stateSelect[T] {
 	var state *stateSelect[T] = createSelectState[T](ctx)
 	argsSelect := getArgsSelect(addrMap.mapField, table)
-	if argsSelect.err != nil {
-		state.err = argsSelect.err
-		return state
-	}
 
 	state.builder.tables = make(map[int]int)
 	state.table = argsSelect.table
@@ -190,9 +185,6 @@ func SelectContext[T any](ctx context.Context, table *T) *stateSelect[T] {
 
 // Where receives [model.Operation] as where operations from where sub package
 func (s *stateSelect[T]) Where(o model.Operation) *stateSelect[T] {
-	if s.err != nil {
-		return s
-	}
 	s.builder.brs = nil
 	helperWhere(&s.builder, addrMap.mapField, o)
 	return s
@@ -200,20 +192,12 @@ func (s *stateSelect[T]) Where(o model.Operation) *stateSelect[T] {
 
 // Take takes i elements
 func (s *stateSelect[T]) Take(i int) *stateSelect[T] {
-	if i <= 0 {
-		s.err = errors.New("invalid take value")
-		return s
-	}
 	s.builder.query.Limit = i
 	return s
 }
 
 // Skip skips i elements
 func (s *stateSelect[T]) Skip(i int) *stateSelect[T] {
-	if i <= 0 {
-		s.err = errors.New("invalid skip value")
-		return s
-	}
 	s.builder.query.Offset = i
 	return s
 }
@@ -221,10 +205,6 @@ func (s *stateSelect[T]) Skip(i int) *stateSelect[T] {
 // OrderByAsc makes a ordained by arg ascending query
 func (s *stateSelect[T]) OrderByAsc(arg any) *stateSelect[T] {
 	field := getArg(arg, addrMap.mapField, nil)
-	if field == nil {
-		s.err = errors.New("goe: invalid order by target. try sending a pointer")
-		return s
-	}
 	s.builder.query.OrderBy = &model.OrderBy{Attribute: model.Attribute{Name: field.getAttributeName(), Table: field.table()}}
 	return s
 }
@@ -232,10 +212,6 @@ func (s *stateSelect[T]) OrderByAsc(arg any) *stateSelect[T] {
 // OrderByDesc makes a ordained by arg descending query
 func (s *stateSelect[T]) OrderByDesc(arg any) *stateSelect[T] {
 	field := getArg(arg, addrMap.mapField, nil)
-	if field == nil {
-		s.err = errors.New("goe: invalid order by target. try sending a pointer")
-		return s
-	}
 	s.builder.query.OrderBy = &model.OrderBy{
 		Attribute: model.Attribute{Name: field.getAttributeName(), Table: field.table()},
 		Desc:      true}
@@ -244,17 +220,8 @@ func (s *stateSelect[T]) OrderByDesc(arg any) *stateSelect[T] {
 
 // Joins receives [model.Joins] as joins from join sub package
 func (s *stateSelect[T]) Joins(joins ...model.Joins) *stateSelect[T] {
-	if s.err != nil {
-		return s
-	}
-
 	for _, j := range joins {
-		fields, err := getArgsJoin(addrMap.mapField, j.FirstArg(), j.SecondArg())
-		if err != nil {
-			s.err = err
-			return s
-		}
-		s.builder.buildSelectJoins(j.Join(), fields)
+		s.builder.buildSelectJoins(j.Join(), getArgsJoin(addrMap.mapField, j.FirstArg(), j.SecondArg()))
 	}
 	return s
 }
@@ -272,12 +239,9 @@ func (s *stateSelect[T]) AsSlice() ([]T, error) {
 }
 
 // AsQuery return a [model.Query] for use inside a [where.In].
-func (s *stateSelect[T]) AsQuery() (*model.Query, error) {
-	if s.err != nil {
-		return nil, s.err
-	}
+func (s *stateSelect[T]) AsQuery() *model.Query {
 	s.builder.buildSqlSelect()
-	return &s.builder.query, nil
+	return &s.builder.query
 }
 
 type Pagination[T any] struct {
@@ -302,10 +266,6 @@ type Pagination[T any] struct {
 //
 // Default values for page and size are 1 and 10 respectively.
 func (s *stateSelect[T]) AsPagination(page, size int) (*Pagination[T], error) {
-	if s.err != nil {
-		return nil, s.err
-	}
-
 	if size <= 0 {
 		size = 10
 	}
@@ -389,13 +349,6 @@ func (s *stateSelect[T]) OnTransaction(tx Transaction) *stateSelect[T] {
 
 // Rows return a iterator on rows.
 func (s *stateSelect[T]) Rows() iter.Seq2[T, error] {
-	if s.err != nil {
-		var v T
-		return func(yield func(T, error) bool) {
-			yield(v, s.err)
-		}
-	}
-
 	s.builder.buildSqlSelect()
 
 	driver := s.builder.fieldsSelect[0].getDb().driver
@@ -608,20 +561,19 @@ type argsSelect struct {
 	fields    []fieldSelect
 	table     any
 	anonymous bool
-	err       error
 }
 
 func getArgsSelect(addrMap map[uintptr]field, arg any) argsSelect {
 	fields := make([]fieldSelect, 0)
 
 	if reflect.ValueOf(arg).Kind() != reflect.Pointer {
-		return argsSelect{err: errors.New("goe: invalid argument. try sending a pointer to a database mapped struct as argument")}
+		panic("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
 	}
 
 	valueOf := reflect.ValueOf(arg).Elem()
 
 	if valueOf.Kind() != reflect.Struct {
-		return argsSelect{err: errors.New("goe: invalid argument. try sending a pointer to a database mapped struct as argument")}
+		panic("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
 	}
 
 	var fieldOf reflect.Value
@@ -640,7 +592,7 @@ func getArgsSelect(addrMap map[uintptr]field, arg any) argsSelect {
 	}
 
 	if len(fields) == 0 {
-		return argsSelect{err: errors.New("goe: invalid argument. try sending a pointer to a database mapped struct as argument")}
+		panic("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
 	}
 
 	return argsSelect{fields: fields, table: arg}
@@ -653,7 +605,7 @@ func getArgsSelectAno(addrMap map[uintptr]field, valueOf reflect.Value) argsSele
 	for i := 0; i < valueOf.NumField(); i++ {
 		if valueOf.Field(i).Kind() != reflect.Pointer {
 			//TODO: update to get value from one column query
-			return argsSelect{err: errors.New("goe: invalid argument. try sending a pointer to a database mapped struct as argument")}
+			panic("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
 		}
 		fieldOf = valueOf.Field(i).Elem()
 		addr := uintptr(fieldOf.Addr().UnsafePointer())
@@ -677,10 +629,10 @@ func getArgsSelectAno(addrMap map[uintptr]field, valueOf reflect.Value) argsSele
 			}
 
 		}
-		return argsSelect{err: errors.New("goe: invalid argument. try sending a pointer to a database mapped struct as argument")}
+		panic("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
 	}
 	if len(fields) == 0 {
-		return argsSelect{err: errors.New("goe: invalid argument. try sending a pointer to a database mapped struct as argument")}
+		panic("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
 	}
 	return argsSelect{fields: fields, anonymous: true, table: table}
 }
@@ -711,7 +663,7 @@ func createAggregate(field field, a any) fieldSelect {
 	return nil
 }
 
-func getArgsJoin(addrMap map[uintptr]field, args ...any) ([]field, error) {
+func getArgsJoin(addrMap map[uintptr]field, args ...any) []field {
 	fields := make([]field, 2)
 	var ptr uintptr
 	for i := range args {
@@ -721,21 +673,21 @@ func getArgsJoin(addrMap map[uintptr]field, args ...any) ([]field, error) {
 			if addrMap[ptr] != nil {
 				fields[i] = addrMap[ptr]
 			}
-		} else {
-			return nil, errors.New("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
+			continue
 		}
+		panic("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
 	}
 
 	if fields[0] == nil || fields[1] == nil {
-		return nil, errors.New("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
+		panic("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
 	}
-	return fields, nil
+	return fields
 }
 
 func getArgFunction(arg any, addrMap map[uintptr]field, operation *model.Operation) field {
 	value := reflect.ValueOf(arg)
 	if value.IsNil() {
-		return nil
+		panic("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
 	}
 
 	if function, ok := value.Elem().Interface().(query.Function[string]); ok {
@@ -748,7 +700,7 @@ func getArgFunction(arg any, addrMap map[uintptr]field, operation *model.Operati
 func getArg(arg any, addrMap map[uintptr]field, operation *model.Operation) field {
 	v := reflect.ValueOf(arg)
 	if v.Kind() != reflect.Pointer {
-		return nil
+		panic("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
 	}
 
 	if operation != nil {
@@ -784,40 +736,36 @@ func getAnyArg(value reflect.Value, addrMap map[uintptr]field) field {
 func helperWhere(builder *builder, addrMap map[uintptr]field, br model.Operation) {
 	switch br.Type {
 	case enum.OperationWhere:
-		if a := getArg(br.Arg, addrMap, &br); a != nil {
-			br.Table = a.table()
-			br.TableId = a.getTableId()
-			br.Attribute = a.getAttributeName()
+		a := getArg(br.Arg, addrMap, &br)
+		br.Table = a.table()
+		br.TableId = a.getTableId()
+		br.Attribute = a.getAttributeName()
 
-			builder.brs = append(builder.brs, br)
-		}
+		builder.brs = append(builder.brs, br)
 	case enum.OperationAttributeWhere:
-		if a, b := getArg(br.Arg, addrMap, nil), getArg(br.Value.GetValue(), addrMap, nil); a != nil && b != nil {
-			br.Table = a.table()
-			br.TableId = a.getTableId()
-			br.Attribute = a.getAttributeName()
+		a, b := getArg(br.Arg, addrMap, nil), getArg(br.Value.GetValue(), addrMap, nil)
+		br.Table = a.table()
+		br.TableId = a.getTableId()
+		br.Attribute = a.getAttributeName()
 
-			br.AttributeValue = b.getAttributeName()
-			br.AttributeValueTable = b.table()
-			br.AttributeTableId = b.getTableId()
-			builder.brs = append(builder.brs, br)
-		}
+		br.AttributeValue = b.getAttributeName()
+		br.AttributeValueTable = b.table()
+		br.AttributeTableId = b.getTableId()
+		builder.brs = append(builder.brs, br)
 	case enum.OperationInWhere:
-		if a := getArg(br.Arg, addrMap, &br); a != nil {
-			br.Table = a.table()
-			br.TableId = a.getTableId()
-			br.Attribute = a.getAttributeName()
+		a := getArg(br.Arg, addrMap, &br)
+		br.Table = a.table()
+		br.TableId = a.getTableId()
+		br.Attribute = a.getAttributeName()
 
-			builder.brs = append(builder.brs, br)
-		}
+		builder.brs = append(builder.brs, br)
 	case enum.OperationIsWhere:
-		if a := getArg(br.Arg, addrMap, nil); a != nil {
-			br.Table = a.table()
-			br.TableId = a.getTableId()
-			br.Attribute = a.getAttributeName()
+		a := getArg(br.Arg, addrMap, nil)
+		br.Table = a.table()
+		br.TableId = a.getTableId()
+		br.Attribute = a.getAttributeName()
 
-			builder.brs = append(builder.brs, br)
-		}
+		builder.brs = append(builder.brs, br)
 	case enum.LogicalWhere:
 		helperWhere(builder, addrMap, *br.FirstOperation)
 		builder.brs = append(builder.brs, br)
