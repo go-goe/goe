@@ -11,7 +11,7 @@ import (
 )
 
 var animals []Animal
-var size int = 10000
+var size int = 100
 
 func BenchmarkSelect(b *testing.B) {
 	db, _ := Setup()
@@ -40,7 +40,7 @@ func BenchmarkSelectRaw(b *testing.B) {
 	goe.Insert(db.Animal).All(animals)
 
 	for b.Loop() {
-		rows, _ := db.DB.RawQueryContext(context.Background(), "select a.id, a.name, a.idinfo, a.idhabitat from animals a;")
+		rows, _ := db.DB.RawQueryContext(context.Background(), "select a.id, a.name, a.id_info, a.id_habitat from animals a;")
 		defer rows.Close()
 
 		var a Animal
@@ -124,10 +124,10 @@ func BenchmarkJoinSql(b *testing.B) {
 	for b.Loop() {
 
 		rows, _ := db.DB.RawQueryContext(context.Background(), `select f.id, f.name from foods f
-						join animalfoods af on f.id = af.idfood
-						join animals a on af.idanimal = a.id
-						join habitats h on a.idhabitat = h.id
-						join weathers w on h.idweather = w.id
+						join animal_foods af on f.id = af.id_food
+						join animals a on af.id_animal = a.id
+						join habitats h on a.id_habitat = h.id
+						join weathers w on h.id_weather = w.id
 						where f.id = $1 and f.name = $2;`, f.Id, f.Name)
 		defer rows.Close()
 
