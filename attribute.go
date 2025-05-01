@@ -12,28 +12,28 @@ type oneToOne struct {
 	attributeStrings
 }
 
-func (o *oneToOne) getDb() *DB {
+func (o oneToOne) getDb() *DB {
 	return o.db
 }
 
-func (o *oneToOne) isPrimaryKey() bool {
+func (o oneToOne) isPrimaryKey() bool {
 	return false
 }
 
-func (o *oneToOne) getTableId() int {
+func (o oneToOne) getTableId() int {
 	return o.tableId
 }
 
-func (o *oneToOne) table() string {
+func (o oneToOne) table() string {
 	return o.tableName
 }
 
-func (o *oneToOne) getAttributeName() string {
+func (o oneToOne) getAttributeName() string {
 	return o.attributeName
 }
 
 func createOneToOne(b body, typeOf reflect.Type) any {
-	mto := new(oneToOne)
+	mto := oneToOne{}
 	targetPks := primaryKeys(typeOf)
 	count := 0
 	for i := range targetPks {
@@ -61,28 +61,28 @@ type manyToOne struct {
 	attributeStrings
 }
 
-func (m *manyToOne) getDb() *DB {
+func (m manyToOne) getDb() *DB {
 	return m.db
 }
 
-func (m *manyToOne) isPrimaryKey() bool {
+func (m manyToOne) isPrimaryKey() bool {
 	return false
 }
 
-func (m *manyToOne) getTableId() int {
+func (m manyToOne) getTableId() int {
 	return m.tableId
 }
 
-func (m *manyToOne) table() string {
+func (m manyToOne) table() string {
 	return m.tableName
 }
 
-func (m *manyToOne) getAttributeName() string {
+func (m manyToOne) getAttributeName() string {
 	return m.attributeName
 }
 
 func createManyToOne(b body, typeOf reflect.Type) any {
-	mto := new(manyToOne)
+	mto := manyToOne{}
 	targetPks := primaryKeys(typeOf)
 	count := 0
 	for i := range targetPks {
@@ -129,29 +129,29 @@ type pk struct {
 	attributeStrings
 }
 
-func (p *pk) getDb() *DB {
+func (p pk) getDb() *DB {
 	return p.db
 }
 
-func (p *pk) isPrimaryKey() bool {
+func (p pk) isPrimaryKey() bool {
 	return true
 }
 
-func (p *pk) getTableId() int {
+func (p pk) getTableId() int {
 	return p.tableId
 }
 
-func (p *pk) table() string {
+func (p pk) table() string {
 	return p.tableName
 }
 
-func (p *pk) getAttributeName() string {
+func (p pk) getAttributeName() string {
 	return p.attributeName
 }
 
-func createPk(db *DB, table string, attributeName string, autoIncrement bool, tableId, fieldId int, Driver Driver) *pk {
+func createPk(db *DB, table string, attributeName string, autoIncrement bool, tableId, fieldId int, Driver Driver) pk {
 	table = Driver.KeywordHandler(utils.TableNamePattern(table))
-	return &pk{
+	return pk{
 		attributeStrings: createAttributeStrings(db, table, attributeName, tableId, fieldId, Driver),
 		autoIncrement:    autoIncrement}
 }
@@ -160,60 +160,60 @@ type att struct {
 	attributeStrings
 }
 
-func (a *att) getDb() *DB {
+func (a att) getDb() *DB {
 	return a.db
 }
 
-func (a *att) isPrimaryKey() bool {
+func (a att) isPrimaryKey() bool {
 	return false
 }
 
-func (a *att) getTableId() int {
+func (a att) getTableId() int {
 	return a.tableId
 }
 
-func (a *att) table() string {
+func (a att) table() string {
 	return a.tableName
 }
 
-func (a *att) getAttributeName() string {
+func (a att) getAttributeName() string {
 	return a.attributeName
 }
 
-func createAtt(db *DB, attributeName string, table string, tableId, fieldId int, d Driver) *att {
-	return &att{
+func createAtt(db *DB, attributeName string, table string, tableId, fieldId int, d Driver) att {
+	return att{
 		attributeStrings: createAttributeStrings(db, table, attributeName, tableId, fieldId, d)}
 }
 
-func (p *pk) buildAttributeSelect(b *builder) {
-	b.query.Attributes = append(b.query.Attributes, model.Attribute{
+func (p pk) buildAttributeSelect(atts []model.Attribute, i int) {
+	atts[i] = model.Attribute{
 		Table: p.tableName,
 		Name:  p.attributeName,
-	})
+	}
 }
 
-func (a *att) buildAttributeSelect(b *builder) {
-	b.query.Attributes = append(b.query.Attributes, model.Attribute{
+func (a att) buildAttributeSelect(atts []model.Attribute, i int) {
+	atts[i] = model.Attribute{
 		Table: a.tableName,
 		Name:  a.attributeName,
-	})
+	}
 }
 
-func (m *manyToOne) buildAttributeSelect(b *builder) {
-	b.query.Attributes = append(b.query.Attributes, model.Attribute{
+func (m manyToOne) buildAttributeSelect(atts []model.Attribute, i int) {
+	atts[i] = model.Attribute{
 		Table: m.tableName,
 		Name:  m.attributeName,
-	})
+	}
 }
 
-func (o *oneToOne) buildAttributeSelect(b *builder) {
-	b.query.Attributes = append(b.query.Attributes, model.Attribute{
+func (o oneToOne) buildAttributeSelect(atts []model.Attribute, i int) {
+	atts[i] = model.Attribute{
 		Table: o.tableName,
 		Name:  o.attributeName,
-	})
+	}
 }
 
-func (p *pk) buildAttributeInsert(b *builder) {
+func (p pk) buildAttributeInsert(b *builder) {
 	if !p.autoIncrement {
 		b.inserts = append(b.inserts, p)
 		b.query.Attributes = append(b.query.Attributes, model.Attribute{Name: p.getAttributeName()})
@@ -223,50 +223,50 @@ func (p *pk) buildAttributeInsert(b *builder) {
 	b.pkFieldId = p.fieldId
 }
 
-func (p *pk) writeAttributeInsert(b *builder) {
+func (p pk) writeAttributeInsert(b *builder) {
 	b.fieldIds = append(b.fieldIds, p.fieldId)
 }
 
-func (a *att) buildAttributeInsert(b *builder) {
+func (a att) buildAttributeInsert(b *builder) {
 	b.inserts = append(b.inserts, a)
 	b.query.Attributes = append(b.query.Attributes, model.Attribute{Name: a.getAttributeName()})
 }
 
-func (a *att) writeAttributeInsert(b *builder) {
+func (a att) writeAttributeInsert(b *builder) {
 	b.fieldIds = append(b.fieldIds, a.fieldId)
 }
 
-func (m *manyToOne) buildAttributeInsert(b *builder) {
+func (m manyToOne) buildAttributeInsert(b *builder) {
 	b.inserts = append(b.inserts, m)
 	b.query.Attributes = append(b.query.Attributes, model.Attribute{Name: m.getAttributeName()})
 }
 
-func (m *manyToOne) writeAttributeInsert(b *builder) {
+func (m manyToOne) writeAttributeInsert(b *builder) {
 	b.fieldIds = append(b.fieldIds, m.fieldId)
 }
 
-func (o *oneToOne) buildAttributeInsert(b *builder) {
+func (o oneToOne) buildAttributeInsert(b *builder) {
 	b.inserts = append(b.inserts, o)
 	b.query.Attributes = append(b.query.Attributes, model.Attribute{Name: o.getAttributeName()})
 }
 
-func (o *oneToOne) writeAttributeInsert(b *builder) {
+func (o oneToOne) writeAttributeInsert(b *builder) {
 	b.fieldIds = append(b.fieldIds, o.fieldId)
 }
 
-func (p *pk) getFieldId() int {
+func (p pk) getFieldId() int {
 	return p.fieldId
 }
 
-func (a *att) getFieldId() int {
+func (a att) getFieldId() int {
 	return a.fieldId
 }
 
-func (m *manyToOne) getFieldId() int {
+func (m manyToOne) getFieldId() int {
 	return m.fieldId
 }
 
-func (o *oneToOne) getFieldId() int {
+func (o oneToOne) getFieldId() int {
 	return o.fieldId
 }
 
@@ -278,22 +278,22 @@ type aggregateResult struct {
 	db            *DB
 }
 
-func (a *aggregateResult) buildAttributeSelect(b *builder) {
-	b.query.Attributes = append(b.query.Attributes, model.Attribute{
+func (a aggregateResult) buildAttributeSelect(atts []model.Attribute, i int) {
+	atts[i] = model.Attribute{
 		Table:         a.tableName,
 		Name:          a.attributeName,
-		AggregateType: a.aggregateType})
+		AggregateType: a.aggregateType}
 }
 
-func (a *aggregateResult) table() string {
+func (a aggregateResult) table() string {
 	return a.tableName
 }
 
-func (a *aggregateResult) getTableId() int {
+func (a aggregateResult) getTableId() int {
 	return a.tableId
 }
 
-func (a *aggregateResult) getDb() *DB {
+func (a aggregateResult) getDb() *DB {
 	return a.db
 }
 
@@ -305,21 +305,21 @@ type functionResult struct {
 	db            *DB
 }
 
-func (f *functionResult) buildAttributeSelect(b *builder) {
-	b.query.Attributes = append(b.query.Attributes, model.Attribute{
+func (f functionResult) buildAttributeSelect(atts []model.Attribute, i int) {
+	atts[i] = model.Attribute{
 		Table:        f.tableName,
 		Name:         f.attributeName,
-		FunctionType: f.functionType})
+		FunctionType: f.functionType}
 }
 
-func (f *functionResult) table() string {
+func (f functionResult) table() string {
 	return f.tableName
 }
 
-func (f *functionResult) getTableId() int {
+func (f functionResult) getTableId() int {
 	return f.tableId
 }
 
-func (f *functionResult) getDb() *DB {
+func (f functionResult) getDb() *DB {
 	return f.db
 }

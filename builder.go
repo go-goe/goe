@@ -36,18 +36,13 @@ func createBuilder(typeQuery enum.QueryType) builder {
 }
 
 func (b *builder) buildSelect() {
-	b.query.Attributes = make([]model.Attribute, 0, len(b.fieldsSelect))
+	atts := make([]model.Attribute, len(b.fieldsSelect))
 
-	len := len(b.fieldsSelect)
-	if len == 0 {
-		return
+	for i := range b.fieldsSelect {
+		b.fieldsSelect[i].buildAttributeSelect(atts, i)
 	}
 
-	for i := range b.fieldsSelect[:len-1] {
-		b.fieldsSelect[i].buildAttributeSelect(b)
-	}
-
-	b.fieldsSelect[len-1].buildAttributeSelect(b)
+	b.query.Attributes = atts
 }
 
 func (b *builder) buildSelectJoins(join enum.JoinType, fields []field) {

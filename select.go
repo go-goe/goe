@@ -638,7 +638,7 @@ func getArgsSelectAno(addrMap map[uintptr]field, valueOf reflect.Value) argsSele
 
 func createFunction(field field, a any) fieldSelect {
 	if f, ok := a.(model.FunctionType); ok {
-		return &functionResult{
+		return functionResult{
 			tableName:     field.table(),
 			tableId:       field.getTableId(),
 			db:            field.getDb(),
@@ -651,7 +651,7 @@ func createFunction(field field, a any) fieldSelect {
 
 func createAggregate(field field, a any) fieldSelect {
 	if ag, ok := a.(model.Aggregate); ok {
-		return &aggregateResult{
+		return aggregateResult{
 			tableName:     field.table(),
 			tableId:       field.getTableId(),
 			db:            field.getDb(),

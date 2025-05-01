@@ -25,7 +25,7 @@ type fieldDb interface {
 
 type fieldSelect interface {
 	fieldDb
-	buildAttributeSelect(*builder)
+	buildAttributeSelect([]model.Attribute, int)
 	table() string
 	getTableId() int
 }

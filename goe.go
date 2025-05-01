@@ -62,7 +62,7 @@ func Open[T any](driver Driver) (*T, error) {
 // data used for map
 type infosMap struct {
 	db      *DB
-	pks     []*pk
+	pks     []pk
 	tableId int
 	addr    uintptr
 }
@@ -109,9 +109,6 @@ func initField(tables reflect.Value, valueOf reflect.Value, db *DB, tableId int,
 		return err
 	}
 
-	for i := range pks {
-		addrMap.set(uintptr(valueOf.Field(fieldIds[i]).Addr().UnsafePointer()), pks[i])
-	}
 	var field reflect.StructField
 
 	for fieldId := range valueOf.NumField() {
@@ -182,6 +179,9 @@ func initField(tables reflect.Value, valueOf reflect.Value, db *DB, tableId int,
 			})
 		}
 	}
+	for i := range pks {
+		addrMap.set(uintptr(valueOf.Field(fieldIds[i]).Addr().UnsafePointer()), pks[i])
+	}
 	return nil
 }
 
@@ -214,14 +214,14 @@ func newAttr(b body) error {
 	return nil
 }
 
-func getPk(db *DB, typeOf reflect.Type, tableId int, driver Driver) ([]*pk, []int, error) {
-	var pks []*pk
+func getPk(db *DB, typeOf reflect.Type, tableId int, driver Driver) ([]pk, []int, error) {
+	var pks []pk
 	var fieldIds []int
 	var fieldId int
 
 	id, valid := getId(typeOf)
 	if valid {
-		pks := make([]*pk, 1)
+		pks := make([]pk, 1)
 		fieldIds = make([]int, 1)
 		fieldId = getFieldId(typeOf, id.Name)
 		pks[0] = createPk(db, typeOf.Name(), id.Name, isAutoIncrement(id), tableId, fieldId, driver)
@@ -234,7 +234,7 @@ func getPk(db *DB, typeOf reflect.Type, tableId int, driver Driver) ([]*pk, []in
 		return nil, nil, fmt.Errorf("goe: struct %q don't have a primary key setted", typeOf.Name())
 	}
 
-	pks = make([]*pk, len(fields))
+	pks = make([]pk, len(fields))
 	fieldIds = make([]int, len(fields))
 	for i := range fields {
 		fieldId = getFieldId(typeOf, fields[i].Name)
@@ -359,25 +359,16 @@ func helperAttribute(b body) error {
 		b.stringInfos = stringInfos{prefixName: prefix, tableName: table, fieldName: b.valueOf.Type().Field(b.fieldId).Name}
 		if mto := isManyToOne(b, createManyToOne, createOneToOne); mto != nil {
 			switch v := mto.(type) {
-			case *manyToOne:
-				if v == nil {
-					newAttr(b)
-					return nil
-				}
+			case manyToOne:
 				if addrMap.get(b.mapp.addr) == nil {
 					addrMap.set(b.mapp.addr, v)
-					return nil
 				}
-				for _, pk := range b.mapp.pks {
-					if !b.nullable && pk.fieldId == v.fieldId {
-						pk.autoIncrement = false
+				for i := range b.mapp.pks {
+					if !b.nullable && b.mapp.pks[i].fieldId == v.fieldId {
+						b.mapp.pks[i].autoIncrement = false
 					}
 				}
-			case *oneToOne:
-				if v == nil {
-					newAttr(b)
-					return nil
-				}
+			case oneToOne:
 				if addrMap.get(b.mapp.addr) == nil {
 					addrMap.set(b.mapp.addr, v)
 				}
