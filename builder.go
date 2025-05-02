@@ -12,7 +12,6 @@ type builder struct {
 	query        model.Query
 	modelStart   time.Time
 	pkFieldId    int //insert
-	inserts      []field
 	fields       []field
 	fieldsSelect []fieldSelect
 	fieldIds     []int           //insert and update
@@ -36,13 +35,10 @@ func createBuilder(typeQuery enum.QueryType) builder {
 }
 
 func (b *builder) buildSelect() {
-	atts := make([]model.Attribute, len(b.fieldsSelect))
-
+	b.query.Attributes = make([]model.Attribute, len(b.fieldsSelect))
 	for i := range b.fieldsSelect {
-		b.fieldsSelect[i].buildAttributeSelect(atts, i)
+		b.fieldsSelect[i].buildAttributeSelect(b.query.Attributes, i)
 	}
-
-	b.query.Attributes = atts
 }
 
 func (b *builder) buildSelectJoins(join enum.JoinType, fields []field) {
@@ -85,15 +81,15 @@ func (b *builder) buildWhere() {
 	if len(b.brs) == 0 {
 		return
 	}
-	b.query.WhereOperations = make([]model.Where, 0, len(b.brs))
+	b.query.WhereOperations = make([]model.Where, len(b.brs))
 
 	b.query.WhereIndex = len(b.query.Arguments) + 1
-	for _, v := range b.brs {
+	for i, v := range b.brs {
 		switch v.Type {
 		case enum.OperationWhere:
 			b.query.Arguments = append(b.query.Arguments, v.Value.GetValue())
 
-			b.query.WhereOperations = append(b.query.WhereOperations, model.Where{
+			b.query.WhereOperations[i] = model.Where{
 				Attribute: model.Attribute{
 					Name:         v.Attribute,
 					Table:        v.Table,
@@ -101,9 +97,9 @@ func (b *builder) buildWhere() {
 				},
 				Operator: v.Operator,
 				Type:     v.Type,
-			})
+			}
 		case enum.OperationAttributeWhere:
-			b.query.WhereOperations = append(b.query.WhereOperations, model.Where{
+			b.query.WhereOperations[i] = model.Where{
 				Attribute: model.Attribute{
 					Name:  v.Attribute,
 					Table: v.Table,
@@ -111,16 +107,16 @@ func (b *builder) buildWhere() {
 				Operator:       v.Operator,
 				AttributeValue: model.Attribute{Name: v.AttributeValue, Table: v.AttributeValueTable},
 				Type:           v.Type,
-			})
+			}
 		case enum.OperationIsWhere:
-			b.query.WhereOperations = append(b.query.WhereOperations, model.Where{
+			b.query.WhereOperations[i] = model.Where{
 				Attribute: model.Attribute{
 					Name:  v.Attribute,
 					Table: v.Table,
 				},
 				Operator: v.Operator,
 				Type:     v.Type,
-			})
+			}
 		case enum.OperationInWhere:
 			where := model.Where{
 				Attribute: model.Attribute{
@@ -145,17 +141,17 @@ func (b *builder) buildWhere() {
 					where.SizeIn++
 				}
 			default:
-				if modelQuery, ok := valueOf.Interface().(*model.Query); ok {
-					where.QueryIn = modelQuery
+				if modelQuery, ok := valueOf.Interface().(model.Query); ok {
+					where.QueryIn = &modelQuery
 				}
 			}
 
-			b.query.WhereOperations = append(b.query.WhereOperations, where)
+			b.query.WhereOperations[i] = where
 		case enum.LogicalWhere:
-			b.query.WhereOperations = append(b.query.WhereOperations, model.Where{
+			b.query.WhereOperations[i] = model.Where{
 				Operator: v.Operator,
 				Type:     v.Type,
-			})
+			}
 
 		}
 	}
@@ -166,10 +162,10 @@ func (b *builder) buildTables() {
 		b.tables[b.joinsArgs[0].getTableId()] = 1
 		b.query.Tables = append(b.query.Tables, b.joinsArgs[0].table())
 
-		b.query.Joins = make([]model.Join, 0, len(b.joins))
+		b.query.Joins = make([]model.Join, len(b.joins))
 		c := 1
 		for i := range b.joins {
-			buildJoins(b, b.joins[i], b.joinsArgs[i+c-1], b.joinsArgs[i+c-1+1], b.tables)
+			buildJoins(i, b.query.Joins, b.joins[i], b.joinsArgs[i+c-1], b.joinsArgs[i+c-1+1], b.tables)
 			c++
 		}
 		return
@@ -189,56 +185,42 @@ func (b *builder) buildTables() {
 	}
 }
 
-func buildJoins(b *builder, join enum.JoinType, f1, f2 field, tables map[int]int) {
+func buildJoins(i int, joins []model.Join, join enum.JoinType, f1, f2 field, tables map[int]int) {
 	if tables[f1.getTableId()] == 1 {
-		b.query.Joins = append(b.query.Joins, model.Join{
+		joins[i] = model.Join{
 			Table:          f2.table(),
 			FirstArgument:  model.JoinArgument{Table: f1.table(), Name: f1.getAttributeName()},
 			JoinOperation:  join,
-			SecondArgument: model.JoinArgument{Table: f2.table(), Name: f2.getAttributeName()}})
+			SecondArgument: model.JoinArgument{Table: f2.table(), Name: f2.getAttributeName()}}
 
 		tables[f2.getTableId()] = 1
 		return
 	}
-	b.query.Joins = append(b.query.Joins, model.Join{
+	joins[i] = model.Join{
 		Table:          f1.table(),
 		FirstArgument:  model.JoinArgument{Table: f1.table(), Name: f1.getAttributeName()},
 		JoinOperation:  join,
-		SecondArgument: model.JoinArgument{Table: f2.table(), Name: f2.getAttributeName()}})
+		SecondArgument: model.JoinArgument{Table: f2.table(), Name: f2.getAttributeName()}}
 
 	tables[f1.getTableId()] = 1
 }
 
 func (b *builder) buildInsert() {
-
 	b.fieldIds = make([]int, 0, len(b.fields))
 	b.query.Attributes = make([]model.Attribute, 0, len(b.fields))
 
-	f := b.fields[0]
 	b.query.Tables = make([]string, 1)
-	b.query.Tables[0] = f.table()
+	b.query.Tables[0] = b.fields[0].table()
 	for i := range b.fields {
 		b.fields[i].buildAttributeInsert(b)
 	}
-
-	b.inserts[0].writeAttributeInsert(b)
-	for _, f := range b.inserts[1:] {
-		f.writeAttributeInsert(b)
-	}
-
 }
 
 func (b *builder) buildValues(value reflect.Value) int {
-	//update to index
-	b.query.Arguments = make([]any, 0, len(b.fieldIds))
+	b.query.Arguments = make([]any, len(b.fieldIds))
 
-	c := 2
-	b.query.Arguments = append(b.query.Arguments, value.Field(b.fieldIds[0]).Interface())
-
-	a := b.fieldIds[1:]
-	for i := range a {
-		b.query.Arguments = append(b.query.Arguments, value.Field(a[i]).Interface())
-		c++
+	for c, i := range b.fieldIds {
+		b.query.Arguments[c] = value.Field(i).Interface()
 	}
 	b.query.SizeArguments = len(b.fieldIds)
 	return b.pkFieldId
@@ -246,14 +228,11 @@ func (b *builder) buildValues(value reflect.Value) int {
 }
 
 func (b *builder) buildBatchValues(value reflect.Value) int {
-	b.query.Arguments = make([]any, 0, len(b.fieldIds))
+	b.query.Arguments = make([]any, len(b.fieldIds)*value.Len())
 
-	c := 1
-	buildBatchValues(value.Index(0), b, &c)
-	c++
-	for j := 1; j < value.Len(); j++ {
-		buildBatchValues(value.Index(j), b, &c)
-		c++
+	c := 0
+	for j := 0; j < value.Len(); j++ {
+		c = buildBatchValues(value.Index(j), b, c)
 	}
 	b.query.BatchSizeQuery = value.Len()
 	b.query.SizeArguments = len(b.fieldIds)
@@ -261,14 +240,12 @@ func (b *builder) buildBatchValues(value reflect.Value) int {
 
 }
 
-func buildBatchValues(value reflect.Value, b *builder, c *int) {
-	b.query.Arguments = append(b.query.Arguments, value.Field(b.fieldIds[0]).Interface())
-
-	a := b.fieldIds[1:]
-	for i := range a {
-		b.query.Arguments = append(b.query.Arguments, value.Field(a[i]).Interface())
-		*c++
+func buildBatchValues(value reflect.Value, b *builder, c int) int {
+	for _, i := range b.fieldIds {
+		b.query.Arguments[c] = value.Field(i).Interface()
+		c++
 	}
+	return c
 }
 
 func (b *builder) buildUpdate() {
@@ -278,13 +255,13 @@ func (b *builder) buildUpdate() {
 }
 
 func (b *builder) buildSets() {
-	b.query.Attributes = make([]model.Attribute, 0, len(b.sets))
+	b.query.Attributes = make([]model.Attribute, len(b.sets))
 	b.query.Tables = make([]string, 1)
 	b.query.Tables[0] = b.sets[0].attribute.table()
-	b.query.Arguments = make([]any, 0, len(b.sets))
+	b.query.Arguments = make([]any, len(b.sets))
 
 	for i := range b.sets {
-		b.query.Attributes = append(b.query.Attributes, model.Attribute{Name: b.sets[i].attribute.getAttributeName()})
-		b.query.Arguments = append(b.query.Arguments, b.sets[i].value)
+		b.query.Attributes[i] = model.Attribute{Name: b.sets[i].attribute.getAttributeName()}
+		b.query.Arguments[i] = b.sets[i].value
 	}
 }

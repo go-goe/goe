@@ -239,9 +239,9 @@ func (s stateSelect[T]) AsSlice() ([]T, error) {
 }
 
 // AsQuery return a [model.Query] for use inside a [where.In].
-func (s stateSelect[T]) AsQuery() *model.Query {
+func (s stateSelect[T]) AsQuery() model.Query {
 	s.builder.buildSqlSelect()
-	return &s.builder.query
+	return s.builder.query
 }
 
 type Pagination[T any] struct {

@@ -16,7 +16,6 @@ type field interface {
 	getAttributeName() string
 	table() string
 	buildAttributeInsert(*builder)
-	writeAttributeInsert(*builder)
 }
 
 type fieldDb interface {

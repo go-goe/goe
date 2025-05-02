@@ -215,7 +215,7 @@ func (o oneToOne) buildAttributeSelect(atts []model.Attribute, i int) {
 
 func (p pk) buildAttributeInsert(b *builder) {
 	if !p.autoIncrement {
-		b.inserts = append(b.inserts, p)
+		b.fieldIds = append(b.fieldIds, p.fieldId)
 		b.query.Attributes = append(b.query.Attributes, model.Attribute{Name: p.getAttributeName()})
 		return
 	}
@@ -223,35 +223,19 @@ func (p pk) buildAttributeInsert(b *builder) {
 	b.pkFieldId = p.fieldId
 }
 
-func (p pk) writeAttributeInsert(b *builder) {
-	b.fieldIds = append(b.fieldIds, p.fieldId)
-}
-
 func (a att) buildAttributeInsert(b *builder) {
-	b.inserts = append(b.inserts, a)
+	b.fieldIds = append(b.fieldIds, a.fieldId)
 	b.query.Attributes = append(b.query.Attributes, model.Attribute{Name: a.getAttributeName()})
 }
 
-func (a att) writeAttributeInsert(b *builder) {
-	b.fieldIds = append(b.fieldIds, a.fieldId)
-}
-
 func (m manyToOne) buildAttributeInsert(b *builder) {
-	b.inserts = append(b.inserts, m)
+	b.fieldIds = append(b.fieldIds, m.fieldId)
 	b.query.Attributes = append(b.query.Attributes, model.Attribute{Name: m.getAttributeName()})
 }
 
-func (m manyToOne) writeAttributeInsert(b *builder) {
-	b.fieldIds = append(b.fieldIds, m.fieldId)
-}
-
 func (o oneToOne) buildAttributeInsert(b *builder) {
-	b.inserts = append(b.inserts, o)
-	b.query.Attributes = append(b.query.Attributes, model.Attribute{Name: o.getAttributeName()})
-}
-
-func (o oneToOne) writeAttributeInsert(b *builder) {
 	b.fieldIds = append(b.fieldIds, o.fieldId)
+	b.query.Attributes = append(b.query.Attributes, model.Attribute{Name: o.getAttributeName()})
 }
 
 func (p pk) getFieldId() int {

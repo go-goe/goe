@@ -104,7 +104,7 @@ func NotLike[T any](a *T, v string) model.Operation {
 //
 //	// Use querySelect on in
 //	rows, err := goe.Select(db.Animal).Where(where.In(&db.Animal.Name, querySelect).AsSlice()
-func In[T any, V []T | *model.Query](a *T, mq V) model.Operation {
+func In[T any, V []T | model.Query](a *T, mq V) model.Operation {
 	return model.Operation{Arg: a, Value: valueOperation{value: mq}, Operator: enum.In, Type: enum.OperationInWhere}
 }
 
@@ -118,7 +118,7 @@ func In[T any, V []T | *model.Query](a *T, mq V) model.Operation {
 //
 //	// Use querySelect on not in
 //	rows, err := goe.Select(db.Animal).Where(where.NotIn(&db.Animal.Name, querySelect).AsSlice()
-func NotIn[T any, V []T | *model.Query](a *T, mq V) model.Operation {
+func NotIn[T any, V []T | model.Query](a *T, mq V) model.Operation {
 	return model.Operation{Arg: a, Value: valueOperation{value: mq}, Operator: enum.NotIn, Type: enum.OperationInWhere}
 }
 
