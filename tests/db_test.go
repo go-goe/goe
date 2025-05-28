@@ -14,6 +14,7 @@ import (
 	"github.com/go-goe/postgres"
 	"github.com/go-goe/sqlite"
 	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
 )
 
 type Animal struct {
@@ -98,6 +99,7 @@ type Flag struct {
 	Uint32  uint32
 	Uint64  uint64
 	Bool    bool
+	Price   decimal.Decimal `goe:"type:decimal(10,4)"`
 	Byte    []byte
 }
 

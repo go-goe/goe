@@ -13,6 +13,7 @@ import (
 	"github.com/go-goe/goe/query/update"
 	"github.com/go-goe/goe/query/where"
 	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
 )
 
 func TestUpdate(t *testing.T) {
@@ -43,12 +44,19 @@ func TestUpdate(t *testing.T) {
 					Uint8:   8,
 					Uint16:  16,
 					Uint32:  32,
+					Uint64:  64,
 					Bool:    true,
 					Byte:    []byte{1, 2, 3},
+					Price:   decimal.NewFromUint64(99),
 				}
 				err = goe.Insert(db.Flag).One(&f)
 				if err != nil {
 					t.Errorf("Expected a insert, got error: %v", err)
+				}
+
+				price, err := decimal.NewFromString("9.99")
+				if err != nil {
+					t.Errorf("Expected a price, got error: %v", err)
 				}
 
 				ff := Flag{
@@ -57,6 +65,7 @@ func TestUpdate(t *testing.T) {
 					Float64: 4.4,
 					Bool:    false,
 					Byte:    []byte{1},
+					Price:   price,
 				}
 				u := goe.Update(db.Flag).
 					Sets(
@@ -65,6 +74,7 @@ func TestUpdate(t *testing.T) {
 				err = u.Sets(
 					update.Set(&db.Flag.Float64, ff.Float64),
 					update.Set(&db.Flag.Float32, ff.Float32),
+					update.Set(&db.Flag.Price, ff.Price),
 					update.Set(&db.Flag.Byte, ff.Byte)).
 					Where(where.Equals(&db.Flag.Id, f.Id))
 				if err != nil {
@@ -92,6 +102,9 @@ func TestUpdate(t *testing.T) {
 				if len(fselect.Byte) != len(ff.Byte) {
 					t.Errorf("Expected a update on byte, got : %v", len(fselect.Byte))
 				}
+				if !fselect.Price.Equal(ff.Price) {
+					t.Errorf("Expected a update on price, got : %v", fselect.Price)
+				}
 			},
 		},
 		{
@@ -112,12 +125,19 @@ func TestUpdate(t *testing.T) {
 					Uint8:   8,
 					Uint16:  16,
 					Uint32:  32,
+					Uint64:  64,
 					Bool:    true,
 					Byte:    []byte{1, 2, 3},
+					Price:   decimal.NewFromUint64(99),
 				}
 				err = goe.Insert(db.Flag).One(&f)
 				if err != nil {
 					t.Errorf("Expected a insert, got error: %v", err)
+				}
+
+				price, err := decimal.NewFromString("9.99")
+				if err != nil {
+					t.Errorf("Expected a price, got error: %v", err)
 				}
 
 				ff := Flag{
@@ -126,6 +146,7 @@ func TestUpdate(t *testing.T) {
 					Float32: 3.3,
 					Float64: 4.4,
 					Byte:    []byte{1},
+					Price:   price,
 				}
 				err = goe.Save(db.Flag).ByValue(ff)
 				if err != nil {
@@ -149,6 +170,9 @@ func TestUpdate(t *testing.T) {
 				}
 				if len(fselect.Byte) != len(ff.Byte) {
 					t.Errorf("Expected a update on byte, got : %v", len(fselect.Byte))
+				}
+				if !fselect.Price.Equal(ff.Price) {
+					t.Errorf("Expected a update on price, got : %v", fselect.Price)
 				}
 			},
 		},

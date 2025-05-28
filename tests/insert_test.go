@@ -9,6 +9,7 @@ import (
 
 	"github.com/go-goe/goe"
 	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
 )
 
 func TestInsert(t *testing.T) {
@@ -39,8 +40,10 @@ func TestInsert(t *testing.T) {
 					Uint8:   8,
 					Uint16:  16,
 					Uint32:  32,
+					Uint64:  64,
 					Bool:    true,
 					Byte:    []byte{1, 2, 3},
+					Price:   decimal.NewFromUint64(99),
 				}
 				err = goe.Insert(db.Flag).One(&f)
 				if err != nil {
@@ -106,6 +109,10 @@ func TestInsert(t *testing.T) {
 
 				if len(fs.Byte) != len(f.Byte) {
 					t.Errorf("Expected %v, got : %v", len(f.Byte), len(fs.Byte))
+				}
+
+				if !fs.Price.Equal(f.Price) {
+					t.Errorf("Expected %v, got : %v", f.Price, fs.Price)
 				}
 			},
 		},

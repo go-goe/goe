@@ -186,11 +186,7 @@ func initField(tables reflect.Value, valueOf reflect.Value, db *DB, tableId int,
 }
 
 func handlerStruct(b body, create func(b body) error) error {
-	switch b.fieldTypeOf.Name() {
-	case "Time":
-		return create(b)
-	}
-	return nil
+	return create(b)
 }
 
 func handlerSlice(b body, helper func(b body) error) error {
