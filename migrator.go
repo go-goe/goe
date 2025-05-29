@@ -315,7 +315,7 @@ func migrateAtt(b body) error {
 func getTagType(field reflect.StructField) string {
 	value := getTagValue(field.Tag.Get("goe"), "type:")
 	if value != "" {
-		return value
+		return strings.ReplaceAll(value, " ", "")
 	}
 	dataType := field.Type.String()
 	if dataType[0] == '*' {
