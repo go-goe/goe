@@ -2,6 +2,7 @@ package tests_test
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"sync"
 	"testing"
@@ -26,24 +27,26 @@ func TestInsert(t *testing.T) {
 			desc: "Insert_Flag",
 			testCase: func(t *testing.T) {
 				f := Flag{
-					Id:      uuid.New(),
-					Name:    "Flag",
-					Float32: 1.1,
-					Float64: 2.2,
-					Today:   time.Now(),
-					Int:     -1,
-					Int8:    -8,
-					Int16:   -16,
-					Int32:   -32,
-					Int64:   -64,
-					Uint:    1,
-					Uint8:   8,
-					Uint16:  16,
-					Uint32:  32,
-					Uint64:  64,
-					Bool:    true,
-					Byte:    []byte{1, 2, 3},
-					Price:   decimal.NewFromUint64(99),
+					Id:         uuid.New(),
+					Name:       "Flag",
+					Float32:    1.1,
+					Float64:    2.2,
+					Today:      time.Now(),
+					Int:        -1,
+					Int8:       -8,
+					Int16:      -16,
+					Int32:      -32,
+					Int64:      -64,
+					Uint:       1,
+					Uint8:      8,
+					Uint16:     16,
+					Uint32:     32,
+					Uint64:     64,
+					Bool:       true,
+					Byte:       []byte{1, 2, 3},
+					NullId:     sql.Null[uuid.UUID]{V: uuid.New(), Valid: true},
+					NullString: sql.NullString{String: "String Value", Valid: true},
+					Price:      decimal.NewFromUint64(99),
 				}
 				err = goe.Insert(db.Flag).One(&f)
 				if err != nil {
@@ -113,6 +116,14 @@ func TestInsert(t *testing.T) {
 
 				if !fs.Price.Equal(f.Price) {
 					t.Errorf("Expected %v, got : %v", f.Price, fs.Price)
+				}
+
+				if fs.NullId != f.NullId {
+					t.Errorf("Expected %v, got : %v", f.NullId, fs.NullId)
+				}
+
+				if fs.NullString != f.NullString {
+					t.Errorf("Expected %v, got : %v", f.NullString, fs.NullString)
 				}
 			},
 		},

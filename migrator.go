@@ -114,6 +114,7 @@ func typeField(tables reflect.Value, valueOf reflect.Value, migrator *Migrator, 
 			err = handlerStruct(body{
 				fieldId:     fieldId,
 				driver:      driver,
+				nullable:    isNullable(field),
 				fieldTypeOf: valueOf.Field(fieldId).Type(),
 				valueOf:     valueOf,
 				migrate: &infosMigrate{
@@ -322,6 +323,11 @@ func getTagType(field reflect.StructField) string {
 		return dataType[1:]
 	}
 	return dataType
+}
+
+func isNullable(field reflect.StructField) bool {
+	dataType := field.Type.String()
+	return strings.HasPrefix(dataType, "sql.Null")
 }
 
 func getIndex(field reflect.StructField) string {
