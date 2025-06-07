@@ -9,15 +9,13 @@ import (
 )
 
 type save[T any] struct {
-	table         *T
-	errBadRequest error
-	update        stateUpdate[T]
+	table  *T
+	update stateUpdate[T]
 }
 
 // Save is a wrapper over [Update] for more simple updates,
 // uses the value for create a where matching the primary keys
 // and includes for update all non-zero values excluding the primary keys.
-// If the record don't exists returns a [ErrNotFound].
 //
 // Save uses [context.Background] internally;
 // to specify the context, use [SaveContext].
@@ -36,7 +34,7 @@ func Save[T any](table *T) save[T] {
 //
 // See [Save] for examples.
 func SaveContext[T any](ctx context.Context, table *T) save[T] {
-	return save[T]{update: UpdateContext(ctx, table), table: table, errBadRequest: ErrBadRequest}
+	return save[T]{update: UpdateContext(ctx, table), table: table}
 }
 
 func (s save[T]) OnTransaction(tx Transaction) save[T] {
@@ -44,16 +42,11 @@ func (s save[T]) OnTransaction(tx Transaction) save[T] {
 	return s
 }
 
-// Replace the ErrBadRequest with err
-func (s save[T]) OnErrBadRequest(err error) save[T] {
-	s.errBadRequest = err
-	return s
-}
-
 func (s save[T]) ByValue(v T) error {
-	argsSave := getArgsSave(addrMap.mapField, s.table, v, s.errBadRequest)
-	if argsSave.err != nil {
-		return argsSave.err
+	argsSave := getArgsSave(addrMap.mapField, s.table, v)
+	// skip queries on empty models
+	if argsSave.skip {
+		return nil
 	}
 
 	s.update.builder.sets = argsSave.sets
@@ -133,10 +126,10 @@ type argSave struct {
 	sets        []set
 	argsWhere   []any
 	valuesWhere []any
-	err         error
+	skip        bool
 }
 
-func getArgsSave[T any](addrMap map[uintptr]field, table *T, value T, errBadRequest error) argSave {
+func getArgsSave[T any](addrMap map[uintptr]field, table *T, value T) argSave {
 	if table == nil {
 		panic("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
 	}
@@ -167,7 +160,7 @@ func getArgsSave[T any](addrMap map[uintptr]field, table *T, value T, errBadRequ
 		}
 	}
 	if len(pksWhere) == 0 || len(valuesWhere) == 0 {
-		return argSave{err: errBadRequest}
+		return argSave{skip: true}
 	}
 	return argSave{sets: sets, argsWhere: pksWhere, valuesWhere: valuesWhere}
 }

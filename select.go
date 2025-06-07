@@ -28,10 +28,9 @@ type stateSelect[T any] struct {
 }
 
 type find[T any] struct {
-	table         *T
-	errNotFound   error
-	errBadRequest error
-	sSelect       stateSelect[T]
+	table       *T
+	errNotFound error
+	sSelect     stateSelect[T]
 }
 
 // Find returns a matched record,
@@ -48,12 +47,11 @@ func Find[T any](table *T) find[T] {
 }
 
 // FindContext returns a matched record,
-// if non record is found returns a [ErrNotFound],
-// also if the struct don't have values returns a [ErrBadRequest].
+// if non record is found returns a [ErrNotFound].
 //
 // See [Find] for examples
 func FindContext[T any](ctx context.Context, table *T) find[T] {
-	return find[T]{table: table, sSelect: SelectContext(ctx, table), errNotFound: ErrNotFound, errBadRequest: ErrBadRequest}
+	return find[T]{table: table, sSelect: SelectContext(ctx, table), errNotFound: ErrNotFound}
 }
 
 func (f find[T]) OnTransaction(tx Transaction) find[T] {
@@ -67,19 +65,12 @@ func (f find[T]) OnErrNotFound(err error) find[T] {
 	return f
 }
 
-// Replace the ErrBadRequest with err
-func (f find[T]) OnErrBadRequest(err error) find[T] {
-	f.errBadRequest = err
-	return f
-}
-
 // Finds the record by values on Ids
 func (f find[T]) ById(value T) (*T, error) {
 	pks, valuesPks, err := getArgsPks(getArgs{
-		addrMap:       addrMap.mapField,
-		table:         f.table,
-		value:         value,
-		errBadRequest: f.errBadRequest})
+		addrMap: addrMap.mapField,
+		table:   f.table,
+		value:   value})
 
 	if err != nil {
 		return nil, err
@@ -101,14 +92,13 @@ func (f find[T]) ById(value T) (*T, error) {
 // if returns more than one it's returns the first
 // and ignores the rest
 func (f find[T]) ByValue(value T) (*T, error) {
-	pks, valuesPks, err := getNonZeroFields(getArgs{
-		addrMap:       addrMap.mapField,
-		table:         f.table,
-		value:         value,
-		errBadRequest: f.errBadRequest})
+	pks, valuesPks, skip := getNonZeroFields(getArgs{
+		addrMap: addrMap.mapField,
+		table:   f.table,
+		value:   value})
 
-	if err != nil {
-		return nil, err
+	if skip {
+		return nil, f.errNotFound
 	}
 
 	f.sSelect = f.sSelect.Where(operations(pks, valuesPks))
@@ -411,9 +401,9 @@ func (l list[T]) OrderByDesc(a any) list[T] {
 
 // Filter creates a where on non-zero values.
 func (l list[T]) Filter(v T) list[T] {
-	args, values, err := getNonZeroFields(getArgs{addrMap: addrMap.mapField, table: l.table, value: v})
-	if err != nil {
-		l.err = err
+	args, values, skip := getNonZeroFields(getArgs{addrMap: addrMap.mapField, table: l.table, value: v})
+	// skip empty model
+	if skip {
 		return l
 	}
 
@@ -451,21 +441,29 @@ func (l list[T]) AsPagination(page, size int) (*Pagination[T], error) {
 }
 
 type getArgs struct {
-	addrMap       map[uintptr]field
-	table         any
-	value         any
-	errBadRequest error
+	addrMap map[uintptr]field
+	table   any
+	value   any
 }
 
 func getArgsPks(a getArgs) ([]any, []any, error) {
+	args, values := getPrimaryArgs(a)
+
+	if len(args) == 0 {
+		return nil, nil, ErrNotFound
+	}
+	return args, values, nil
+}
+
+func getPrimaryArgs(a getArgs) ([]any, []any) {
 	if a.table == nil {
-		return nil, nil, errors.New("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
+		panic("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
 	}
 
 	tableOf := reflect.ValueOf(a.table).Elem()
 
 	if tableOf.Kind() != reflect.Struct {
-		return nil, nil, errors.New("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
+		panic("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
 	}
 
 	valueOf := reflect.ValueOf(a.value)
@@ -484,18 +482,15 @@ func getArgsPks(a getArgs) ([]any, []any, error) {
 		}
 	}
 
-	if len(args) == 0 && len(values) == 0 {
-		return nil, nil, a.errBadRequest
-	}
-	return args, values, nil
+	return args, values
 }
 
-func getNonZeroFields(a getArgs) ([]any, []any, error) {
+func getNonZeroFields(a getArgs) ([]any, []any, bool) {
 	args, values := make([]any, 0), make([]any, 0)
 
 	tableOf := reflect.ValueOf(a.table).Elem()
 	if tableOf.Kind() != reflect.Struct {
-		return nil, nil, errors.New("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
+		panic("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
 	}
 
 	valueOf := reflect.ValueOf(a.value)
@@ -510,10 +505,10 @@ func getNonZeroFields(a getArgs) ([]any, []any, error) {
 		}
 	}
 
-	if a.errBadRequest != nil && len(args) == 0 {
-		return nil, nil, a.errBadRequest
+	if len(args) == 0 {
+		return nil, nil, true
 	}
-	return args, values, nil
+	return args, values, false
 }
 
 func helperNonZeroOperation[T any](stateSelect stateSelect[T], args []any, values []any) stateSelect[T] {
