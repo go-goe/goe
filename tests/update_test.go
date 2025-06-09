@@ -613,25 +613,6 @@ func TestUpdate(t *testing.T) {
 			},
 		},
 		{
-			desc: "Save_BadRequest",
-			testCase: func(t *testing.T) {
-				err = goe.Save(db.Animal).ByValue(Animal{Name: "Cat"})
-				if !errors.Is(err, goe.ErrBadRequest) {
-					t.Fatalf("Expected goe.ErrBadRequest, got %v", err)
-				}
-			},
-		},
-		{
-			desc: "Save_Custom_BadRequest",
-			testCase: func(t *testing.T) {
-				customErr := errors.New("my custom error")
-				err = goe.Save(db.Animal).OnErrBadRequest(customErr).ByValue(Animal{Name: "Create Cat"})
-				if !errors.Is(err, customErr) {
-					t.Fatalf("Expected customErr, got error: %v", err)
-				}
-			},
-		},
-		{
 			desc: "Update_Context_Cancel",
 			testCase: func(t *testing.T) {
 				a := Animal{

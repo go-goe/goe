@@ -2,7 +2,6 @@ package goe
 
 import (
 	"context"
-	"errors"
 
 	"github.com/go-goe/goe/enum"
 	"github.com/go-goe/goe/model"
@@ -15,16 +14,12 @@ type stateDelete struct {
 }
 
 type remove[T any] struct {
-	table         *T
-	errBadRequest error
-	delete        stateDelete
+	table  *T
+	delete stateDelete
 }
-
-var ErrBadRequest = errors.New("goe: not found any value on struct")
 
 // Remove is a wrapper over [Delete] for more simple deletes,
 // uses the value for create a where matching the primary keys.
-// If the struct don't have values returns a [ErrBadRequest].
 //
 // Remove uses [context.Background] internally;
 // to specify the context, use [RemoveContext].
@@ -38,7 +33,7 @@ func Remove[T any](table *T) remove[T] {
 }
 
 func RemoveContext[T any](ctx context.Context, table *T) remove[T] {
-	return remove[T]{table: table, delete: DeleteContext(ctx, table), errBadRequest: ErrBadRequest}
+	return remove[T]{table: table, delete: DeleteContext(ctx, table)}
 }
 
 func (r remove[T]) OnTransaction(tx Transaction) remove[T] {
@@ -46,21 +41,15 @@ func (r remove[T]) OnTransaction(tx Transaction) remove[T] {
 	return r
 }
 
-// Replace the ErrBadRequest with err
-func (r remove[T]) OnErrBadRequest(err error) remove[T] {
-	r.errBadRequest = err
-	return r
-}
-
 func (r remove[T]) ById(value T) error {
-	pks, valuesPks, err := getArgsPks(getArgs{
-		addrMap:       addrMap.mapField,
-		table:         r.table,
-		value:         value,
-		errBadRequest: r.errBadRequest})
+	pks, valuesPks, skip := getArgsRemove(getArgs{
+		addrMap: addrMap.mapField,
+		table:   r.table,
+		value:   value})
 
-	if err != nil {
-		return err
+	// skip queries on empty models
+	if skip {
+		return nil
 	}
 
 	return r.delete.Where(operations(pks, valuesPks))
@@ -116,4 +105,13 @@ func (s stateDelete) Where(o model.Operation) error {
 
 func createDeleteState(ctx context.Context) stateDelete {
 	return stateDelete{builder: createBuilder(enum.DeleteQuery), ctx: ctx}
+}
+
+func getArgsRemove(a getArgs) ([]any, []any, bool) {
+	args, values := getPrimaryArgs(a)
+
+	if len(args) == 0 {
+		return nil, nil, true
+	}
+	return args, values, false
 }

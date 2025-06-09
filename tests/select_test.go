@@ -791,17 +791,7 @@ func TestSelect(t *testing.T) {
 					t.Fatalf("Expected Cat, got: %v", a.Name)
 				}
 
-				_, err = goe.Find(db.Animal).ByValue(Animal{})
-				if !errors.Is(err, goe.ErrBadRequest) {
-					t.Fatalf("Expected goe.ErrBadRequest, got: %v", err)
-				}
-
 				customErr := errors.New("my custom error")
-
-				_, err = goe.Find(db.Animal).OnErrBadRequest(customErr).ByValue(Animal{})
-				if !errors.Is(err, customErr) {
-					t.Fatalf("Expected customErr, got: %v", err)
-				}
 
 				_, err = goe.Find(db.Animal).ByValue(Animal{Id: -1})
 				if !errors.Is(err, goe.ErrNotFound) {

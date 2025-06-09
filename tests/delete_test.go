@@ -263,25 +263,6 @@ func TestDelete(t *testing.T) {
 			},
 		},
 		{
-			desc: "Remove_BadRequest",
-			testCase: func(t *testing.T) {
-				err = goe.Remove(db.Animal).ById(Animal{Name: "Cat"})
-				if !errors.Is(err, goe.ErrBadRequest) {
-					t.Fatalf("Expected goe.ErrBadRequest, got %v", err)
-				}
-			},
-		},
-		{
-			desc: "Remove_Custom_BadRequest",
-			testCase: func(t *testing.T) {
-				customErr := errors.New("my custom error")
-				err = goe.Remove(db.Animal).OnErrBadRequest(customErr).ById(Animal{Name: "Create Cat"})
-				if !errors.Is(err, customErr) {
-					t.Fatalf("Expected customErr, got error: %v", err)
-				}
-			},
-		},
-		{
 			desc: "Delete_Context_Cancel",
 			testCase: func(t *testing.T) {
 				ctx, cancel := context.WithCancel(context.Background())
