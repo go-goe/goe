@@ -9,6 +9,9 @@ A type safe SQL like ORM for Go
 ![](goe.png)
 *GOE logo by [Luanexs](https://www.instagram.com/luanexs/)*
 
+## Requirements
+- go v1.24 or above;
+
 ## Features
 Check out the [Benchmarks](#benchmarks) section for a overview on GOE performance compared to other packages like, ent, GORM, sqlc, and others.
 
@@ -35,6 +38,7 @@ Check out the [Benchmarks](#benchmarks) section for a overview on GOE performanc
 	- [SQLite](#sqlite)
 - [Quick Start](#quick-start)
 - [Database](#database)
+	- [Supported Types](#supported-types)
 	- [Struct Mapping](#struct-mapping)
 	- [Setting primary key](#setting-primary-key)
 	- [Setting type](#setting-type)
@@ -62,7 +66,6 @@ Check out the [Benchmarks](#benchmarks) section for a overview on GOE performanc
 	- [Aggregates](#aggregates)
 	- [Functions](#functions)
 - [Insert](#insert)
-	- [Create](#create)
 	- [Insert One](#insert-one)
 	- [Insert Batch](#insert-batch)
 - [Update](#update)
@@ -197,6 +200,20 @@ the structs that's it's to be mappend.
 
 It's through the Database struct that you will
 interact with your database.
+
+### Supported Types
+
+GOE supports any type that implements the [Scanner Interface](https://pkg.go.dev/database/sql#Scanner). Most common are sql.Null types from database/sql package.
+
+```go
+type Table struct {
+	Price      decimal.Decimal     `goe:"type:decimal(10,4)"`
+	NullId     sql.Null[uuid.UUID] `goe:"type:uuid"`
+	NullString sql.NullString      `goe:"type:varchar(100)"`
+}
+```
+
+[Back to Contents](#content)
 ### Struct mapping
 ```go
 type User struct {
@@ -479,9 +496,6 @@ cat, err = goe.Find(db.Animal).ByValue(Animal{Name: "Cat"})
 > [!TIP]
 > Use **OnErrNotFound** to replace ErrNotFound with a new error.
 
-> [!TIP]
-> Use **OnErrBadRequest** to replace ErrBadRequest with a new error.
-
 [Back to Contents](#content)
 ### List
 
@@ -620,7 +634,7 @@ You can use a if to call a where operation only if it's match
 selectQuery := goe.Select(db.Animal).Where(where.LessEquals(&db.Animal.Id, 30))
 
 if filter.In {
-	selectQuery.Where(
+	selectQuery = selectQuery.Where(
 		where.And(
 			where.LessEquals(&db.Animal.Id, 30), 
 			where.In(&db.Animal.Name, []string{"Cat", "Dog"}),
@@ -629,6 +643,26 @@ if filter.In {
 }
 
 animals, err = selectQuery.AsSlice()
+
+if err != nil {
+	//handler error
+}
+```
+
+It's possible to use a query inside a `where.In`
+
+```go
+// use AsQuery() for get a result as a query
+querySelect := goe.Select(&struct{ Name *string }{Name: &db.Animal.Name}).
+					Joins(
+						join.Join[int](&db.Animal.Id, &db.AnimalFood.IdAnimal),
+						join.Join[uuid.UUID](&db.AnimalFood.IdFood, &db.Food.Id)).
+					Where(
+						where.In(&db.Food.Name, []string{foods[0].Name, foods[1].Name})).
+					AsQuery()
+
+// where in with another query
+a, err := goe.Select(db.Animal).Where(where.In(&db.Animal.Name, querySelect)).AsSlice()
 
 if err != nil {
 	//handler error
@@ -773,21 +807,6 @@ if err != nil {
 ## Insert
 On Insert if the primary key value is auto-increment, the new Id will be stored on the object after the insert.
 
-### Create
-
-Use create when you want to insert a record on database and return it.
-
-```go
-myPage, err := goe.Create(db.Page).ByValue(Page{Number: 1})
-if err != nil {
-	//handler error
-}
-```
-> [!TIP] 
-> Use **goe.CreateContext** for specify a context.
-
-[Back to Contents](#content)
-
 ### Insert One
 ```go
 a := Animal{Name: "Cat", Emoji: "🐘"}
@@ -842,9 +861,6 @@ if err != nil {
 > [!TIP] 
 > Use **goe.SaveContext** for specify a context.
 
-> [!TIP] 
-> Use **OnErrBadRequest** to replace ErrBadRequest with a new error.
-
 [Back to Contents](#content)
 
 ### Update Set
@@ -886,9 +902,6 @@ if err != nil {
 
 > [!TIP] 
 > Use **goe.RemoveContext** for specify a context.
-
-> [!TIP] 
-> Use **OnErrBadRequest** to replace ErrBadRequest with a new error.
 
 [Back to Contents](#content)
 
