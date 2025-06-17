@@ -34,7 +34,7 @@ type Driver interface {
 	DropTable(string) error
 	DropColumn(table, column string) error
 	RenameColumn(table, oldColumn, newColumn string) error
-	Init() error
+	Init(InitSetup) error
 	KeywordHandler(string) string
 	NewConnection() Connection
 	NewTransaction(ctx context.Context, opts *sql.TxOptions) (Transaction, error)
