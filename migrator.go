@@ -10,8 +10,9 @@ import (
 )
 
 type Migrator struct {
-	Tables map[string]*TableMigrate
-	Error  error
+	Tables  map[string]*TableMigrate
+	Schemes []string
+	Error   error
 }
 
 type TableMigrate struct {
@@ -97,6 +98,7 @@ func migrateFrom(db any, driver Driver) *Migrator {
 	for i := range valueOf.NumField() - 1 {
 		if strings.HasSuffix(valueOf.Field(i).Elem().Type().Name(), "Scheme") {
 			scheme := driver.KeywordHandler(utils.ColumnNamePattern(valueOf.Field(i).Elem().Type().Name()))
+			migrator.Schemes = append(migrator.Schemes, scheme)
 			for f := range valueOf.Field(i).Elem().NumField() {
 				migrator.Error = typeField(valueOf, valueOf.Field(i).Elem().Field(f).Elem(), migrator, driver, &scheme)
 				if migrator.Error != nil {

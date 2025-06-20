@@ -14,7 +14,6 @@ type field interface {
 	getTableId() int
 	getFieldId() int
 	getAttributeName() string
-	table() string
 	buildAttributeInsert(*builder)
 }
 
@@ -26,6 +25,7 @@ type fieldSelect interface {
 	fieldDb
 	buildAttributeSelect([]model.Attribute, int)
 	table() string
+	scheme() *string
 	getTableId() int
 }
 
@@ -34,7 +34,7 @@ type Driver interface {
 	DropTable(string) error
 	DropColumn(table, column string) error
 	RenameColumn(table, oldColumn, newColumn string) error
-	Init(InitSetup) error
+	Init() error
 	KeywordHandler(string) string
 	NewConnection() Connection
 	NewTransaction(ctx context.Context, opts *sql.TxOptions) (Transaction, error)

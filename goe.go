@@ -7,6 +7,8 @@ import (
 	"reflect"
 	"slices"
 	"strings"
+
+	"github.com/go-goe/goe/utils"
 )
 
 func init() {
@@ -37,13 +39,32 @@ func Open[T any](driver Driver) (*T, error) {
 	for i := range dbId {
 		if valueOf.Field(i).IsNil() {
 			valueOf.Field(i).Set(reflect.ValueOf(reflect.New(valueOf.Field(i).Type().Elem()).Interface()))
+			if strings.HasSuffix(valueOf.Field(i).Elem().Type().Name(), "Scheme") {
+				for f := range valueOf.Field(i).Elem().NumField() {
+					valueOf.Field(i).Elem().Field(f).Set(reflect.ValueOf(reflect.New(valueOf.Field(i).Elem().Field(f).Type().Elem()).Interface()))
+				}
+				continue
+			}
 		}
 	}
 
 	var err error
+	tableId := 0
 	// init Fields
-	for tableId := range dbId {
-		err = initField(valueOf, valueOf.Field(tableId).Elem(), dbTarget, tableId+1, driver)
+	for f := range dbId {
+		if strings.HasSuffix(valueOf.Field(f).Elem().Type().Name(), "Scheme") {
+			scheme := driver.KeywordHandler(utils.ColumnNamePattern(valueOf.Field(f).Elem().Type().Name()))
+			for i := range valueOf.Field(f).Elem().NumField() {
+				tableId += i + 1
+				err = initField(&scheme, valueOf, valueOf.Field(f).Elem().Field(i).Elem(), dbTarget, tableId, driver)
+				if err != nil {
+					return nil, err
+				}
+			}
+			continue
+		}
+		tableId++
+		err = initField(nil, valueOf, valueOf.Field(f).Elem(), dbTarget, tableId, driver)
 		if err != nil {
 			return nil, err
 		}
@@ -90,6 +111,7 @@ type body struct {
 	fieldId     int
 	driver      Driver
 	nullable    bool
+	scheme      *string
 	stringInfos
 }
 
@@ -103,8 +125,8 @@ func skipPrimaryKey[T comparable](slice []T, value T, tables reflect.Value, fiel
 	return false
 }
 
-func initField(tables reflect.Value, valueOf reflect.Value, db *DB, tableId int, driver Driver) error {
-	pks, fieldIds, err := getPk(db, valueOf.Type(), tableId, driver)
+func initField(scheme *string, tables reflect.Value, valueOf reflect.Value, db *DB, tableId int, driver Driver) error {
+	pks, fieldIds, err := getPk(db, scheme, valueOf.Type(), tableId, driver)
 	if err != nil {
 		return err
 	}
@@ -124,6 +146,7 @@ func initField(tables reflect.Value, valueOf reflect.Value, db *DB, tableId int,
 				typeOf:      valueOf.Type(),
 				tables:      tables,
 				fieldId:     fieldId,
+				scheme:      scheme,
 				mapp: &infosMap{
 					pks:     pks,
 					db:      db,
@@ -141,6 +164,7 @@ func initField(tables reflect.Value, valueOf reflect.Value, db *DB, tableId int,
 				driver:      driver,
 				fieldTypeOf: valueOf.Field(fieldId).Type(),
 				valueOf:     valueOf,
+				scheme:      scheme,
 				mapp: &infosMap{
 					pks:     pks,
 					db:      db,
@@ -156,6 +180,7 @@ func initField(tables reflect.Value, valueOf reflect.Value, db *DB, tableId int,
 				tables:   tables,
 				valueOf:  valueOf,
 				typeOf:   valueOf.Type(),
+				scheme:   scheme,
 				mapp: &infosMap{
 					pks:     pks,
 					db:      db,
@@ -170,6 +195,7 @@ func initField(tables reflect.Value, valueOf reflect.Value, db *DB, tableId int,
 				tables:  tables,
 				valueOf: valueOf,
 				typeOf:  valueOf.Type(),
+				scheme:  scheme,
 				mapp: &infosMap{
 					pks:     pks,
 					db:      db,
@@ -201,6 +227,7 @@ func newAttr(b body) error {
 	at := createAtt(
 		b.mapp.db,
 		b.valueOf.Type().Field(b.fieldId).Name,
+		b.scheme,
 		b.mapp.pks[0].tableName,
 		b.mapp.tableId,
 		b.fieldId,
@@ -210,7 +237,7 @@ func newAttr(b body) error {
 	return nil
 }
 
-func getPk(db *DB, typeOf reflect.Type, tableId int, driver Driver) ([]pk, []int, error) {
+func getPk(db *DB, scheme *string, typeOf reflect.Type, tableId int, driver Driver) ([]pk, []int, error) {
 	var pks []pk
 	var fieldIds []int
 	var fieldId int
@@ -220,7 +247,7 @@ func getPk(db *DB, typeOf reflect.Type, tableId int, driver Driver) ([]pk, []int
 		pks := make([]pk, 1)
 		fieldIds = make([]int, 1)
 		fieldId = getFieldId(typeOf, id.Name)
-		pks[0] = createPk(db, typeOf.Name(), id.Name, isAutoIncrement(id), tableId, fieldId, driver)
+		pks[0] = createPk(db, scheme, typeOf.Name(), id.Name, isAutoIncrement(id), tableId, fieldId, driver)
 		fieldIds[0] = fieldId
 		return pks, fieldIds, nil
 	}
@@ -234,7 +261,7 @@ func getPk(db *DB, typeOf reflect.Type, tableId int, driver Driver) ([]pk, []int
 	fieldIds = make([]int, len(fields))
 	for i := range fields {
 		fieldId = getFieldId(typeOf, fields[i].Name)
-		pks[i] = createPk(db, typeOf.Name(), fields[i].Name, isAutoIncrement(fields[i]), tableId, fieldId, driver)
+		pks[i] = createPk(db, scheme, typeOf.Name(), fields[i].Name, isAutoIncrement(fields[i]), tableId, fieldId, driver)
 		fieldIds[i] = fieldId
 	}
 
@@ -255,29 +282,28 @@ func isAutoIncrement(id reflect.StructField) bool {
 }
 
 func isManyToOne(b body, createMany func(b body, typeOf reflect.Type) any, createOne func(b body, typeOf reflect.Type) any) any {
-	for c := 0; c < b.tables.NumField(); c++ {
-		if b.tables.Field(c).Elem().Type().Name() == b.tableName {
-			for i := 0; i < b.tables.Field(c).Elem().NumField(); i++ {
-				// check if there is a slice to typeOf
-				if b.tables.Field(c).Elem().Field(i).Kind() == reflect.Slice {
-					if b.tables.Field(c).Elem().Field(i).Type().Elem().Name() == b.typeOf.Name() {
-						return createMany(b, b.tables.Field(c).Elem().Type())
-					}
+	fieldByName := b.tables.FieldByName(b.tableName).Elem()
+	if fieldByName.IsValid() {
+		for i := 0; i < fieldByName.NumField(); i++ {
+			// check if there is a slice to typeOf
+			if fieldByName.Field(i).Kind() == reflect.Slice {
+				if fieldByName.Field(i).Type().Elem().Name() == b.typeOf.Name() {
+					return createMany(b, fieldByName.Type())
 				}
 			}
-			if tableMtm := strings.ReplaceAll(b.typeOf.Name(), b.tableName, ""); tableMtm != b.typeOf.Name() {
-				typeOfMtm := b.tables.FieldByName(tableMtm)
-				if typeOfMtm.IsValid() && !typeOfMtm.IsZero() {
-					typeOfMtm = typeOfMtm.Elem()
-					for i := 0; i < typeOfMtm.NumField(); i++ {
-						if typeOfMtm.Field(i).Kind() == reflect.Slice && typeOfMtm.Field(i).Type().Elem().Name() == b.tableName {
-							return createMany(b, typeOfMtm.Field(i).Type().Elem())
-						}
-					}
-				}
-			}
-			return createOne(b, b.tables.Field(c).Elem().Type())
 		}
+		if tableMtm := strings.ReplaceAll(b.typeOf.Name(), b.tableName, ""); tableMtm != b.typeOf.Name() {
+			typeOfMtm := b.tables.FieldByName(tableMtm)
+			if typeOfMtm.IsValid() && !typeOfMtm.IsZero() {
+				typeOfMtm = typeOfMtm.Elem()
+				for i := 0; i < typeOfMtm.NumField(); i++ {
+					if typeOfMtm.Field(i).Kind() == reflect.Slice && typeOfMtm.Field(i).Type().Elem().Name() == b.tableName {
+						return createMany(b, typeOfMtm.Field(i).Type().Elem())
+					}
+				}
+			}
+		}
+		return createOne(b, fieldByName.Type())
 	}
 	return nil
 }
