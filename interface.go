@@ -31,9 +31,9 @@ type fieldSelect interface {
 
 type Driver interface {
 	MigrateContext(context.Context, *Migrator) error
-	DropTable(string) error
-	DropColumn(table, column string) error
-	RenameColumn(table, oldColumn, newColumn string) error
+	DropTable(scheme, table string) error
+	DropColumn(scheme, table, column string) error
+	RenameColumn(scheme, table, oldColumn, newColumn string) error
 	Init() error
 	KeywordHandler(string) string
 	NewConnection() Connection
