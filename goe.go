@@ -108,6 +108,7 @@ type body struct {
 	fieldTypeOf reflect.Type
 	mapp        *infosMap     // used on map
 	migrate     *infosMigrate // used on migrate
+	schemesMap  map[string]*string
 	fieldId     int
 	driver      Driver
 	nullable    bool
