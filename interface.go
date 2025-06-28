@@ -5,6 +5,7 @@ import (
 	"database/sql"
 
 	"github.com/go-goe/goe/model"
+	"github.com/go-goe/goe/model/def"
 )
 
 type field interface {
@@ -74,4 +75,8 @@ type Rows interface {
 
 type Row interface {
 	Scan(dest ...any) error
+}
+
+type Default interface {
+	Default() []def.Default
 }

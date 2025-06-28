@@ -54,6 +54,7 @@ type AttributeMigrate struct {
 	Name         string
 	EscapingName string
 	DataType     string
+	Default      any
 }
 
 type OneToOneMigrate struct {
@@ -110,7 +111,7 @@ func migrateFrom(db any, driver Driver) *Migrator {
 			scheme := driver.KeywordHandler(utils.ColumnNamePattern(valueOf.Field(i).Elem().Type().Name()))
 			migrator.Schemes = append(migrator.Schemes, scheme)
 			for f := range valueOf.Field(i).Elem().NumField() {
-				migrator.Error = typeField(valueOf, valueOf.Field(i).Elem().Field(f).Elem(), migrator, driver, &scheme, schemesMap)
+				migrator.Error = typeField(valueOf, valueOf.Field(i).Elem().Field(f), migrator, driver, &scheme, schemesMap)
 				if migrator.Error != nil {
 					return migrator
 				}
@@ -118,7 +119,7 @@ func migrateFrom(db any, driver Driver) *Migrator {
 			continue
 		}
 
-		migrator.Error = typeField(valueOf, valueOf.Field(i).Elem(), migrator, driver, nil, schemesMap)
+		migrator.Error = typeField(valueOf, valueOf.Field(i), migrator, driver, nil, schemesMap)
 		if migrator.Error != nil {
 			return migrator
 		}
@@ -128,6 +129,15 @@ func migrateFrom(db any, driver Driver) *Migrator {
 }
 
 func typeField(tables reflect.Value, valueOf reflect.Value, migrator *Migrator, driver Driver, scheme *string, schemesMap map[string]*string) error {
+	defaultMap := make(map[int]any)
+	if r, v := valueOf.Interface().(Default); v {
+		ds := r.Default()
+		for _, d := range ds {
+			f := addrMap.get(uintptr(reflect.ValueOf(d.Column).UnsafePointer()))
+			defaultMap[f.getFieldId()] = d.Value
+		}
+	}
+	valueOf = valueOf.Elem()
 	pks, fieldNames, err := migratePk(valueOf.Type(), driver)
 	if err != nil {
 		return err
@@ -156,6 +166,7 @@ func typeField(tables reflect.Value, valueOf reflect.Value, migrator *Migrator, 
 					table:      table,
 					field:      field,
 					fieldNames: fieldNames,
+					defaultMap: defaultMap,
 				},
 				schemesMap: schemesMap,
 			}, helperAttributeMigrate)
@@ -170,8 +181,9 @@ func typeField(tables reflect.Value, valueOf reflect.Value, migrator *Migrator, 
 				fieldTypeOf: valueOf.Field(fieldId).Type(),
 				valueOf:     valueOf,
 				migrate: &infosMigrate{
-					table: table,
-					field: field,
+					table:      table,
+					field:      field,
+					defaultMap: defaultMap,
 				},
 				schemesMap: schemesMap,
 			}, migrateAtt)
@@ -190,6 +202,7 @@ func typeField(tables reflect.Value, valueOf reflect.Value, migrator *Migrator, 
 					table:      table,
 					field:      field,
 					fieldNames: fieldNames,
+					defaultMap: defaultMap,
 				},
 				schemesMap: schemesMap,
 			})
@@ -207,6 +220,7 @@ func typeField(tables reflect.Value, valueOf reflect.Value, migrator *Migrator, 
 					table:      table,
 					field:      field,
 					fieldNames: fieldNames,
+					defaultMap: defaultMap,
 				},
 				schemesMap: schemesMap,
 			})
@@ -311,6 +325,7 @@ func migrateAtt(b body) error {
 		b.migrate.field.Name,
 		getTagType(b.migrate.field),
 		b.nullable,
+		b.migrate.defaultMap[b.fieldId],
 		b.driver,
 	)
 	b.migrate.table.Attributes = append(b.migrate.table.Attributes, *at)
@@ -423,12 +438,13 @@ func createMigratePk(attributeName string, autoIncrement bool, dataType string, 
 		AutoIncrement: autoIncrement}
 }
 
-func createMigrateAtt(attributeName string, dataType string, nullable bool, driver Driver) *AttributeMigrate {
+func createMigrateAtt(attributeName string, dataType string, nullable bool, defaultValue any, driver Driver) *AttributeMigrate {
 	return &AttributeMigrate{
 		Name:         utils.ColumnNamePattern(attributeName),
 		EscapingName: driver.KeywordHandler(utils.ColumnNamePattern(attributeName)),
 		DataType:     dataType,
 		Nullable:     nullable,
+		Default:      defaultValue,
 	}
 }
 
