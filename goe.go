@@ -93,7 +93,6 @@ type infosMigrate struct {
 	field      reflect.StructField
 	table      *TableMigrate
 	fieldNames []string
-	defaultMap map[int]any
 }
 
 type stringInfos struct {
