@@ -31,8 +31,8 @@ type stateInsert[T any] struct {
 //	persons := []Person{{Name: "Jhon"}, {Name: "Mary"}}
 //	err = goe.Insert(db.Person).All(persons)
 //
-//	// use ignore value to ensure default values on insert
-//	err = goe.Insert(db.Person).IgnoreValue(&db.Person.CreatedAt).One(&f)
+//	// use IgnoreFields to ensure default values on insert
+//	err = goe.Insert(db.Person).IgnoreFields(&db.Person.CreatedAt).One(&f)
 func Insert[T any](table *T) stateInsert[T] {
 	return InsertContext(context.Background(), table)
 }
@@ -50,9 +50,9 @@ func (s stateInsert[T]) OnTransaction(tx Transaction) stateInsert[T] {
 	return s
 }
 
-// IgnoreValue ignores the values of the specified fields, use ignore value
+// IgnoreFields ignores the values of the specified fields, use IgnoreFields
 // to ensure database default values on Insert.
-func (s stateInsert[T]) IgnoreValue(fields ...any) stateInsert[T] {
+func (s stateInsert[T]) IgnoreFields(fields ...any) stateInsert[T] {
 	for _, f := range fields {
 		if mf := addrMap.mapField[uintptr(reflect.ValueOf(f).UnsafePointer())]; mf != nil {
 			s.ignoreFields = append(s.ignoreFields, mf.getFieldId())
