@@ -96,7 +96,7 @@ func migrateFrom(db any, driver Driver) *Migrator {
 
 	schemesMap := make(map[string]*string)
 	for i := range valueOf.NumField() - 1 {
-		if strings.HasSuffix(valueOf.Field(i).Elem().Type().Name(), "Scheme") {
+		if strings.Contains(valueOf.Type().Field(i).Tag.Get("goe"), "scheme") || strings.HasSuffix(valueOf.Field(i).Elem().Type().Name(), "Scheme") {
 			scheme := driver.KeywordHandler(utils.ColumnNamePattern(valueOf.Field(i).Elem().Type().Name()))
 			for f := range valueOf.Field(i).Elem().NumField() {
 				schemesMap[valueOf.Field(i).Elem().Field(f).Elem().Type().Name()] = &scheme
@@ -107,7 +107,7 @@ func migrateFrom(db any, driver Driver) *Migrator {
 	migrator := new(Migrator)
 	migrator.Tables = make(map[string]*TableMigrate)
 	for i := range valueOf.NumField() - 1 {
-		if strings.HasSuffix(valueOf.Field(i).Elem().Type().Name(), "Scheme") {
+		if strings.Contains(valueOf.Type().Field(i).Tag.Get("goe"), "scheme") || strings.HasSuffix(valueOf.Field(i).Elem().Type().Name(), "Scheme") {
 			scheme := driver.KeywordHandler(utils.ColumnNamePattern(valueOf.Field(i).Elem().Type().Name()))
 			migrator.Schemes = append(migrator.Schemes, scheme)
 			for f := range valueOf.Field(i).Elem().NumField() {

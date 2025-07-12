@@ -39,7 +39,7 @@ func Open[T any](driver Driver) (*T, error) {
 	for i := range dbId {
 		if valueOf.Field(i).IsNil() {
 			valueOf.Field(i).Set(reflect.ValueOf(reflect.New(valueOf.Field(i).Type().Elem()).Interface()))
-			if strings.HasSuffix(valueOf.Field(i).Elem().Type().Name(), "Scheme") {
+			if strings.Contains(valueOf.Type().Field(i).Tag.Get("goe"), "scheme") || strings.HasSuffix(valueOf.Field(i).Elem().Type().Name(), "Scheme") {
 				for f := range valueOf.Field(i).Elem().NumField() {
 					valueOf.Field(i).Elem().Field(f).Set(reflect.ValueOf(reflect.New(valueOf.Field(i).Elem().Field(f).Type().Elem()).Interface()))
 				}
@@ -52,7 +52,7 @@ func Open[T any](driver Driver) (*T, error) {
 	tableId := 0
 	// init Fields
 	for f := range dbId {
-		if strings.HasSuffix(valueOf.Field(f).Elem().Type().Name(), "Scheme") {
+		if strings.Contains(valueOf.Type().Field(f).Tag.Get("goe"), "scheme") || strings.HasSuffix(valueOf.Field(f).Elem().Type().Name(), "Scheme") {
 			scheme := driver.KeywordHandler(utils.ColumnNamePattern(valueOf.Field(f).Elem().Type().Name()))
 			for i := range valueOf.Field(f).Elem().NumField() {
 				tableId += i + 1
