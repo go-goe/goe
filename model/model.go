@@ -75,7 +75,6 @@ type Query struct {
 
 type QueryHeader struct {
 	Err           error
-	QueryBuild    time.Duration
 	ModelBuild    time.Duration
 	QueryDuration time.Duration
 }
