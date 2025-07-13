@@ -40,7 +40,6 @@ func TestInsert(t *testing.T) {
 					Uint:       1,
 					Uint8:      8,
 					Uint16:     16,
-					Uint32:     32,
 					Uint64:     64,
 					Bool:       true,
 					Byte:       []byte{1, 2, 3},
@@ -48,7 +47,7 @@ func TestInsert(t *testing.T) {
 					NullString: sql.NullString{String: "String Value", Valid: true},
 					Price:      decimal.NewFromUint64(99),
 				}
-				err = goe.Insert(db.Flag).One(&f)
+				err = goe.Insert(db.Flag).IgnoreFields(&db.Flag.Uint32).One(&f)
 				if err != nil {
 					t.Fatalf("Expected a insert, got error: %v", err)
 				}
@@ -99,8 +98,9 @@ func TestInsert(t *testing.T) {
 				if fs.Uint16 != f.Uint16 {
 					t.Errorf("Expected %v, got : %v", f.Uint16, fs.Uint16)
 				}
-				if fs.Uint32 != f.Uint32 {
-					t.Errorf("Expected %v, got : %v", f.Uint32, fs.Uint32)
+				// check default value
+				if fs.Uint32 != 32 {
+					t.Errorf("Expected default %v, got : %v", 32, fs.Uint32)
 				}
 				if fs.Uint64 != f.Uint64 {
 					t.Errorf("Expected %v, got : %v", f.Uint64, fs.Uint64)
