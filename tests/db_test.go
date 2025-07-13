@@ -96,7 +96,7 @@ type Flag struct {
 	Uint       uint
 	Uint8      uint8
 	Uint16     uint16
-	Uint32     uint32
+	Uint32     uint32 `goe:"default:32"`
 	Uint64     uint64
 	Bool       bool
 	Price      decimal.Decimal `goe:"type:decimal(10,4)"`
@@ -140,24 +140,46 @@ type Page struct {
 	PageId *int
 }
 
+type FlagScheme struct {
+	Flag *Flag
+}
+
+type Authentication struct {
+	User     *User
+	UserRole *UserRole
+	Role     *Role
+}
+
+type FoodHabitatScheme struct {
+	Food    *Food
+	Habitat *Habitat
+}
+
+type Drop struct {
+	Id   int
+	Name string
+}
+
+type DropScheme struct {
+	Drop *Drop
+}
+
 type Database struct {
-	Animal         *Animal
-	AnimalFood     *AnimalFood
-	Food           *Food
-	Habitat        *Habitat
-	Info           *Info
-	Status         *Status
-	Weather        *Weather
-	User           *User
-	UserRole       *UserRole
-	Role           *Role
-	Flag           *Flag
+	Animal     *Animal
+	AnimalFood *AnimalFood
+	*FoodHabitatScheme
+	Info            *Info
+	Status          *Status
+	Weather         *Weather
+	*Authentication `goe:"scheme"`
+	*FlagScheme
 	Person         *Person
 	PersonJobTitle *PersonJobTitle
 	JobTitle       *JobTitle
 	Exam           *Exam
 	Select         *Select
 	Page           *Page
+	*DropScheme
 	*goe.DB
 }
 
@@ -183,7 +205,9 @@ func Setup() (*Database, error) {
 
 func SetupPostgres() (*Database, error) {
 	var err error
-	db, err := goe.Open[Database](postgres.Open("user=postgres password=postgres host=localhost port=5432 database=postgres", postgres.Config{}))
+	db, err := goe.Open[Database](postgres.Open("user=postgres password=postgres host=localhost port=5432 database=postgres", postgres.Config{
+		//DatabaseConfig: goe.DatabaseConfig{Logger: slog.New(slog.NewJSONHandler(os.Stdout, nil))},
+	}))
 	if err != nil {
 		return nil, err
 	}
@@ -196,7 +220,9 @@ func SetupPostgres() (*Database, error) {
 
 func SetupSqlite() (*Database, error) {
 	var err error
-	db, err := goe.Open[Database](sqlite.Open(filepath.Join(os.TempDir(), "goe.db"), sqlite.Config{}))
+	db, err := goe.Open[Database](sqlite.Open(filepath.Join(os.TempDir(), "goe.db"), sqlite.Config{
+		//DatabaseConfig: goe.DatabaseConfig{Logger: slog.New(slog.NewJSONHandler(os.Stdout, nil))},
+	}))
 	if err != nil {
 		return nil, err
 	}
@@ -210,7 +236,7 @@ func SetupSqlite() (*Database, error) {
 func TestConnection(t *testing.T) {
 	_, err := Setup()
 	if err != nil {
-		t.Fatalf("Expected Postgres Connection, got error %v", err)
+		t.Fatalf("Expected Connection, got error %v", err)
 	}
 }
 
@@ -273,17 +299,17 @@ func TestMigrate(t *testing.T) {
 		t.Fatalf("Expected Postgres Connection, got error %v", err)
 	}
 
-	err = goe.RenameColumn(db, "Select", "Name", "NewName")
+	err = goe.RenameColumn(db, "", "Select", "Name", "NewName")
 	if err != nil {
 		t.Fatalf("Expected rename column, got error %v", err)
 	}
 
-	err = goe.DropColumn(db, "Select", "NewName")
+	err = goe.DropColumn(db, "", "Select", "NewName")
 	if err != nil {
 		t.Fatalf("Expected drop column, got error %v", err)
 	}
 
-	err = goe.DropTable(db, "Select")
+	err = goe.DropTable(db, "", "Select")
 	if err != nil {
 		t.Fatalf("Expected drop table Select, got error %v", err)
 	}
@@ -293,5 +319,20 @@ func TestMigrate(t *testing.T) {
 	err = goe.AutoMigrateContext(ctx, db)
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("Expected context.Canceled, got %v", err)
+	}
+
+	err = goe.RenameColumn(db, "DropScheme", "Drop", "Name", "NewName")
+	if err != nil {
+		t.Fatalf("Expected rename column, got error %v", err)
+	}
+
+	err = goe.DropColumn(db, "DropScheme", "Drop", "NewName")
+	if err != nil {
+		t.Fatalf("Expected drop column, got error %v", err)
+	}
+
+	err = goe.DropTable(db, "DropScheme", "Drop")
+	if err != nil {
+		t.Fatalf("Expected drop table DropScheme.Drop, got error %v", err)
 	}
 }

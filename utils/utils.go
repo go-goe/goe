@@ -7,6 +7,9 @@ import (
 
 // TableNamePattern is the default name patterning for mapping struct to table
 func TableNamePattern(name string) string {
+	if len(name) == 0 {
+		return name
+	}
 	name = namePattern(name)
 	if name[len(name)-1] != 's' {
 		name += "s"
@@ -16,6 +19,9 @@ func TableNamePattern(name string) string {
 
 // ColumnNamePattern is the default name patterning for mapping struct fields to table columns
 func ColumnNamePattern(name string) string {
+	if len(name) == 0 {
+		return name
+	}
 	return namePattern(name)
 }
 

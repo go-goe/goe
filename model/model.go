@@ -19,7 +19,7 @@ type JoinArgument struct {
 }
 
 type Join struct {
-	Table          string
+	Table          Table
 	FirstArgument  JoinArgument
 	JoinOperation  enum.JoinType
 	SecondArgument JoinArgument
@@ -39,10 +39,22 @@ type OrderBy struct {
 	Attribute Attribute
 }
 
+type Table struct {
+	Scheme *string
+	Name   string
+}
+
+func (t Table) String() string {
+	if t.Scheme != nil {
+		return *t.Scheme + "." + t.Name
+	}
+	return t.Name
+}
+
 type Query struct {
 	Type       enum.QueryType
 	Attributes []Attribute
-	Tables     []string
+	Tables     []Table
 
 	Joins   []Join   //Select
 	Limit   int      //Select
@@ -63,7 +75,6 @@ type Query struct {
 
 type QueryHeader struct {
 	Err           error
-	QueryBuild    time.Duration
 	ModelBuild    time.Duration
 	QueryDuration time.Duration
 }
@@ -74,11 +85,11 @@ type Operation struct {
 	Value               ValueOperation
 	Operator            enum.OperatorType
 	Attribute           string
-	Table               string
+	Table               Table
 	TableId             int
 	Function            enum.FunctionType
 	AttributeValue      string
-	AttributeValueTable string
+	AttributeValueTable Table
 	AttributeTableId    int
 	FirstOperation      *Operation
 	SecondOperation     *Operation

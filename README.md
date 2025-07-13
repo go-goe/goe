@@ -42,6 +42,8 @@ Check out the [Benchmarks](#benchmarks) section for a overview on GOE performanc
 	- [Struct Mapping](#struct-mapping)
 	- [Setting primary key](#setting-primary-key)
 	- [Setting type](#setting-type)
+	- [Setting null](#setting-null)
+	- [Setting default](#setting-default)
 	- [Relationship](#relationship)
 		- [One to One](#one-to-one)
 		- [Many to One](#many-to-one)
@@ -50,8 +52,8 @@ Check out the [Benchmarks](#benchmarks) section for a overview on GOE performanc
 	- [Index](#index)
 		- [Create Index](#create-index)
 		- [Unique Index](#unique-index)
-		<!-- - [Function Index](#function-index) -->
 		- [Two Columns Index](#two-columns-index)
+	- [Scheme](#scheme)
 	- [Logging](#logging)
 	- [Open And Migrate](#open-and-migrate)
 - [Select](#select)
@@ -257,14 +259,31 @@ type User struct {
 	Id        int
 	Name      string
 	Email     *string // this will be a null column
+	Phone     sql.NullString `goe:"type:varchar(20)"` // also null
 }
 ```
 
 > [!IMPORTANT] 
 > A pointer is considered a null column in Database.
 
-> [!IMPORTANT] 
-> Default values will be added in future features.
+[Back to Contents](#content)
+
+### Setting default
+
+```go
+type User struct {
+	Id        int
+	Name      string
+	Email     *string
+	CreatedAt  time.Time `goe:"default:current_timestamp"`
+}
+```
+
+To ensure that a default value will be used, call the `IgnoreFields` on the `Insert` function, otherwise GOE will try to insert the value stored on the field.
+
+```go
+err = goe.Insert(db.User).IgnoreFields(&db.User.CreatedAt).One(&u)
+```
 
 [Back to Contents](#content)
 
@@ -418,6 +437,49 @@ Just as creating a [Two Column Index](#two-columns-index) but added the "unique"
 
 [Back to Contents](#content)
 
+## Scheme
+
+On GOE it's possible to create schemes by the database struct, all schemes should have the suffix `Scheme`
+or a tag `goe:"scheme"`.
+
+```go
+type User struct {
+	...
+}
+
+type UserRole struct {
+	...
+}
+
+type Role struct {
+	...
+}
+// scheme with suffix Scheme
+type UserScheme struct {
+	User     *User
+	UserRole *UserRole
+	Role     *Role
+}
+// scheme with any name
+type Authentication struct {
+	User     *User
+	UserRole *UserRole
+	Role     *Role
+}
+
+type Database struct {
+	Status  *Status // status will be on the default scheme
+	*UserScheme // all structs on UserScheme will be created inside user scheme
+	*Authentication `goe:"scheme"` // will create Authentication scheme
+	*goe.DB
+}
+```
+
+> [!TIP]
+> On SQLite any scheme will be a new attached db file.
+
+[Back to Contents](#content)
+
 ## Logging
 
 GOE supports any logger that implements the Logger interface
@@ -441,7 +503,7 @@ db, err := goe.Open[Database](sqlite.Open("goe.db", sqlite.Config{
 ```
 
 > [!TIP]
-> You can use slog as your standard logger or make a adapt over the Logger interface .
+> You can use slog as your standard logger or make a adapt over the Logger interface.
 
 [Back to Contents](#content)
 
@@ -668,6 +730,15 @@ if err != nil {
 	//handler error
 }
 ```
+On where, GOE supports operations on two columns, all where operations that have `Arg` as suffix it's used for operation on columns.
+
+In the example, the operator greater (>) on the columns Score and Minimum is used to return all exams that have a score greater than the minimum.
+
+```go
+err = goe.Select(db.Exam).
+	Where(where.GreaterArg[float32](&db.Exam.Score, &db.Exam.Minimum)).AsSlice()
+```
+
 
 [Back to Contents](#content)
 

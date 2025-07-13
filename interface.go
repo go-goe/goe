@@ -14,7 +14,6 @@ type field interface {
 	getTableId() int
 	getFieldId() int
 	getAttributeName() string
-	table() string
 	buildAttributeInsert(*builder)
 }
 
@@ -26,14 +25,15 @@ type fieldSelect interface {
 	fieldDb
 	buildAttributeSelect([]model.Attribute, int)
 	table() string
+	scheme() *string
 	getTableId() int
 }
 
 type Driver interface {
 	MigrateContext(context.Context, *Migrator) error
-	DropTable(string) error
-	DropColumn(table, column string) error
-	RenameColumn(table, oldColumn, newColumn string) error
+	DropTable(scheme, table string) error
+	DropColumn(scheme, table, column string) error
+	RenameColumn(scheme, table, oldColumn, newColumn string) error
 	Init() error
 	KeywordHandler(string) string
 	NewConnection() Connection

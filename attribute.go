@@ -12,6 +12,10 @@ type oneToOne struct {
 	attributeStrings
 }
 
+func (o oneToOne) scheme() *string {
+	return o.schemeName
+}
+
 func (o oneToOne) getDb() *DB {
 	return o.db
 }
@@ -48,6 +52,7 @@ func createOneToOne(b body, typeOf reflect.Type) any {
 
 	mto.attributeStrings = createAttributeStrings(
 		b.mapp.db,
+		b.scheme,
 		b.driver.KeywordHandler(utils.TableNamePattern(b.typeOf.Name())),
 		b.fieldName,
 		b.mapp.tableId,
@@ -59,6 +64,10 @@ func createOneToOne(b body, typeOf reflect.Type) any {
 
 type manyToOne struct {
 	attributeStrings
+}
+
+func (m manyToOne) scheme() *string {
+	return m.schemeName
 }
 
 func (m manyToOne) getDb() *DB {
@@ -97,6 +106,7 @@ func createManyToOne(b body, typeOf reflect.Type) any {
 
 	mto.attributeStrings = createAttributeStrings(
 		b.mapp.db,
+		b.scheme,
 		b.driver.KeywordHandler(utils.TableNamePattern(b.typeOf.Name())),
 		b.fieldName,
 		b.mapp.tableId,
@@ -108,18 +118,20 @@ func createManyToOne(b body, typeOf reflect.Type) any {
 
 type attributeStrings struct {
 	db            *DB
+	schemeName    *string
 	tableId       int
 	tableName     string
 	attributeName string
 	fieldId       int
 }
 
-func createAttributeStrings(db *DB, table string, attributeName string, tableId, fieldId int, Driver Driver) attributeStrings {
+func createAttributeStrings(db *DB, scheme *string, table string, attributeName string, tableId, fieldId int, Driver Driver) attributeStrings {
 	return attributeStrings{
 		db:            db,
 		tableName:     table,
 		tableId:       tableId,
 		fieldId:       fieldId,
+		schemeName:    scheme,
 		attributeName: Driver.KeywordHandler(utils.ColumnNamePattern(attributeName)),
 	}
 }
@@ -127,6 +139,10 @@ func createAttributeStrings(db *DB, table string, attributeName string, tableId,
 type pk struct {
 	autoIncrement bool
 	attributeStrings
+}
+
+func (p pk) scheme() *string {
+	return p.schemeName
 }
 
 func (p pk) getDb() *DB {
@@ -149,15 +165,19 @@ func (p pk) getAttributeName() string {
 	return p.attributeName
 }
 
-func createPk(db *DB, table string, attributeName string, autoIncrement bool, tableId, fieldId int, Driver Driver) pk {
+func createPk(db *DB, scheme *string, table string, attributeName string, autoIncrement bool, tableId, fieldId int, Driver Driver) pk {
 	table = Driver.KeywordHandler(utils.TableNamePattern(table))
 	return pk{
-		attributeStrings: createAttributeStrings(db, table, attributeName, tableId, fieldId, Driver),
+		attributeStrings: createAttributeStrings(db, scheme, table, attributeName, tableId, fieldId, Driver),
 		autoIncrement:    autoIncrement}
 }
 
 type att struct {
 	attributeStrings
+}
+
+func (a att) scheme() *string {
+	return a.schemeName
 }
 
 func (a att) getDb() *DB {
@@ -180,9 +200,9 @@ func (a att) getAttributeName() string {
 	return a.attributeName
 }
 
-func createAtt(db *DB, attributeName string, table string, tableId, fieldId int, d Driver) att {
+func createAtt(db *DB, attributeName string, scheme *string, table string, tableId, fieldId int, d Driver) att {
 	return att{
-		attributeStrings: createAttributeStrings(db, table, attributeName, tableId, fieldId, d)}
+		attributeStrings: createAttributeStrings(db, scheme, table, attributeName, tableId, fieldId, d)}
 }
 
 func (p pk) buildAttributeSelect(atts []model.Attribute, i int) {
@@ -257,6 +277,7 @@ func (o oneToOne) getFieldId() int {
 type aggregateResult struct {
 	attributeName string
 	tableName     string
+	schemeName    *string
 	aggregateType enum.AggregateType
 	tableId       int
 	db            *DB
@@ -267,6 +288,10 @@ func (a aggregateResult) buildAttributeSelect(atts []model.Attribute, i int) {
 		Table:         a.tableName,
 		Name:          a.attributeName,
 		AggregateType: a.aggregateType}
+}
+
+func (a aggregateResult) scheme() *string {
+	return a.schemeName
 }
 
 func (a aggregateResult) table() string {
@@ -284,6 +309,7 @@ func (a aggregateResult) getDb() *DB {
 type functionResult struct {
 	attributeName string
 	tableName     string
+	schemeName    *string
 	functionType  enum.FunctionType
 	tableId       int
 	db            *DB
@@ -294,6 +320,10 @@ func (f functionResult) buildAttributeSelect(atts []model.Attribute, i int) {
 		Table:        f.tableName,
 		Name:         f.attributeName,
 		FunctionType: f.functionType}
+}
+
+func (f functionResult) scheme() *string {
+	return f.schemeName
 }
 
 func (f functionResult) table() string {

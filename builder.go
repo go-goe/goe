@@ -71,8 +71,8 @@ func (b *builder) buildSqlInsertBatch(v reflect.Value) (pkFieldId int) {
 }
 
 func (b *builder) buildSqlDelete() {
-	b.query.Tables = make([]string, 1)
-	b.query.Tables[0] = b.fields[0].table()
+	b.query.Tables = make([]model.Table, 1)
+	b.query.Tables[0] = model.Table{Scheme: b.fields[0].scheme(), Name: b.fields[0].table()}
 	b.buildWhere()
 	b.query.Header.ModelBuild = time.Since(b.modelStart)
 }
@@ -92,7 +92,7 @@ func (b *builder) buildWhere() {
 			b.query.WhereOperations[i] = model.Where{
 				Attribute: model.Attribute{
 					Name:         v.Attribute,
-					Table:        v.Table,
+					Table:        v.Table.Name,
 					FunctionType: v.Function,
 				},
 				Operator: v.Operator,
@@ -102,17 +102,17 @@ func (b *builder) buildWhere() {
 			b.query.WhereOperations[i] = model.Where{
 				Attribute: model.Attribute{
 					Name:  v.Attribute,
-					Table: v.Table,
+					Table: v.Table.Name,
 				},
 				Operator:       v.Operator,
-				AttributeValue: model.Attribute{Name: v.AttributeValue, Table: v.AttributeValueTable},
+				AttributeValue: model.Attribute{Name: v.AttributeValue, Table: v.AttributeValueTable.Name},
 				Type:           v.Type,
 			}
 		case enum.OperationIsWhere:
 			b.query.WhereOperations[i] = model.Where{
 				Attribute: model.Attribute{
 					Name:  v.Attribute,
-					Table: v.Table,
+					Table: v.Table.Name,
 				},
 				Operator: v.Operator,
 				Type:     v.Type,
@@ -121,7 +121,7 @@ func (b *builder) buildWhere() {
 			where := model.Where{
 				Attribute: model.Attribute{
 					Name:         v.Attribute,
-					Table:        v.Table,
+					Table:        v.Table.Name,
 					FunctionType: v.Function,
 				},
 				Operator: v.Operator,
@@ -160,7 +160,7 @@ func (b *builder) buildWhere() {
 func (b *builder) buildTables() {
 	if len(b.joins) != 0 {
 		b.tables[b.joinsArgs[0].getTableId()] = 1
-		b.query.Tables = append(b.query.Tables, b.joinsArgs[0].table())
+		b.query.Tables = append(b.query.Tables, model.Table{Scheme: b.joinsArgs[0].scheme(), Name: b.joinsArgs[0].table()})
 
 		b.query.Joins = make([]model.Join, len(b.joins))
 		c := 1
@@ -171,7 +171,7 @@ func (b *builder) buildTables() {
 		return
 	}
 	b.tables[b.fieldsSelect[0].getTableId()] = 1
-	b.query.Tables = append(b.query.Tables, b.fieldsSelect[0].table())
+	b.query.Tables = append(b.query.Tables, model.Table{Scheme: b.fieldsSelect[0].scheme(), Name: b.fieldsSelect[0].table()})
 
 	for i := range b.brs {
 		if b.brs[i].TableId != 0 && b.tables[b.brs[i].TableId] == 0 {
@@ -188,7 +188,7 @@ func (b *builder) buildTables() {
 func buildJoins(i int, joins []model.Join, join enum.JoinType, f1, f2 field, tables map[int]int) {
 	if tables[f1.getTableId()] == 1 {
 		joins[i] = model.Join{
-			Table:          f2.table(),
+			Table:          model.Table{Scheme: f2.scheme(), Name: f2.table()},
 			FirstArgument:  model.JoinArgument{Table: f1.table(), Name: f1.getAttributeName()},
 			JoinOperation:  join,
 			SecondArgument: model.JoinArgument{Table: f2.table(), Name: f2.getAttributeName()}}
@@ -197,7 +197,7 @@ func buildJoins(i int, joins []model.Join, join enum.JoinType, f1, f2 field, tab
 		return
 	}
 	joins[i] = model.Join{
-		Table:          f1.table(),
+		Table:          model.Table{Scheme: f1.scheme(), Name: f1.table()},
 		FirstArgument:  model.JoinArgument{Table: f1.table(), Name: f1.getAttributeName()},
 		JoinOperation:  join,
 		SecondArgument: model.JoinArgument{Table: f2.table(), Name: f2.getAttributeName()}}
@@ -209,8 +209,8 @@ func (b *builder) buildInsert() {
 	b.fieldIds = make([]int, 0, len(b.fields))
 	b.query.Attributes = make([]model.Attribute, 0, len(b.fields))
 
-	b.query.Tables = make([]string, 1)
-	b.query.Tables[0] = b.fields[0].table()
+	b.query.Tables = make([]model.Table, 1)
+	b.query.Tables[0] = model.Table{Scheme: b.fields[0].scheme(), Name: b.fields[0].table()}
 	for i := range b.fields {
 		b.fields[i].buildAttributeInsert(b)
 	}
@@ -256,8 +256,8 @@ func (b *builder) buildUpdate() {
 
 func (b *builder) buildSets() {
 	b.query.Attributes = make([]model.Attribute, len(b.sets))
-	b.query.Tables = make([]string, 1)
-	b.query.Tables[0] = b.sets[0].attribute.table()
+	b.query.Tables = make([]model.Table, 1)
+	b.query.Tables[0] = model.Table{Scheme: b.sets[0].attribute.scheme(), Name: b.sets[0].attribute.table()}
 	b.query.Arguments = make([]any, len(b.sets))
 
 	for i := range b.sets {
