@@ -21,31 +21,31 @@ func AutoMigrateContext(ctx context.Context, dbTarget any) error {
 	return db.driver.MigrateContext(ctx, m)
 }
 
-func DropTable(dbTarget any, scheme, table string) error {
+func DropTable(dbTarget any, schema, table string) error {
 	db := getDatabase(dbTarget)
 
-	scheme = db.driver.KeywordHandler(utils.ColumnNamePattern(scheme))
+	schema = db.driver.KeywordHandler(utils.ColumnNamePattern(schema))
 	table = db.driver.KeywordHandler(utils.TableNamePattern(table))
-	return db.driver.DropTable(scheme, table)
+	return db.driver.DropTable(schema, table)
 }
 
-func DropColumn(dbTarget any, scheme, table, column string) error {
+func DropColumn(dbTarget any, schema, table, column string) error {
 	db := getDatabase(dbTarget)
 
-	scheme = db.driver.KeywordHandler(utils.ColumnNamePattern(scheme))
+	schema = db.driver.KeywordHandler(utils.ColumnNamePattern(schema))
 	table = db.driver.KeywordHandler(utils.TableNamePattern(table))
 	column = db.driver.KeywordHandler(utils.ColumnNamePattern(column))
 
-	return db.driver.DropColumn(scheme, table, column)
+	return db.driver.DropColumn(schema, table, column)
 }
 
-func RenameColumn(dbTarget any, scheme, table, oldColumn, newColumn string) error {
+func RenameColumn(dbTarget any, schema, table, oldColumn, newColumn string) error {
 	db := getDatabase(dbTarget)
 
-	scheme = db.driver.KeywordHandler(utils.ColumnNamePattern(scheme))
+	schema = db.driver.KeywordHandler(utils.ColumnNamePattern(schema))
 	table = db.driver.KeywordHandler(utils.TableNamePattern(table))
 	oldColumn = db.driver.KeywordHandler(utils.ColumnNamePattern(oldColumn))
 	newColumn = db.driver.KeywordHandler(utils.ColumnNamePattern(newColumn))
 
-	return db.driver.RenameColumn(scheme, table, oldColumn, newColumn)
+	return db.driver.RenameColumn(schema, table, oldColumn, newColumn)
 }

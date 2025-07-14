@@ -53,7 +53,7 @@ Check out the [Benchmarks](#benchmarks) section for a overview on GOE performanc
 		- [Create Index](#create-index)
 		- [Unique Index](#unique-index)
 		- [Two Columns Index](#two-columns-index)
-	- [Scheme](#scheme)
+	- [Schemas](#schemas)
 	- [Logging](#logging)
 	- [Open And Migrate](#open-and-migrate)
 - [Select](#select)
@@ -437,10 +437,10 @@ Just as creating a [Two Column Index](#two-columns-index) but added the "unique"
 
 [Back to Contents](#content)
 
-## Scheme
+## Schemas
 
-On GOE it's possible to create schemes by the database struct, all schemes should have the suffix `Scheme`
-or a tag `goe:"scheme"`.
+On GOE it's possible to create schemas by the database struct, all schemas should have the suffix `Schema`
+or a tag `goe:"schema"`.
 
 ```go
 type User struct {
@@ -454,13 +454,13 @@ type UserRole struct {
 type Role struct {
 	...
 }
-// scheme with suffix Scheme
-type UserScheme struct {
+// schema with suffix Schema
+type UserSchema struct {
 	User     *User
 	UserRole *UserRole
 	Role     *Role
 }
-// scheme with any name
+// schema with any name
 type Authentication struct {
 	User     *User
 	UserRole *UserRole
@@ -468,15 +468,15 @@ type Authentication struct {
 }
 
 type Database struct {
-	Status  *Status // status will be on the default scheme
-	*UserScheme // all structs on UserScheme will be created inside user scheme
-	*Authentication `goe:"scheme"` // will create Authentication scheme
+	Status  *Status // status will be on the default schema
+	*UserSchema // all structs on UserSchema will be created inside user schema
+	*Authentication `goe:"schema"` // will create Authentication schema
 	*goe.DB
 }
 ```
 
 > [!TIP]
-> On SQLite any scheme will be a new attached db file.
+> On SQLite any schema will be a new attached db file.
 
 [Back to Contents](#content)
 

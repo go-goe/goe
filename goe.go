@@ -39,7 +39,7 @@ func Open[T any](driver Driver) (*T, error) {
 	for i := range dbId {
 		if valueOf.Field(i).IsNil() {
 			valueOf.Field(i).Set(reflect.ValueOf(reflect.New(valueOf.Field(i).Type().Elem()).Interface()))
-			if strings.Contains(valueOf.Type().Field(i).Tag.Get("goe"), "scheme") || strings.HasSuffix(valueOf.Field(i).Elem().Type().Name(), "Scheme") {
+			if strings.Contains(valueOf.Type().Field(i).Tag.Get("goe"), "schema") || strings.HasSuffix(valueOf.Field(i).Elem().Type().Name(), "Schema") {
 				for f := range valueOf.Field(i).Elem().NumField() {
 					valueOf.Field(i).Elem().Field(f).Set(reflect.ValueOf(reflect.New(valueOf.Field(i).Elem().Field(f).Type().Elem()).Interface()))
 				}
@@ -52,11 +52,11 @@ func Open[T any](driver Driver) (*T, error) {
 	tableId := 0
 	// init Fields
 	for f := range dbId {
-		if strings.Contains(valueOf.Type().Field(f).Tag.Get("goe"), "scheme") || strings.HasSuffix(valueOf.Field(f).Elem().Type().Name(), "Scheme") {
-			scheme := driver.KeywordHandler(utils.ColumnNamePattern(valueOf.Field(f).Elem().Type().Name()))
+		if strings.Contains(valueOf.Type().Field(f).Tag.Get("goe"), "schema") || strings.HasSuffix(valueOf.Field(f).Elem().Type().Name(), "Schema") {
+			schema := driver.KeywordHandler(utils.ColumnNamePattern(valueOf.Field(f).Elem().Type().Name()))
 			for i := range valueOf.Field(f).Elem().NumField() {
 				tableId += i + 1
-				err = initField(&scheme, valueOf, valueOf.Field(f).Elem().Field(i).Elem(), dbTarget, tableId, driver)
+				err = initField(&schema, valueOf, valueOf.Field(f).Elem().Field(i).Elem(), dbTarget, tableId, driver)
 				if err != nil {
 					return nil, err
 				}
@@ -108,11 +108,11 @@ type body struct {
 	fieldTypeOf reflect.Type
 	mapp        *infosMap     // used on map
 	migrate     *infosMigrate // used on migrate
-	schemesMap  map[string]*string
+	schemasMap  map[string]*string
 	fieldId     int
 	driver      Driver
 	nullable    bool
-	scheme      *string
+	schema      *string
 	stringInfos
 }
 
@@ -126,8 +126,8 @@ func skipPrimaryKey[T comparable](slice []T, value T, tables reflect.Value, fiel
 	return false
 }
 
-func initField(scheme *string, tables reflect.Value, valueOf reflect.Value, db *DB, tableId int, driver Driver) error {
-	pks, fieldIds, err := getPk(db, scheme, valueOf.Type(), tableId, driver)
+func initField(schema *string, tables reflect.Value, valueOf reflect.Value, db *DB, tableId int, driver Driver) error {
+	pks, fieldIds, err := getPk(db, schema, valueOf.Type(), tableId, driver)
 	if err != nil {
 		return err
 	}
@@ -147,7 +147,7 @@ func initField(scheme *string, tables reflect.Value, valueOf reflect.Value, db *
 				typeOf:      valueOf.Type(),
 				tables:      tables,
 				fieldId:     fieldId,
-				scheme:      scheme,
+				schema:      schema,
 				mapp: &infosMap{
 					pks:     pks,
 					db:      db,
@@ -165,7 +165,7 @@ func initField(scheme *string, tables reflect.Value, valueOf reflect.Value, db *
 				driver:      driver,
 				fieldTypeOf: valueOf.Field(fieldId).Type(),
 				valueOf:     valueOf,
-				scheme:      scheme,
+				schema:      schema,
 				mapp: &infosMap{
 					pks:     pks,
 					db:      db,
@@ -181,7 +181,7 @@ func initField(scheme *string, tables reflect.Value, valueOf reflect.Value, db *
 				tables:   tables,
 				valueOf:  valueOf,
 				typeOf:   valueOf.Type(),
-				scheme:   scheme,
+				schema:   schema,
 				mapp: &infosMap{
 					pks:     pks,
 					db:      db,
@@ -196,7 +196,7 @@ func initField(scheme *string, tables reflect.Value, valueOf reflect.Value, db *
 				tables:  tables,
 				valueOf: valueOf,
 				typeOf:  valueOf.Type(),
-				scheme:  scheme,
+				schema:  schema,
 				mapp: &infosMap{
 					pks:     pks,
 					db:      db,
@@ -228,7 +228,7 @@ func newAttr(b body) error {
 	at := createAtt(
 		b.mapp.db,
 		b.valueOf.Type().Field(b.fieldId).Name,
-		b.scheme,
+		b.schema,
 		b.mapp.pks[0].tableName,
 		b.mapp.tableId,
 		b.fieldId,
@@ -238,7 +238,7 @@ func newAttr(b body) error {
 	return nil
 }
 
-func getPk(db *DB, scheme *string, typeOf reflect.Type, tableId int, driver Driver) ([]pk, []int, error) {
+func getPk(db *DB, schema *string, typeOf reflect.Type, tableId int, driver Driver) ([]pk, []int, error) {
 	var pks []pk
 	var fieldIds []int
 	var fieldId int
@@ -248,7 +248,7 @@ func getPk(db *DB, scheme *string, typeOf reflect.Type, tableId int, driver Driv
 		pks := make([]pk, 1)
 		fieldIds = make([]int, 1)
 		fieldId = getFieldId(typeOf, id.Name)
-		pks[0] = createPk(db, scheme, typeOf.Name(), id.Name, isAutoIncrement(id), tableId, fieldId, driver)
+		pks[0] = createPk(db, schema, typeOf.Name(), id.Name, isAutoIncrement(id), tableId, fieldId, driver)
 		fieldIds[0] = fieldId
 		return pks, fieldIds, nil
 	}
@@ -262,7 +262,7 @@ func getPk(db *DB, scheme *string, typeOf reflect.Type, tableId int, driver Driv
 	fieldIds = make([]int, len(fields))
 	for i := range fields {
 		fieldId = getFieldId(typeOf, fields[i].Name)
-		pks[i] = createPk(db, scheme, typeOf.Name(), fields[i].Name, isAutoIncrement(fields[i]), tableId, fieldId, driver)
+		pks[i] = createPk(db, schema, typeOf.Name(), fields[i].Name, isAutoIncrement(fields[i]), tableId, fieldId, driver)
 		fieldIds[i] = fieldId
 	}
 

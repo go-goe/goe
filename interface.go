@@ -25,15 +25,15 @@ type fieldSelect interface {
 	fieldDb
 	buildAttributeSelect([]model.Attribute, int)
 	table() string
-	scheme() *string
+	schema() *string
 	getTableId() int
 }
 
 type Driver interface {
 	MigrateContext(context.Context, *Migrator) error
-	DropTable(scheme, table string) error
-	DropColumn(scheme, table, column string) error
-	RenameColumn(scheme, table, oldColumn, newColumn string) error
+	DropTable(schema, table string) error
+	DropColumn(schema, table, column string) error
+	RenameColumn(schema, table, oldColumn, newColumn string) error
 	Init() error
 	KeywordHandler(string) string
 	NewConnection() Connection

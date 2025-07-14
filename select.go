@@ -635,7 +635,7 @@ func createFunction(field field, a any) fieldSelect {
 	if f, ok := a.(model.FunctionType); ok {
 		return functionResult{
 			tableName:     field.table(),
-			schemeName:    field.scheme(),
+			schemaName:    field.schema(),
 			tableId:       field.getTableId(),
 			db:            field.getDb(),
 			attributeName: field.getAttributeName(),
@@ -649,7 +649,7 @@ func createAggregate(field field, a any) fieldSelect {
 	if ag, ok := a.(model.Aggregate); ok {
 		return aggregateResult{
 			tableName:     field.table(),
-			schemeName:    field.scheme(),
+			schemaName:    field.schema(),
 			tableId:       field.getTableId(),
 			db:            field.getDb(),
 			attributeName: field.getAttributeName(),
@@ -733,31 +733,31 @@ func helperWhere(builder *builder, addrMap map[uintptr]field, br model.Operation
 	switch br.Type {
 	case enum.OperationWhere:
 		a := getArg(br.Arg, addrMap, &br)
-		br.Table = model.Table{Scheme: a.scheme(), Name: a.table()}
+		br.Table = model.Table{Schema: a.schema(), Name: a.table()}
 		br.TableId = a.getTableId()
 		br.Attribute = a.getAttributeName()
 
 		builder.brs = append(builder.brs, br)
 	case enum.OperationAttributeWhere:
 		a, b := getArg(br.Arg, addrMap, nil), getArg(br.Value.GetValue(), addrMap, nil)
-		br.Table = model.Table{Scheme: a.scheme(), Name: a.table()}
+		br.Table = model.Table{Schema: a.schema(), Name: a.table()}
 		br.TableId = a.getTableId()
 		br.Attribute = a.getAttributeName()
 
 		br.AttributeValue = b.getAttributeName()
-		br.AttributeValueTable = model.Table{Scheme: b.scheme(), Name: b.table()}
+		br.AttributeValueTable = model.Table{Schema: b.schema(), Name: b.table()}
 		br.AttributeTableId = b.getTableId()
 		builder.brs = append(builder.brs, br)
 	case enum.OperationInWhere:
 		a := getArg(br.Arg, addrMap, &br)
-		br.Table = model.Table{Scheme: a.scheme(), Name: a.table()}
+		br.Table = model.Table{Schema: a.schema(), Name: a.table()}
 		br.TableId = a.getTableId()
 		br.Attribute = a.getAttributeName()
 
 		builder.brs = append(builder.brs, br)
 	case enum.OperationIsWhere:
 		a := getArg(br.Arg, addrMap, nil)
-		br.Table = model.Table{Scheme: a.scheme(), Name: a.table()}
+		br.Table = model.Table{Schema: a.schema(), Name: a.table()}
 		br.TableId = a.getTableId()
 		br.Attribute = a.getAttributeName()
 

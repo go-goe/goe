@@ -40,13 +40,13 @@ type OrderBy struct {
 }
 
 type Table struct {
-	Scheme *string
+	Schema *string
 	Name   string
 }
 
 func (t Table) String() string {
-	if t.Scheme != nil {
-		return *t.Scheme + "." + t.Name
+	if t.Schema != nil {
+		return *t.Schema + "." + t.Name
 	}
 	return t.Name
 }
