@@ -140,7 +140,7 @@ type Page struct {
 	PageId *int
 }
 
-type FlagScheme struct {
+type FlagSchema struct {
 	Flag *Flag
 }
 
@@ -150,7 +150,7 @@ type Authentication struct {
 	Role     *Role
 }
 
-type FoodHabitatScheme struct {
+type FoodHabitatSchema struct {
 	Food    *Food
 	Habitat *Habitat
 }
@@ -160,26 +160,26 @@ type Drop struct {
 	Name string
 }
 
-type DropScheme struct {
+type DropSchema struct {
 	Drop *Drop
 }
 
 type Database struct {
 	Animal     *Animal
 	AnimalFood *AnimalFood
-	*FoodHabitatScheme
+	*FoodHabitatSchema
 	Info            *Info
 	Status          *Status
 	Weather         *Weather
-	*Authentication `goe:"scheme"`
-	*FlagScheme
+	*Authentication `goe:"schema"`
+	*FlagSchema
 	Person         *Person
 	PersonJobTitle *PersonJobTitle
 	JobTitle       *JobTitle
 	Exam           *Exam
 	Select         *Select
 	Page           *Page
-	*DropScheme
+	*DropSchema
 	*goe.DB
 }
 
@@ -321,18 +321,18 @@ func TestMigrate(t *testing.T) {
 		t.Fatalf("Expected context.Canceled, got %v", err)
 	}
 
-	err = goe.RenameColumn(db, "DropScheme", "Drop", "Name", "NewName")
+	err = goe.RenameColumn(db, "DropSchema", "Drop", "Name", "NewName")
 	if err != nil {
 		t.Fatalf("Expected rename column, got error %v", err)
 	}
 
-	err = goe.DropColumn(db, "DropScheme", "Drop", "NewName")
+	err = goe.DropColumn(db, "DropSchema", "Drop", "NewName")
 	if err != nil {
 		t.Fatalf("Expected drop column, got error %v", err)
 	}
 
-	err = goe.DropTable(db, "DropScheme", "Drop")
+	err = goe.DropTable(db, "DropSchema", "Drop")
 	if err != nil {
-		t.Fatalf("Expected drop table DropScheme.Drop, got error %v", err)
+		t.Fatalf("Expected drop table DropSchema.Drop, got error %v", err)
 	}
 }

@@ -3,9 +3,9 @@ module github.com/go-goe/goe/tests
 go 1.24.0
 
 require (
-	github.com/go-goe/goe v0.5.0
-	github.com/go-goe/postgres v0.3.0
-	github.com/go-goe/sqlite v0.3.0
+	github.com/go-goe/goe v0.5.1
+	github.com/go-goe/postgres v0.3.1
+	github.com/go-goe/sqlite v0.3.1
 	github.com/google/uuid v1.6.0
 	github.com/shopspring/decimal v1.4.0
 )
