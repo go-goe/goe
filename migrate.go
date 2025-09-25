@@ -6,46 +6,74 @@ import (
 	"github.com/go-goe/goe/utils"
 )
 
-func AutoMigrate(dbTarget any) error {
-	return AutoMigrateContext(context.Background(), dbTarget)
+type migrate struct {
+	db       *DB
+	dbTarget any
 }
 
-func AutoMigrateContext(ctx context.Context, dbTarget any) error {
-	db := getDatabase(dbTarget)
+type migrateSchema struct {
+	migrate
+	schema string
+}
 
-	m := migrateFrom(dbTarget, db.driver)
-	if m.Error != nil {
-		return m.Error
+type migrateTable struct {
+	migrateSchema
+	table string
+}
+
+func Migrate(dbTarget any) migrate {
+	return migrate{db: getDatabase(dbTarget), dbTarget: dbTarget}
+}
+
+func (m migrate) AutoMigrate() error {
+	return m.AutoMigrateContext(context.Background())
+}
+
+func (m migrate) OnSchema(schema string) migrateSchema {
+	return migrateSchema{m, schema}
+}
+
+func (m migrate) OnTable(schema string) migrateTable {
+	return migrateTable{migrateSchema{migrate: m}, schema}
+}
+
+func (ms migrateSchema) OnTable(table string) migrateTable {
+	return migrateTable{ms, table}
+}
+
+func (m migrate) AutoMigrateContext(ctx context.Context) error {
+	migrateData := migrateFrom(m.dbTarget, m.db.driver)
+	if migrateData.Error != nil {
+		return migrateData.Error
 	}
 
-	return db.driver.MigrateContext(ctx, m)
+	return m.db.driver.MigrateContext(ctx, migrateData)
 }
 
-func DropTable(dbTarget any, schema, table string) error {
-	db := getDatabase(dbTarget)
-
-	schema = db.driver.KeywordHandler(utils.ColumnNamePattern(schema))
-	table = db.driver.KeywordHandler(utils.TableNamePattern(table))
-	return db.driver.DropTable(schema, table)
+func (mt migrateTable) DropTable() error {
+	return mt.db.driver.DropTable(
+		mt.db.driver.KeywordHandler(utils.ColumnNamePattern(mt.schema)),
+		mt.db.driver.KeywordHandler(utils.TableNamePattern(mt.table)))
 }
 
-func DropColumn(dbTarget any, schema, table, column string) error {
-	db := getDatabase(dbTarget)
-
-	schema = db.driver.KeywordHandler(utils.ColumnNamePattern(schema))
-	table = db.driver.KeywordHandler(utils.TableNamePattern(table))
-	column = db.driver.KeywordHandler(utils.ColumnNamePattern(column))
-
-	return db.driver.DropColumn(schema, table, column)
+func (mt migrateTable) RenameTable(newName string) error {
+	return mt.db.driver.RenameTable(
+		mt.db.driver.KeywordHandler(utils.ColumnNamePattern(mt.schema)),
+		mt.db.driver.KeywordHandler(utils.TableNamePattern(mt.table)),
+		mt.db.driver.KeywordHandler(utils.ColumnNamePattern(newName)))
 }
 
-func RenameColumn(dbTarget any, schema, table, oldColumn, newColumn string) error {
-	db := getDatabase(dbTarget)
+func (mt migrateTable) DropColumn(column string) error {
+	return mt.db.driver.DropColumn(
+		mt.db.driver.KeywordHandler(utils.ColumnNamePattern(mt.schema)),
+		mt.db.driver.KeywordHandler(utils.TableNamePattern(mt.table)),
+		mt.db.driver.KeywordHandler(utils.ColumnNamePattern(column)))
+}
 
-	schema = db.driver.KeywordHandler(utils.ColumnNamePattern(schema))
-	table = db.driver.KeywordHandler(utils.TableNamePattern(table))
-	oldColumn = db.driver.KeywordHandler(utils.ColumnNamePattern(oldColumn))
-	newColumn = db.driver.KeywordHandler(utils.ColumnNamePattern(newColumn))
-
-	return db.driver.RenameColumn(schema, table, oldColumn, newColumn)
+func (mt migrateTable) RenameColumn(column, newName string) error {
+	return mt.db.driver.RenameColumn(
+		mt.db.driver.KeywordHandler(utils.ColumnNamePattern(mt.schema)),
+		mt.db.driver.KeywordHandler(utils.TableNamePattern(mt.table)),
+		mt.db.driver.KeywordHandler(utils.ColumnNamePattern(column)),
+		mt.db.driver.KeywordHandler(utils.ColumnNamePattern(newName)))
 }

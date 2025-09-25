@@ -33,7 +33,8 @@ type Driver interface {
 	MigrateContext(context.Context, *Migrator) error
 	DropTable(schema, table string) error
 	DropColumn(schema, table, column string) error
-	RenameColumn(schema, table, oldColumn, newColumn string) error
+	RenameColumn(schema, table, oldColumn, newName string) error
+	RenameTable(schema, table, newName string) error
 	Init() error
 	KeywordHandler(string) string
 	NewConnection() Connection
