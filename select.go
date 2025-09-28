@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"iter"
-	"maps"
 	"math"
 	"reflect"
 	"strings"
@@ -166,7 +165,6 @@ func SelectContext[T any](ctx context.Context, table *T) stateSelect[T] {
 	var state stateSelect[T] = createSelectState[T](ctx)
 	argsSelect := getArgsSelect(addrMap.mapField, table)
 
-	state.builder.tables = make(map[int]int)
 	state.table = argsSelect.table
 	state.builder.fieldsSelect = argsSelect.fields
 	state.anonymousStruct = argsSelect.anonymous
@@ -235,20 +233,20 @@ func (s stateSelect[T]) AsQuery() model.Query {
 }
 
 type Pagination[T any] struct {
-	TotalValues int64 `json:"total_values"`
-	TotalPages  int   `json:"total_pages"`
+	TotalValues int64 `json:"totalValues"`
+	TotalPages  int   `json:"totalPages"`
 
-	PageValues int `json:"page_values"`
-	PageSize   int `json:"page_size"`
+	PageValues int `json:"pageValues"`
+	PageSize   int `json:"pageSize"`
 
-	CurrentPage     int  `json:"current_page"`
-	HasPreviousPage bool `json:"has_previous_page"`
-	PreviousPage    int  `json:"previous_page"`
-	HasNextPage     bool `json:"has_next_page"`
-	NextPage        int  `json:"next_page"`
+	CurrentPage     int  `json:"currentPage"`
+	HasPreviousPage bool `json:"hasPreviousPage"`
+	PreviousPage    int  `json:"previousPage"`
+	HasNextPage     bool `json:"hasNextPage"`
+	NextPage        int  `json:"nextPage"`
 
-	StartIndex int `json:"start_index"`
-	EndIndex   int `json:"end_index"`
+	StartIndex int `json:"startIndex"`
+	EndIndex   int `json:"endIndex"`
 	Values     []T `json:"values"`
 }
 
@@ -273,9 +271,6 @@ func (s stateSelect[T]) AsPagination(page, size int) (*Pagination[T], error) {
 	// copy joins
 	stateCount.builder.joins = s.builder.joins
 	stateCount.builder.joinsArgs = s.builder.joinsArgs
-	stateCount.builder.tables = make(map[int]int, len(s.builder.tables))
-	maps.Copy(stateCount.builder.tables, s.builder.tables)
-	stateCount.builder.query.Tables = s.builder.query.Tables
 
 	// copy operations
 	stateCount.builder.brs = s.builder.brs
