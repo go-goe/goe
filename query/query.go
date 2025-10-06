@@ -2,7 +2,6 @@ package query
 
 import (
 	"fmt"
-	"reflect"
 
 	"github.com/go-goe/goe/enum"
 )
@@ -48,39 +47,4 @@ func (c *Count) Scan(src any) error {
 
 func (c Count) Aggregate() enum.AggregateType {
 	return enum.CountAggregate
-}
-
-// Get removes the pointer used when [goe.Select] get any argument.
-//
-// # Example
-//
-//	for row, err := range goe.Select(&struct {
-//		User    *string //goe needs a pointer for store the referecent argument
-//		Role    *string //goe needs a pointer for store the referecent argument
-//		EndTime **time.Time //if the argument is already a pointer goe needs a pointer to a pointer for store the referecent argument
-//	}{
-//		User:    &db.User.Name,
-//		Role:    &db.Role.Name,
-//		EndTime: &db.UserRole.EndDate,
-//	}).
-//	Joins(
-//		join.LeftJoin[int](&db.User.Id, &db.UserRole.UserId),
-//		join.LeftJoin[int](&db.UserRole.RoleId, &db.Role.Id),
-//	).
-//	OrderByAsc(&db.User.Id).Rows() {
-//		q = append(q, struct {
-//			User    string //return model can be different from select model
-//			Role    string
-//			EndTime *time.Time
-//		}{
-//			User:    query.Get(row.User), //get a empty string if the database returns null
-//			Role:    query.Get(row.Role), //get a empty string if the database returns null
-//			EndTime: query.Get(row.EndTime), //EndTime can store nil/null values
-//		})
-//	}
-func Get[T any](v *T) T {
-	if v == nil {
-		return reflect.New(reflect.TypeOf(v).Elem()).Elem().Interface().(T)
-	}
-	return *v
 }
