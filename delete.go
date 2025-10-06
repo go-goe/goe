@@ -2,6 +2,7 @@ package goe
 
 import (
 	"context"
+	"reflect"
 
 	"github.com/go-goe/goe/enum"
 	"github.com/go-goe/goe/model"
@@ -75,7 +76,7 @@ func Delete[T any](table *T) stateDelete {
 // See [Delete] for examples
 func DeleteContext[T any](ctx context.Context, table *T) stateDelete {
 	var state stateDelete = createDeleteState(ctx)
-	state.builder.fields = append(state.builder.fields, getArg(table, addrMap.mapField, nil))
+	state.builder.fields = append(state.builder.fields, getArgDelete(table, addrMap.mapField))
 	return state
 }
 
@@ -114,4 +115,18 @@ func getArgsRemove(a getArgs) ([]any, []any, bool) {
 		return nil, nil, true
 	}
 	return args, values, false
+}
+
+func getArgDelete(arg any, addrMap map[uintptr]field) field {
+	v := reflect.ValueOf(arg)
+	if v.Kind() != reflect.Pointer {
+		panic("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
+	}
+
+	addr := uintptr(v.UnsafePointer())
+	if addrMap[addr] != nil {
+		return addrMap[addr]
+	}
+
+	return nil
 }

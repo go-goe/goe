@@ -53,7 +53,7 @@ func createOneToOne(b body, typeOf reflect.Type) any {
 	mto.attributeStrings = createAttributeStrings(
 		b.mapp.db,
 		b.schema,
-		b.driver.KeywordHandler(utils.TableNamePattern(b.typeOf.Name())),
+		b.mapp.pks[0].tableName,
 		b.fieldName,
 		b.mapp.tableId,
 		b.fieldId,
@@ -107,7 +107,7 @@ func createManyToOne(b body, typeOf reflect.Type) any {
 	mto.attributeStrings = createAttributeStrings(
 		b.mapp.db,
 		b.schema,
-		b.driver.KeywordHandler(utils.TableNamePattern(b.typeOf.Name())),
+		b.mapp.pks[0].tableName,
 		b.fieldName,
 		b.mapp.tableId,
 		b.fieldId,

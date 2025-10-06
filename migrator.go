@@ -180,7 +180,7 @@ func typeField(tables reflect.Value, valueOf reflect.Value, migrator *Migrator, 
 			if err != nil {
 				return err
 			}
-		case reflect.Ptr:
+		case reflect.Pointer:
 			err = helperAttributeMigrate(body{
 				fieldId:  fieldId,
 				driver:   driver,
