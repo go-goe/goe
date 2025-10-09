@@ -571,7 +571,12 @@ if err != nil {
 	// handler error
 }
 
-err = goe.Migrate(db).OnTable("Select").DropTable()
+err = goe.Migrate(db).OnTable("Select").RenameTable("NewSelect")
+if err != nil {
+	// handler error
+}
+
+err = goe.Migrate(db).OnTable("NewSelect").DropTable()
 if err != nil {
 	// handler error
 }
