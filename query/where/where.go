@@ -24,7 +24,8 @@ func (vo valueOperation) GetValue() any {
 //	Where(where.Equals(&db.Food.Id, "fc1865b4-6f2d-4cc6-b766-49c2634bf5c4"))
 //
 //	// generate: WHERE "animals"."idhabitat" IS NULL
-//	Where(where.Equals(&db.Animal.IdHabitat, nil))
+//	var idHabitat *string
+//	Where(where.Equals(&db.Animal.IdHabitat, idHabitat))
 func Equals[T any, A *T | **T](a A, v T) model.Operation {
 	if reflect.ValueOf(v).Kind() == reflect.Pointer && reflect.ValueOf(v).IsNil() {
 		return model.Operation{Arg: a, Operator: enum.Is, Type: enum.OperationIsWhere}
@@ -38,7 +39,8 @@ func Equals[T any, A *T | **T](a A, v T) model.Operation {
 //	Where(where.NotEquals(&db.Food.Name, "Cookie"))
 //
 //	// generate: WHERE "animals"."idhabitat" IS NOT NULL
-//	Where(where.NotEquals(&db.Animal.IdHabitat, nil))
+//	var idHabitat *string
+//	Where(where.NotEquals(&db.Animal.IdHabitat, idHabitat))
 func NotEquals[T any, A *T | **T](a A, v T) model.Operation {
 	if reflect.ValueOf(v).Kind() == reflect.Pointer && reflect.ValueOf(v).IsNil() {
 		return model.Operation{Arg: a, Operator: enum.IsNot, Type: enum.OperationIsWhere}
