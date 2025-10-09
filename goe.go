@@ -38,10 +38,10 @@ func Open[T any](driver Driver) (*T, error) {
 	// set value for Fields
 	for i := range dbId {
 		if valueOf.Field(i).IsNil() {
-			valueOf.Field(i).Set(reflect.ValueOf(reflect.New(valueOf.Field(i).Type().Elem()).Interface()))
+			valueOf.Field(i).Set(reflect.New(valueOf.Field(i).Type().Elem()))
 			if strings.Contains(valueOf.Type().Field(i).Tag.Get("goe"), "schema") || strings.HasSuffix(valueOf.Field(i).Elem().Type().Name(), "Schema") {
 				for f := range valueOf.Field(i).Elem().NumField() {
-					valueOf.Field(i).Elem().Field(f).Set(reflect.ValueOf(reflect.New(valueOf.Field(i).Elem().Field(f).Type().Elem()).Interface()))
+					valueOf.Field(i).Elem().Field(f).Set(reflect.New(valueOf.Field(i).Elem().Field(f).Type().Elem()))
 				}
 				continue
 			}
@@ -173,7 +173,7 @@ func initField(schema *string, tables reflect.Value, valueOf reflect.Value, db *
 					addr:    uintptr(valueOf.Field(fieldId).Addr().UnsafePointer()),
 				},
 			}, newAttr)
-		case reflect.Ptr:
+		case reflect.Pointer:
 			helperAttribute(body{
 				fieldId:  fieldId,
 				driver:   driver,

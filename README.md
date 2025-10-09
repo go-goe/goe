@@ -1,5 +1,5 @@
 # GOE
-A type safe SQL like ORM for Go
+GO Entity or just "GOE" is a type safe ORM for Go
 
 [![test status](https://github.com/go-goe/goe/actions/workflows/tests.yml/badge.svg "test status")](https://github.com/go-goe/goe/actions)
 [![Go Report Card](https://goreportcard.com/badge/github.com/go-goe/goe)](https://goreportcard.com/report/github.com/go-goe/goe)
@@ -55,7 +55,11 @@ Check out the [Benchmarks](#benchmarks) section for a overview on GOE performanc
 		- [Two Columns Index](#two-columns-index)
 	- [Schemas](#schemas)
 	- [Logging](#logging)
-	- [Open And Migrate](#open-and-migrate)
+	- [Open](#open)
+	- [Migrate](#migrate)
+		- [Auto Migrate](#auto-migrate)
+		- [Drop and Rename](#drop-and-rename)
+		- [Migrate to a SQL file](#migrate-to-a-sql-file) 
 - [Select](#select)
 	- [Find](#find)
 	- [List](#list)
@@ -155,7 +159,7 @@ func main() {
 	}
 	defer goe.Close(db)
 
-	err = goe.AutoMigrate(db)
+	err = goe.Migrate(db).AutoMigrate()
 	if err != nil {
 		panic(err)
 	}
@@ -507,10 +511,8 @@ db, err := goe.Open[Database](sqlite.Open("goe.db", sqlite.Config{
 
 [Back to Contents](#content)
 
-## Open and Migrate
+## Open
 To open a database use `goe.Open` function, it's require a valid driver. Most of the drives will require a dns/path connection and a config setup. On `goe.Open` needs to specify the struct database.
-
-To migrate the structs, use the `goe.AutoMigrate` passing the database returned by `goe.Open`.
 
 If you don't need the database connection anymore, call `goe.Close` to ensure that all the database resources will be removed from memory.
 
@@ -529,15 +531,89 @@ db, err := goe.Open[Database](postgres.Open(dns, postgres.Config{}))
 if err != nil {
 	// handler error
 }
-defer goe.Close(db)
+```
 
+[Back to Contents](#content)
+## Migrate
+
+### Auto Migrate
+
+To auto migrate the structs, use the `goe.Migrate(db).AutoMigrate()` passing the database returned by `goe.Open`.
+
+```go
 // migrate all database structs
-err = goe.AutoMigrate(db)
+err = goe.Migrate(db).AutoMigrate()
+if err != nil {
+	// handler error
+}
+```
+[Back to Contents](#content)
+### Drop and Rename
+
+```go
+type Select struct {
+	ID   int
+	Name string
+}
+
+type Database struct {
+	Select         *Select
+	*goe.DB
+}
+
+err = goe.Migrate(db).OnTable("Select").RenameColumn("Name", "NewName")
+if err != nil {
+	// handler error
+}
+
+err = goe.Migrate(db).OnTable("Select").DropColumn("NewName")
+if err != nil {
+	// handler error
+}
+
+err = goe.Migrate(db).OnTable("Select").RenameTable("NewSelect")
+if err != nil {
+	// handler error
+}
+
+err = goe.Migrate(db).OnTable("NewSelect").DropTable()
+if err != nil {
+	// handler error
+}
+```
+[Back to Contents](#content)
+### Migrate to a SQL file
+
+GOE drivers supports a output migrate path to specify a directory to store the generated SQL. In this way, calling the "AutoMigrate" function goe WILL NOT auto apply the migrations and output the result as a sql file in the specified path.
+
+```go
+// open the database with the migrate path config setup
+db, err := goe.Open[Database](sqlite.Open("goe.db", sqlite.Config{
+	MigratePath: "migrate/",
+}))
+if err != nil {
+	// handler error
+}
+
+// AutoMigrate will output the result as a sql file, and not auto apply the migration
+err = goe.Migrate(db).AutoMigrate()
 if err != nil {
 	// handler error
 }
 ```
 
+In this example the file will be output in the "migrate/" path, as follow:
+
+```
+📂 migrate
+|   ├── SQLite_1760042267.sql
+go.mod
+```
+
+> [!TIP]
+> Any other migration like "DropTable", "RenameColumn" and others... will have the same result as "AutoMigrate", and will generate the SQL file.
+
+[Back to Contents](#content)
 ## Select
 ### Find
 Find is used when you want to return a single result.
@@ -583,7 +659,7 @@ animals, err = goe.List(db.Animal).Filter(Animal{Name: "%Cat%"}).AsSlice()
 Return all animals as a slice
 ```go
 // select * from animals
-animals, err = goe.Select(db.Animal).AsSlice()
+animals, err = goe.List(db.Animal).AsSlice()
 
 if err != nil {
 	// handler error
@@ -599,7 +675,7 @@ if err != nil {
 
 Iterate over the rows
 ```go
-for row, err := range goe.Select(db.Animal).Rows() {
+for row, err := range goe.List(db.Animal).Rows() {
 	// iterator rows
  }
 ```
@@ -608,59 +684,39 @@ for row, err := range goe.Select(db.Animal).Rows() {
 
 ### Select Specific Fields
 ```go
-// return a slice of this struct
-animals, err = goe.Select(&struct {
-		User    *string
-		Role    *string
-		EndTime **time.Time
-	}{
+var result []struct {
+	User    string
+	Role    *string
+	EndTime *time.Time
+}
+
+// row is the generic struct
+for row, err := range goe.Select[struct {
+		User    string     // output row
+		Role    *string    // output row
+		EndTime *time.Time // output row
+	}](&struct {
+		User    *string     // table column
+		Role    *string     // table column
+		EndTime **time.Time // table column
+}{
 		User:    &db.User.Name,
 		Role:    &db.Role.Name,
 		EndTime: &db.UserRole.EndDate,
-	}).
+}).
 	Joins(
 		join.LeftJoin[int](&db.User.Id, &db.UserRole.UserId),
 		join.LeftJoin[int](&db.UserRole.RoleId, &db.Role.Id),
-	).AsSlice()
+	).
+	OrderByAsc(&db.User.Id).Rows() {
 
-if err != nil {
-	// handler error
+	if err != nil {
+		//handler error
+	}
+	//handler rows
+	result = append(result, row)
 }
 ```
-
-Can use Rows() to itereate over the result and map the values to another struct
-```go
-// iterate over the rows
-for row, err := range goe.Select(&struct {
-		User    *string
-		Role    *string
-		EndTime **time.Time
-	}{
-		User:    &db.User.Name,
-		Role:    &db.Role.Name,
-		EndTime: &db.UserRole.EndDate,
-	}).
-	Joins(
-		join.LeftJoin[int](&db.User.Id, &db.UserRole.UserId),
-		join.LeftJoin[int](&db.UserRole.RoleId, &db.Role.Id),
-	).Rows() {
-		if err != nil {
-			// handler error
-		}
-
-		anotherStruct := struct {
-						User    string
-						Role    string
-						EndTime *time.Time
-					}{
-						User:    query.Get(row.User),
-						Role:    query.Get(row.Role),
-						EndTime: query.Get(row.EndTime),
-					}
-	}
-```
-
-You can use query.Get for remove the pointer stack, so if was needed a **time.Time for query the field, you can use query.Get to get *time.Time. In cases of *string and wanted string it's returned a empty string if the pointer is nil (database returns null).
 
 For specific field is used a new struct, each new field guards the reference for the database attribute.
 
@@ -669,7 +725,7 @@ For specific field is used a new struct, each new field guards the reference for
 ### Where
 For where, goe uses a sub-package where, on where package you have all the goe available where operations.
 ```go
-animals, err = goe.Select(db.Animal).Where(where.Equals(&db.Animal.Id, 2)).AsSlice()
+animals, err = goe.List(db.Animal).Where(where.Equals(&db.Animal.Id, 2)).AsSlice()
 
 if err != nil {
 	//handler error
@@ -679,7 +735,7 @@ if err != nil {
 It's possible to group a list of where operations inside Where()
 
 ```go
-animals, err = goe.Select(db.Animal).Where(
+animals, err = goe.List(db.Animal).Where(
 					where.And(
 						where.LessEquals(&db.Animal.Id, 2), 
 						where.In(&db.Animal.Name, []string{"Cat", "Dog"}),
@@ -693,7 +749,7 @@ if err != nil {
 
 You can use a if to call a where operation only if it's match
 ```go
-selectQuery := goe.Select(db.Animal).Where(where.LessEquals(&db.Animal.Id, 30))
+selectQuery := goe.List(db.Animal).Where(where.LessEquals(&db.Animal.Id, 30))
 
 if filter.In {
 	selectQuery = selectQuery.Where(
@@ -715,7 +771,7 @@ It's possible to use a query inside a `where.In`
 
 ```go
 // use AsQuery() for get a result as a query
-querySelect := goe.Select(&struct{ Name *string }{Name: &db.Animal.Name}).
+querySelect := goe.Select[any](&struct{ Name *string }{Name: &db.Animal.Name}).
 					Joins(
 						join.Join[int](&db.Animal.Id, &db.AnimalFood.IdAnimal),
 						join.Join[uuid.UUID](&db.AnimalFood.IdFood, &db.Food.Id)).
@@ -724,7 +780,7 @@ querySelect := goe.Select(&struct{ Name *string }{Name: &db.Animal.Name}).
 					AsQuery()
 
 // where in with another query
-a, err := goe.Select(db.Animal).Where(where.In(&db.Animal.Name, querySelect)).AsSlice()
+a, err := goe.List(db.Animal).Where(where.In(&db.Animal.Name, querySelect)).AsSlice()
 
 if err != nil {
 	//handler error
@@ -735,7 +791,7 @@ On where, GOE supports operations on two columns, all where operations that have
 In the example, the operator greater (>) on the columns Score and Minimum is used to return all exams that have a score greater than the minimum.
 
 ```go
-err = goe.Select(db.Exam).
+err = goe.List(db.Exam).
 	Where(where.GreaterArg[float32](&db.Exam.Score, &db.Exam.Minimum)).AsSlice()
 ```
 
@@ -747,7 +803,7 @@ On join, goe uses a sub-package join, on join package you have all the goe avail
 
 For the join operations, you need to specify the type, this make the joins operations more safe. So if you change a type from a field, the compiler will throw a error.
 ```go
-animals, err = goe.Select(db.Animal).
+animals, err = goe.List(db.Animal).
 			   Joins(
 					join.Join[int](&db.Animal.Id, &db.AnimalFood.IdAnimal),
 					join.Join[uuid.UUID](&db.Food.Id, &db.AnimalFood.IdFood),
@@ -775,7 +831,7 @@ if err != nil {
 ```
 #### Select
 ```go
-animals, err = goe.Select(db.Animal).OrderByAsc(&db.Animal.Id).AsSlice()
+animals, err = goe.List(db.Animal).OrderByAsc(&db.Animal.Id).AsSlice()
 
 if err != nil {
 	//handler error
@@ -789,7 +845,7 @@ For pagination, it's possible to run on Select and List functions
 #### Select Pagination
 ```go
 // page 1 of size 10
-page, err = goe.Select(db.Animal).AsPagination(1, 10)
+page, err = goe.List(db.Animal).AsPagination(1, 10)
 
 if err != nil {
 	//handler error
@@ -816,7 +872,13 @@ For aggregates goe uses a sub-package aggregate, on aggregate package you have a
 On select fields, goe uses query sub-package for declaring a aggregate field on struct.
 
 ```go
-result, err := goe.Select(&struct{ *query.Count }{aggregate.Count(&db.Animal.Id)}).AsSlice()
+result, err := goe.Select[struct {
+					query.Count
+				}](&struct{ 
+					*query.Count 
+				}{
+					aggregate.Count(&db.Animal.Id)
+				}).AsSlice()
 
 if err != nil {
 	// handler error
@@ -832,7 +894,9 @@ For functions goe uses a sub-package function, on function package you have all 
 
 On select fields, goe uses query sub-package for declaring a function result field on struct.
 ```go
-for row, err := range goe.Select(&struct {
+for row, err := range goe.Select[struct {
+					UpperName query.Function[string]
+				}](&struct {
 					UpperName *query.Function[string]
 				}{
 					UpperName: function.ToUpper(&db.Animal.Name),
@@ -847,7 +911,7 @@ for row, err := range goe.Select(&struct {
 
 Functions can be used inside where.
 ```go
-animals, err = goe.Select(db.Animal).
+animals, err = goe.List(db.Animal).
 Where(
 	where.Like(function.ToUpper(&db.Animal.Name), "%CAT%")
 ).AsSlice()
@@ -861,7 +925,7 @@ if err != nil {
 > where like expected a second argument always as string.
 
 ```go
-animals, err = goe.Select(db.Animal).
+animals, err = goe.List(db.Animal).
 			   Where(
 					where.Equals(function.ToUpper(&db.Animal.Name), function.Argument("CAT")),
 			   ).AsSlice()

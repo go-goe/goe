@@ -104,7 +104,7 @@ func createInsertState[T any](ctx context.Context, t *T) stateInsert[T] {
 	return stateInsert[T]{builder: createBuilder(enum.InsertQuery), ctx: ctx, table: t}
 }
 
-func getArgsTable[T any](addrMap map[uintptr]field, table *T, ignoreFields []int) []field {
+func getArgsTable(addrMap map[uintptr]field, table any, ignoreFields []int) []field {
 	if table == nil {
 		panic("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
 	}

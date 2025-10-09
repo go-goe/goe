@@ -211,7 +211,7 @@ func SetupPostgres() (*Database, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = goe.AutoMigrate(db)
+	err = goe.Migrate(db).AutoMigrate()
 	if err != nil {
 		return nil, err
 	}
@@ -226,7 +226,7 @@ func SetupSqlite() (*Database, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = goe.AutoMigrate(db)
+	err = goe.Migrate(db).AutoMigrate()
 	if err != nil {
 		return nil, err
 	}
@@ -296,42 +296,46 @@ func TestRace(t *testing.T) {
 func TestMigrate(t *testing.T) {
 	db, err := Setup()
 	if err != nil {
-		t.Fatalf("Expected Postgres Connection, got error %v", err)
+		t.Fatalf("Expected a connection, got error %v", err)
 	}
-
-	err = goe.RenameColumn(db, "", "Select", "Name", "NewName")
+	err = goe.Migrate(db).OnTable("Select").RenameColumn("Name", "NewName")
 	if err != nil {
 		t.Fatalf("Expected rename column, got error %v", err)
 	}
 
-	err = goe.DropColumn(db, "", "Select", "NewName")
+	err = goe.Migrate(db).OnTable("Select").DropColumn("NewName")
 	if err != nil {
 		t.Fatalf("Expected drop column, got error %v", err)
 	}
 
-	err = goe.DropTable(db, "", "Select")
+	err = goe.Migrate(db).OnTable("Select").RenameTable("NewSelect")
 	if err != nil {
-		t.Fatalf("Expected drop table Select, got error %v", err)
+		t.Fatalf("Expected rename table, got error %v", err)
+	}
+
+	err = goe.Migrate(db).OnTable("NewSelect").DropTable()
+	if err != nil {
+		t.Fatalf("Expected drop table NewSelect, got error %v", err)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	err = goe.AutoMigrateContext(ctx, db)
+	err = goe.Migrate(db).AutoMigrateContext(ctx)
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("Expected context.Canceled, got %v", err)
 	}
 
-	err = goe.RenameColumn(db, "DropSchema", "Drop", "Name", "NewName")
+	err = goe.Migrate(db).OnSchema("DropSchema").OnTable("Drop").RenameColumn("Name", "NewName")
 	if err != nil {
 		t.Fatalf("Expected rename column, got error %v", err)
 	}
 
-	err = goe.DropColumn(db, "DropSchema", "Drop", "NewName")
+	err = goe.Migrate(db).OnSchema("DropSchema").OnTable("Drop").DropColumn("NewName")
 	if err != nil {
 		t.Fatalf("Expected drop column, got error %v", err)
 	}
 
-	err = goe.DropTable(db, "DropSchema", "Drop")
+	err = goe.Migrate(db).OnSchema("DropSchema").OnTable("Drop").DropTable()
 	if err != nil {
 		t.Fatalf("Expected drop table DropSchema.Drop, got error %v", err)
 	}

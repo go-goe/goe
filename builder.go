@@ -17,7 +17,6 @@ type builder struct {
 	fieldIds     []int           //insert and update
 	joins        []enum.JoinType //select
 	joinsArgs    []field         //select
-	tables       map[int]int
 	brs          []model.Operation
 	sets         []set
 }
@@ -158,28 +157,31 @@ func (b *builder) buildWhere() {
 }
 
 func (b *builder) buildTables() {
+	var tables map[int]int
 	if len(b.joins) != 0 {
-		b.tables[b.joinsArgs[0].getTableId()] = 1
+		tables = make(map[int]int)
+		tables[b.joinsArgs[0].getTableId()] = 1
 		b.query.Tables = append(b.query.Tables, model.Table{Schema: b.joinsArgs[0].schema(), Name: b.joinsArgs[0].table()})
 
 		b.query.Joins = make([]model.Join, len(b.joins))
 		c := 1
 		for i := range b.joins {
-			buildJoins(i, b.query.Joins, b.joins[i], b.joinsArgs[i+c-1], b.joinsArgs[i+c-1+1], b.tables)
+			buildJoins(i, b.query.Joins, b.joins[i], b.joinsArgs[i+c-1], b.joinsArgs[i+c-1+1], tables)
 			c++
 		}
 		return
 	}
-	b.tables[b.fieldsSelect[0].getTableId()] = 1
+	tables = make(map[int]int)
+	tables[b.fieldsSelect[0].getTableId()] = 1
 	b.query.Tables = append(b.query.Tables, model.Table{Schema: b.fieldsSelect[0].schema(), Name: b.fieldsSelect[0].table()})
 
 	for i := range b.brs {
-		if b.brs[i].TableId != 0 && b.tables[b.brs[i].TableId] == 0 {
-			b.tables[b.brs[i].TableId] = 1
+		if b.brs[i].TableId != 0 && tables[b.brs[i].TableId] == 0 {
+			tables[b.brs[i].TableId] = 1
 			b.query.Tables = append(b.query.Tables, b.brs[i].Table)
 		}
-		if b.brs[i].AttributeTableId != 0 && b.tables[b.brs[i].AttributeTableId] == 0 {
-			b.tables[b.brs[i].AttributeTableId] = 1
+		if b.brs[i].AttributeTableId != 0 && tables[b.brs[i].AttributeTableId] == 0 {
+			tables[b.brs[i].AttributeTableId] = 1
 			b.query.Tables = append(b.query.Tables, b.brs[i].AttributeValueTable)
 		}
 	}

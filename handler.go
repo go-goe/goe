@@ -51,7 +51,7 @@ func handlerValuesReturningBatch(ctx context.Context, conn Connection, query mod
 	return nil
 }
 
-func handlerResult[T any](ctx context.Context, conn Connection, query model.Query, numFields int, anonymous bool, dbConfig *DatabaseConfig) iter.Seq2[T, error] {
+func handlerResult[T any](ctx context.Context, conn Connection, query model.Query, numFields int, dbConfig *DatabaseConfig) iter.Seq2[T, error] {
 	var rows Rows
 	rows, query.Header.Err = wrapperQuery(ctx, conn, &query)
 
@@ -65,18 +65,6 @@ func handlerResult[T any](ctx context.Context, conn Connection, query model.Quer
 
 	value := reflect.TypeOf(v)
 	dest := make([]any, numFields)
-	if anonymous {
-		fieldElem := make(map[int]bool)
-		for i := range dest {
-			if value.Field(i).Type.Elem().Kind() == reflect.Pointer {
-				fieldElem[i] = true
-				dest[i] = reflect.New(value.Field(i).Type.Elem()).Interface()
-				continue
-			}
-			dest[i] = reflect.New(value.Field(i).Type).Interface()
-		}
-		return mapAnonymousStructQuery[T](ctx, rows, dest, value, fieldElem, dbConfig, query)
-	}
 
 	for i := range dest {
 		dest[i] = reflect.New(value.Field(i).Type).Interface()
@@ -104,38 +92,6 @@ func mapStructQuery[T any](ctx context.Context, rows Rows, dest []any, value ref
 
 			for i, a := range dest {
 				f = s.Field(i)
-				f.Set(reflect.ValueOf(a).Elem())
-			}
-			if !yield(s.Interface().(T), nil) {
-				return
-			}
-		}
-	}
-}
-
-func mapAnonymousStructQuery[T any](ctx context.Context, rows Rows, dest []any, value reflect.Type, fieldMap map[int]bool, dbConfig *DatabaseConfig, query model.Query) iter.Seq2[T, error] {
-	return func(yield func(T, error) bool) {
-		var (
-			s, f reflect.Value
-		)
-		defer rows.Close()
-		s = reflect.New(value).Elem()
-
-		for rows.Next() {
-			query.Header.Err = rows.Scan(dest...)
-
-			if query.Header.Err != nil {
-				//TODO: add infos about row
-				yield(s.Interface().(T), dbConfig.ErrorQueryHandler(ctx, query))
-				return
-			}
-
-			for i, a := range dest {
-				f = s.Field(i)
-				if fieldMap[i] {
-					f.Set(reflect.ValueOf(a))
-					continue
-				}
 				f.Set(reflect.ValueOf(a).Elem())
 			}
 			if !yield(s.Interface().(T), nil) {

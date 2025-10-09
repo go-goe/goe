@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"iter"
-	"maps"
 	"math"
 	"reflect"
 	"strings"
@@ -20,11 +19,10 @@ import (
 var ErrNotFound = errors.New("goe: not found any element on result set")
 
 type stateSelect[T any] struct {
-	conn            Connection
-	builder         builder
-	ctx             context.Context
-	table           any
-	anonymousStruct bool
+	conn    Connection
+	builder builder
+	ctx     context.Context
+	table   any
 }
 
 type find[T any] struct {
@@ -51,7 +49,7 @@ func Find[T any](table *T) find[T] {
 //
 // See [Find] for examples
 func FindContext[T any](ctx context.Context, table *T) find[T] {
-	return find[T]{table: table, sSelect: SelectContext(ctx, table), errNotFound: ErrNotFound}
+	return find[T]{table: table, sSelect: SelectContext[T](ctx, table), errNotFound: ErrNotFound}
 }
 
 func (f find[T]) OnTransaction(tx Transaction) find[T] {
@@ -155,21 +153,19 @@ func (f find[T]) ByValue(value T) (*T, error) {
 //		Role:    &db.Role.Name,
 //		EndTime: &db.UserRole.EndDate,
 //	}).AsSlice()
-func Select[T any](table *T) stateSelect[T] {
-	return SelectContext(context.Background(), table)
+func Select[T any](table any) stateSelect[T] {
+	return SelectContext[T](context.Background(), table)
 }
 
 // SelectContext retrieves rows from tables.
 //
 // See [Select] for examples
-func SelectContext[T any](ctx context.Context, table *T) stateSelect[T] {
+func SelectContext[T any](ctx context.Context, table any) stateSelect[T] {
 	var state stateSelect[T] = createSelectState[T](ctx)
 	argsSelect := getArgsSelect(addrMap.mapField, table)
 
-	state.builder.tables = make(map[int]int)
 	state.table = argsSelect.table
 	state.builder.fieldsSelect = argsSelect.fields
-	state.anonymousStruct = argsSelect.anonymous
 	return state
 }
 
@@ -235,20 +231,20 @@ func (s stateSelect[T]) AsQuery() model.Query {
 }
 
 type Pagination[T any] struct {
-	TotalValues int64 `json:"total_values"`
-	TotalPages  int   `json:"total_pages"`
+	TotalValues int64 `json:"totalValues"`
+	TotalPages  int   `json:"totalPages"`
 
-	PageValues int `json:"page_values"`
-	PageSize   int `json:"page_size"`
+	PageValues int `json:"pageValues"`
+	PageSize   int `json:"pageSize"`
 
-	CurrentPage     int  `json:"current_page"`
-	HasPreviousPage bool `json:"has_previous_page"`
-	PreviousPage    int  `json:"previous_page"`
-	HasNextPage     bool `json:"has_next_page"`
-	NextPage        int  `json:"next_page"`
+	CurrentPage     int  `json:"currentPage"`
+	HasPreviousPage bool `json:"hasPreviousPage"`
+	PreviousPage    int  `json:"previousPage"`
+	HasNextPage     bool `json:"hasNextPage"`
+	NextPage        int  `json:"nextPage"`
 
-	StartIndex int `json:"start_index"`
-	EndIndex   int `json:"end_index"`
+	StartIndex int `json:"startIndex"`
+	EndIndex   int `json:"endIndex"`
 	Values     []T `json:"values"`
 }
 
@@ -264,7 +260,7 @@ func (s stateSelect[T]) AsPagination(page, size int) (*Pagination[T], error) {
 	}
 
 	var err error
-	stateCount := Select(&struct {
+	stateCount := Select[struct{ query.Count }](&struct {
 		*query.Count
 	}{
 		Count: aggregate.Count(s.table),
@@ -273,9 +269,6 @@ func (s stateSelect[T]) AsPagination(page, size int) (*Pagination[T], error) {
 	// copy joins
 	stateCount.builder.joins = s.builder.joins
 	stateCount.builder.joinsArgs = s.builder.joinsArgs
-	stateCount.builder.tables = make(map[int]int, len(s.builder.tables))
-	maps.Copy(stateCount.builder.tables, s.builder.tables)
-	stateCount.builder.query.Tables = s.builder.query.Tables
 
 	// copy operations
 	stateCount.builder.brs = s.builder.brs
@@ -346,7 +339,7 @@ func (s stateSelect[T]) Rows() iter.Seq2[T, error] {
 		s.conn = driver.NewConnection()
 	}
 
-	return handlerResult[T](s.ctx, s.conn, s.builder.query, len(s.builder.fieldsSelect), s.anonymousStruct, driver.GetDatabaseConfig())
+	return handlerResult[T](s.ctx, s.conn, s.builder.query, len(s.builder.fieldsSelect), driver.GetDatabaseConfig())
 }
 
 func createSelectState[T any](ctx context.Context) stateSelect[T] {
@@ -384,7 +377,7 @@ func List[T any](table *T) list[T] {
 //
 // See [List] for examples.
 func ListContext[T any](ctx context.Context, table *T) list[T] {
-	return list[T]{sSelect: SelectContext(ctx, table), table: table}
+	return list[T]{sSelect: SelectContext[T](ctx, table), table: table}
 }
 
 // OrderByAsc makes a ordained by arg ascending query.
@@ -408,6 +401,11 @@ func (l list[T]) Filter(v T) list[T] {
 	}
 
 	l.sSelect = helperNonZeroOperation(l.sSelect, args, values)
+	return l
+}
+
+func (l list[T]) Where(o model.Operation) list[T] {
+	l.sSelect = l.sSelect.Where(o)
 	return l
 }
 
@@ -438,6 +436,11 @@ func (l list[T]) AsPagination(page, size int) (*Pagination[T], error) {
 	}
 
 	return l.sSelect.AsPagination(page, size)
+}
+
+// Rows return a iterator on rows.
+func (l list[T]) Rows() iter.Seq2[T, error] {
+	return l.sSelect.Rows()
 }
 
 type getArgs struct {
@@ -552,9 +555,8 @@ func equalsOrLike(f any, a any) model.Operation {
 }
 
 type argsSelect struct {
-	fields    []fieldSelect
-	table     any
-	anonymous bool
+	fields []fieldSelect
+	table  any
 }
 
 func getArgsSelect(addrMap map[uintptr]field, arg any) argsSelect {
@@ -628,7 +630,7 @@ func getArgsSelectAno(addrMap map[uintptr]field, valueOf reflect.Value) argsSele
 	if len(fields) == 0 {
 		panic("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
 	}
-	return argsSelect{fields: fields, anonymous: true, table: table}
+	return argsSelect{fields: fields, table: table}
 }
 
 func createFunction(field field, a any) fieldSelect {

@@ -24,7 +24,7 @@ func BenchmarkSelect(b *testing.B) {
 
 	for b.Loop() {
 		animals = make([]Animal, 0)
-		for row := range goe.Select(db.Animal).Rows() {
+		for row := range goe.List(db.Animal).Rows() {
 			animals = append(animals, row)
 		}
 	}
@@ -81,7 +81,7 @@ func BenchmarkJoin(b *testing.B) {
 	for b.Loop() {
 		foods = make([]Food, 0)
 
-		for row := range goe.Select(db.Food).
+		for row := range goe.List(db.Food).
 			Joins(
 				join.Join[uuid.UUID](&db.Food.Id, &db.AnimalFood.IdFood),
 				join.Join[int](&db.AnimalFood.IdAnimal, &db.Animal.Id),

@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/go-goe/goe"
-	"github.com/go-goe/goe/query"
 	"github.com/go-goe/goe/query/join"
 	"github.com/go-goe/goe/query/update"
 	"github.com/go-goe/goe/query/where"
@@ -403,7 +402,10 @@ func TestUpdate(t *testing.T) {
 					JobTitle string
 					Person   string
 				}{}
-				for row, err := range goe.Select(&struct {
+				for row, err := range goe.Select[struct {
+					JobTitle string
+					Person   string
+				}](&struct {
 					JobTitle *string
 					Person   *string
 				}{
@@ -419,13 +421,7 @@ func TestUpdate(t *testing.T) {
 					if err != nil {
 						t.Fatalf("Expected a select, got error: %v", err)
 					}
-					pj = append(pj, struct {
-						JobTitle string
-						Person   string
-					}{
-						JobTitle: query.Get(row.JobTitle),
-						Person:   query.Get(row.Person),
-					})
+					pj = append(pj, row)
 				}
 
 				if len(pj) != 2 {
@@ -445,7 +441,10 @@ func TestUpdate(t *testing.T) {
 				}
 
 				pj = nil
-				for row, err := range goe.Select(&struct {
+				for row, err := range goe.Select[struct {
+					JobTitle string
+					Person   string
+				}](&struct {
 					JobTitle *string
 					Person   *string
 				}{
@@ -461,13 +460,7 @@ func TestUpdate(t *testing.T) {
 					if err != nil {
 						t.Fatalf("Expected a select, got error: %v", err)
 					}
-					pj = append(pj, struct {
-						JobTitle string
-						Person   string
-					}{
-						JobTitle: query.Get(row.JobTitle),
-						Person:   query.Get(row.Person),
-					})
+					pj = append(pj, row)
 				}
 
 				if len(pj) != 3 {
@@ -480,7 +473,10 @@ func TestUpdate(t *testing.T) {
 				}
 
 				pj = nil
-				for row, err := range goe.Select(&struct {
+				for row, err := range goe.Select[struct {
+					JobTitle string
+					Person   string
+				}](&struct {
 					JobTitle *string
 					Person   *string
 				}{
@@ -496,13 +492,7 @@ func TestUpdate(t *testing.T) {
 					if err != nil {
 						t.Fatalf("Expected a select, got error: %v", err)
 					}
-					pj = append(pj, struct {
-						JobTitle string
-						Person   string
-					}{
-						JobTitle: query.Get(row.JobTitle),
-						Person:   query.Get(row.Person),
-					})
+					pj = append(pj, row)
 				}
 
 				if len(pj) != 0 {
@@ -546,7 +536,10 @@ func TestUpdate(t *testing.T) {
 					JobTitle string
 					Person   string
 				}{}
-				for row, err := range goe.Select(&struct {
+				for row, err := range goe.Select[struct {
+					JobTitle string
+					Person   string
+				}](&struct {
 					JobTitle *string
 					Person   *string
 				}{
@@ -562,13 +555,7 @@ func TestUpdate(t *testing.T) {
 					if err != nil {
 						t.Fatalf("Expected a select, got error: %v", err)
 					}
-					pj = append(pj, struct {
-						JobTitle string
-						Person   string
-					}{
-						JobTitle: query.Get(row.JobTitle),
-						Person:   query.Get(row.Person),
-					})
+					pj = append(pj, row)
 				}
 
 				if len(pj) != 2 {
@@ -582,7 +569,10 @@ func TestUpdate(t *testing.T) {
 				}
 
 				pj = nil
-				for row, err := range goe.Select(&struct {
+				for row, err := range goe.Select[struct {
+					JobTitle string
+					Person   string
+				}](&struct {
 					JobTitle *string
 					Person   *string
 				}{
@@ -598,13 +588,7 @@ func TestUpdate(t *testing.T) {
 					if err != nil {
 						t.Fatalf("Expected a select, got error: %v", err)
 					}
-					pj = append(pj, struct {
-						JobTitle string
-						Person   string
-					}{
-						JobTitle: query.Get(row.JobTitle),
-						Person:   query.Get(row.Person),
-					})
+					pj = append(pj, row)
 				}
 
 				if len(pj) != 3 {
