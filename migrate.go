@@ -60,7 +60,7 @@ func (mt migrateTable) RenameTable(newName string) error {
 	return mt.db.driver.RenameTable(
 		mt.db.driver.KeywordHandler(utils.ColumnNamePattern(mt.schema)),
 		mt.db.driver.KeywordHandler(utils.TableNamePattern(mt.table)),
-		mt.db.driver.KeywordHandler(utils.ColumnNamePattern(newName)))
+		mt.db.driver.KeywordHandler(utils.TableNamePattern(newName)))
 }
 
 func (mt migrateTable) DropColumn(column string) error {
