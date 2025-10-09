@@ -308,9 +308,14 @@ func TestMigrate(t *testing.T) {
 		t.Fatalf("Expected drop column, got error %v", err)
 	}
 
-	err = goe.Migrate(db).OnTable("Select").DropTable()
+	err = goe.Migrate(db).OnTable("Select").RenameTable("NewSelect")
 	if err != nil {
-		t.Fatalf("Expected drop table Select, got error %v", err)
+		t.Fatalf("Expected rename table, got error %v", err)
+	}
+
+	err = goe.Migrate(db).OnTable("NewSelect").DropTable()
+	if err != nil {
+		t.Fatalf("Expected drop table NewSelect, got error %v", err)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
