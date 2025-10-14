@@ -48,3 +48,79 @@ func (c *Count) Scan(src any) error {
 func (c Count) Aggregate() enum.AggregateType {
 	return enum.CountAggregate
 }
+
+type Avg struct {
+	Field any
+	Value float64
+}
+
+func (a *Avg) Scan(src any) error {
+	v, ok := src.(float64)
+	if !ok {
+		return fmt.Errorf("error scan aggregate")
+	}
+
+	a.Value = v
+	return nil
+}
+
+func (a Avg) Aggregate() enum.AggregateType {
+	return enum.AvgAggregate
+}
+
+type Max struct {
+	Field any
+	Value float64
+}
+
+func (a *Max) Scan(src any) error {
+	v, ok := src.(float64)
+	if !ok {
+		return fmt.Errorf("error scan aggregate")
+	}
+
+	a.Value = v
+	return nil
+}
+
+func (a Max) Aggregate() enum.AggregateType {
+	return enum.MaxAggregate
+}
+
+type Min struct {
+	Field any
+	Value float64
+}
+
+func (a *Min) Scan(src any) error {
+	v, ok := src.(float64)
+	if !ok {
+		return fmt.Errorf("error scan aggregate")
+	}
+
+	a.Value = v
+	return nil
+}
+
+func (a Min) Aggregate() enum.AggregateType {
+	return enum.MinAggregate
+}
+
+type Sum struct {
+	Field any
+	Value float64
+}
+
+func (a *Sum) Scan(src any) error {
+	v, ok := src.(float64)
+	if !ok {
+		return fmt.Errorf("error scan aggregate")
+	}
+
+	a.Value = v
+	return nil
+}
+
+func (a Sum) Aggregate() enum.AggregateType {
+	return enum.SumAggregate
+}

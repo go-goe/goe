@@ -27,6 +27,10 @@ type AggregateType uint
 const (
 	_ AggregateType = iota
 	CountAggregate
+	MaxAggregate
+	MinAggregate
+	SumAggregate
+	AvgAggregate
 )
 
 type FunctionType uint
