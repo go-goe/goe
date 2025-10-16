@@ -251,7 +251,7 @@ func TestInsert(t *testing.T) {
 					t.Fatalf("Expected a insert job, got error: %v", err)
 				}
 
-				err = goe.Insert(db.PersonJobTitle).One(&PersonJobTitle{IdJobTitle: j.Id, PersonId: p.Id, CreatedAt: time.Now()})
+				err = goe.Insert(db.PersonJobTitle).One(&PersonJobTitle{JobTitleId: j.Id, PersonId: p.Id, CreatedAt: time.Now()})
 				if err != nil {
 					t.Errorf("Expected a insert PersonJobTitle, got error: %v", err)
 				}
