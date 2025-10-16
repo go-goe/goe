@@ -214,7 +214,7 @@ GOE supports any type that implements the [Scanner Interface](https://pkg.go.dev
 ```go
 type Table struct {
 	Price      decimal.Decimal     `goe:"type:decimal(10,4)"`
-	NullId     sql.Null[uuid.UUID] `goe:"type:uuid"`
+	NullID     sql.Null[uuid.UUID] `goe:"type:uuid"`
 	NullString sql.NullString      `goe:"type:varchar(100)"`
 }
 ```
@@ -223,13 +223,13 @@ type Table struct {
 ### Struct mapping
 ```go
 type User struct {
-	Id        	uint //this is primary key
+	ID        	uint //this is primary key
 	Login     	string
 	Password  	string
 }
 ```
 > [!NOTE] 
-> By default the field "Id" is primary key and all ids of integers are auto increment.
+> By default the field "ID" is primary key and all ids of integers are auto increment.
 
 [Back to Contents](#content)
 ### Setting primary key
@@ -247,7 +247,7 @@ a primary key use the tag value "pk".
 ### Setting type
 ```go
 type User struct {
-	Id       	string `goe:"pk;type:uuid"`
+	ID       	string `goe:"pk;type:uuid"`
 	Login    	string `goe:"type:varchar(10)"`
 	Name     	string `goe:"type:varchar(150)"`
 	Password 	string `goe:"type:varchar(60)"`
@@ -260,7 +260,7 @@ You can specify a type using the tag value "type"
 ### Setting null
 ```go
 type User struct {
-	Id        int
+	ID        int
 	Name      string
 	Email     *string // this will be a null column
 	Phone     sql.NullString `goe:"type:varchar(20)"` // also null
@@ -276,7 +276,7 @@ type User struct {
 
 ```go
 type User struct {
-	Id        int
+	ID        int
 	Name      string
 	Email     *string
 	CreatedAt  time.Time `goe:"default:current_timestamp"`
@@ -292,21 +292,21 @@ err = goe.Insert(db.User).IgnoreFields(&db.User.CreatedAt).One(&u)
 [Back to Contents](#content)
 
 ### Relationship
-In goe relational fields are created using the pattern TargetTable+TargetTableId, so if you want to have a foreign key to User, you will have to write a field like "UserId" or "IdUser".
+In GOE relational fields are created using the pattern `TargetTable`+`TargetTableID`, so if you want to have a foreign key to User, you will have to write a field like `UserID` or `UserIDOrigin`.
 #### One To One
 ```go
 type User struct {
-	Id       	uint
+	ID       	uint
 	Login    	string
 	Name     	string
 	Password 	string
 }
 
 type UserDetails struct {
-	Id       	uint
+	ID       	uint
 	Email   	string
 	Birthdate 	time.Time
-	UserId   	uint // one to one with User
+	UserID   	uint  // one to one with User
 }
 ```
 
@@ -315,47 +315,77 @@ type UserDetails struct {
 **For simplifications all relational slices should be the last fields on struct.**
 ```go
 type User struct {
-	Id       	uint
+	ID       	uint
 	Name     	string
 	Password 	string
 	UserLogs 	[]UserLog // one User has many UserLogs
 }
 
 type UserLog struct {
-	Id       	uint
+	ID       	uint
 	Action   	string
 	DateTime 	time.Time
-	UserId   	uint // if remove the slice from user, will became a one to one
+	UserID   	uint // if remove the slice from user, will become a one to one
 }
 ```
 
-The difference from one to one and many to one it's the add of a slice field on the "many" struct
+The difference from one to one and many to one it's a slice field on the "many" struct.
 
 [Back to Contents](#content)
 #### Many to Many
 **For simplifications all relational slices should be the last fields on struct.**
+
+Using implicit many to many:
+
+```go
+type Person struct {
+	ID   int
+	Name string
+	Jobs []Job // Person has a slice to Jobs
+}
+
+// Person and Job are implicit relational
+type PersonJob struct {
+	PersonID   int `goe:"pk"`
+	JobID      int `goe:"pk"`
+	CreatedAt  time.Time
+}
+
+type Job struct {
+	Name    string
+	ID      int
+	Persons []Person // Job has a slice to Person
+}
+```
+
+> [!IMPORTANT]
+> It's used the tags "pk" for ensure that the foreign keys will be both primary key.
+
+Using many to one pattern:
+
 ```go
 type User struct {
-	Id       	uint
+	ID       	uint
 	Name     	string
 	Password 	string
 	UserRoles 	[]UserRole
 }
 
 type UserRole struct {
-	UserId  	uint `goe:"pk"`
-	RoleId  	uint `goe:"pk"`
+	UserID  	uint `goe:"pk"`
+	RoleID  	uint `goe:"pk"`
 }
 
 type Role struct {
-	Id        	uint
+	ID        	uint
 	Name      	string
 	UserRoles 	[]UserRole
 }
 ```
 Is used a combination of two many to one to generate a many to many. In this example, User has many UserRole and Role has many UserRole.
 
-It's used the tags "pk" for ensure that the foreign keys will be both primary key.
+> [!IMPORTANT]
+> It's used the tags "pk" for ensure that the foreign keys will be both primary key.
 
 [Back to Contents](#content)
 
@@ -364,11 +394,11 @@ It's used the tags "pk" for ensure that the foreign keys will be both primary ke
 One to Many
 
 ```go
-type Page struct {
-	Id     int
-	Number int
-	PageId *int
-	Pages  []Page
+type Person struct {
+	ID       int
+	Name     string
+	PersonID *int
+	Family   []Person
 }
 ```
 
@@ -376,9 +406,10 @@ One to One
 
 ```go
 type Page struct {
-	Id     int
-	Number int
-	PageId *int
+	ID         int
+	Number     int
+	PageIDNext *int
+	PageIDPrev *int
 }
 ```
 
@@ -387,7 +418,7 @@ type Page struct {
 #### Unique Index
 ```go
 type User struct {
-	Id       	uint
+	ID       	uint
 	Name     	string
 	Email    	string  `goe:"unique"`
 }
@@ -398,7 +429,7 @@ To create a unique index you need the "unique" goe tag
 #### Create Index
 ```go
 type User struct {
-	Id       uint
+	ID       uint
 	Name     string
 	Email 	 string `goe:"index"`
 }
@@ -409,7 +440,7 @@ To create a common index you need the "index" goe tag
 <!-- #### Function Index
 ```
 type User struct {
-	Id       uint
+	ID       uint
 	Name     string
 	Email    string `goe:"index(n:idx_email f:lower)"`
 }
@@ -418,7 +449,7 @@ type User struct {
 #### Two Columns Index
 ```go
 type User struct {
-	Id       uint
+	ID       uint
 	Name    string `goe:"index(n:idx_name_status)"`
 	Email   string `goe:"index(n:idx_name_status);unique"`
 }
@@ -431,7 +462,7 @@ Using the goe tag "index()", you can pass the index infos as a function call. "n
 #### Two Columns Unique Index
 ```go
 type User struct {
-	Id       uint
+	ID       uint
 	Name    string `goe:"index(unique n:idx_name_status)"`
 	Email   string `goe:"index(unique n:idx_name_status);unique"`
 }
@@ -619,10 +650,10 @@ go.mod
 Find is used when you want to return a single result.
 ```go
 // one primary key
-animal, err = goe.Find(db.Animal).ById(Animal{Id: 2})
+animal, err = goe.Find(db.Animal).ByID(Animal{ID: 2})
 
 // two primary keys
-animalFood, err = goe.Find(db.AnimalFood).ById(AnimalFood{IdAnimal: 3, IdFood: 2})
+animalFood, err = goe.Find(db.AnimalFood).ByID(AnimalFood{IDAnimal: 3, IDFood: 2})
 
 // find record by value, if have more than one it will returns the first
 cat, err = goe.Find(db.Animal).ByValue(Animal{Name: "Cat"})
@@ -643,8 +674,8 @@ List has support for [OrderBy](#orderby), [Pagination](#pagination) and [Joins](
 // list all animals
 animals, err = goe.List(db.Animal).AsSlice()
 
-// list the animals with name "Cat", Id "3" and IdHabitat "4"
-animals, err = goe.List(db.Animal).Filter(Animal{Name: "Cat", Id: 3, IdHabitat: 4}).AsSlice()
+// list the animals with name "Cat", ID "3" and IDHabitat "4"
+animals, err = goe.List(db.Animal).Filter(Animal{Name: "Cat", ID: 3, IDHabitat: 4}).AsSlice()
 
 // when using % on filter, goe makes a like operation
 animals, err = goe.List(db.Animal).Filter(Animal{Name: "%Cat%"}).AsSlice()
@@ -705,10 +736,10 @@ for row, err := range goe.Select[struct {
 		EndTime: &db.UserRole.EndDate,
 }).
 	Joins(
-		join.LeftJoin[int](&db.User.Id, &db.UserRole.UserId),
-		join.LeftJoin[int](&db.UserRole.RoleId, &db.Role.Id),
+		join.LeftJoin[int](&db.User.ID, &db.UserRole.UserID),
+		join.LeftJoin[int](&db.UserRole.RoleID, &db.Role.ID),
 	).
-	OrderByAsc(&db.User.Id).Rows() {
+	OrderByAsc(&db.User.ID).Rows() {
 
 	if err != nil {
 		//handler error
@@ -725,7 +756,7 @@ For specific field is used a new struct, each new field guards the reference for
 ### Where
 For where, goe uses a sub-package where, on where package you have all the goe available where operations.
 ```go
-animals, err = goe.List(db.Animal).Where(where.Equals(&db.Animal.Id, 2)).AsSlice()
+animals, err = goe.List(db.Animal).Where(where.Equals(&db.Animal.ID, 2)).AsSlice()
 
 if err != nil {
 	//handler error
@@ -737,7 +768,7 @@ It's possible to group a list of where operations inside Where()
 ```go
 animals, err = goe.List(db.Animal).Where(
 					where.And(
-						where.LessEquals(&db.Animal.Id, 2), 
+						where.LessEquals(&db.Animal.ID, 2), 
 						where.In(&db.Animal.Name, []string{"Cat", "Dog"}),
 					),
 				).AsSlice()
@@ -749,12 +780,12 @@ if err != nil {
 
 You can use a if to call a where operation only if it's match
 ```go
-selectQuery := goe.List(db.Animal).Where(where.LessEquals(&db.Animal.Id, 30))
+selectQuery := goe.List(db.Animal).Where(where.LessEquals(&db.Animal.ID, 30))
 
 if filter.In {
 	selectQuery = selectQuery.Where(
 		where.And(
-			where.LessEquals(&db.Animal.Id, 30), 
+			where.LessEquals(&db.Animal.ID, 30), 
 			where.In(&db.Animal.Name, []string{"Cat", "Dog"}),
 		),
 	)
@@ -773,8 +804,8 @@ It's possible to use a query inside a `where.In`
 // use AsQuery() for get a result as a query
 querySelect := goe.Select[any](&struct{ Name *string }{Name: &db.Animal.Name}).
 					Joins(
-						join.Join[int](&db.Animal.Id, &db.AnimalFood.IdAnimal),
-						join.Join[uuid.UUID](&db.AnimalFood.IdFood, &db.Food.Id)).
+						join.Join[int](&db.Animal.ID, &db.AnimalFood.IDAnimal),
+						join.Join[uuid.UUID](&db.AnimalFood.IDFood, &db.Food.ID)).
 					Where(
 						where.In(&db.Food.Name, []string{foods[0].Name, foods[1].Name})).
 					AsQuery()
@@ -805,8 +836,8 @@ For the join operations, you need to specify the type, this make the joins opera
 ```go
 animals, err = goe.List(db.Animal).
 			   Joins(
-					join.Join[int](&db.Animal.Id, &db.AnimalFood.IdAnimal),
-					join.Join[uuid.UUID](&db.Food.Id, &db.AnimalFood.IdFood),
+					join.Join[int](&db.Animal.ID, &db.AnimalFood.IDAnimal),
+					join.Join[uuid.UUID](&db.Food.ID, &db.AnimalFood.IDFood),
 			   ).AsSlice()
 
 if err != nil {
@@ -823,7 +854,7 @@ For OrderBy you need to pass a reference to a mapped database field.
 It's possible to OrderBy desc and asc. List and Select has support for OrderBy queries.
 #### List
 ```go
-animals, err = goe.List(db.Animal).OrderByDesc(&db.Animal.Id).AsSlice()
+animals, err = goe.List(db.Animal).OrderByDesc(&db.Animal.ID).AsSlice()
 
 if err != nil {
 	//handler error
@@ -831,7 +862,7 @@ if err != nil {
 ```
 #### Select
 ```go
-animals, err = goe.List(db.Animal).OrderByAsc(&db.Animal.Id).AsSlice()
+animals, err = goe.List(db.Animal).OrderByAsc(&db.Animal.ID).AsSlice()
 
 if err != nil {
 	//handler error
@@ -873,11 +904,11 @@ On select fields, goe uses query sub-package for declaring a aggregate field on 
 
 ```go
 result, err := goe.Select[struct {
-					query.Count
+					Count query.Count
 				}](&struct{ 
-					*query.Count 
+					Count *query.Count 
 				}{
-					aggregate.Count(&db.Animal.Id)
+					Count: aggregate.Count(&db.Animal.ID),
 				}).AsSlice()
 
 if err != nil {
@@ -885,7 +916,7 @@ if err != nil {
 }
 
 // count value as int64
-result[0].Value
+result[0].Count.Value
 ```
 
 [Back to Contents](#content)
@@ -940,7 +971,7 @@ if err != nil {
 
 [Back to Contents](#content)
 ## Insert
-On Insert if the primary key value is auto-increment, the new Id will be stored on the object after the insert.
+On Insert if the primary key value is auto-increment, the new ID will be stored on the object after the insert.
 
 ### Insert One
 ```go
@@ -952,7 +983,7 @@ if err != nil {
 }
 
 // new generated id
-a.Id
+a.ID
 ```
 
 > [!TIP] 
@@ -982,7 +1013,7 @@ if err != nil {
 Save is the basic function for updates a single record; 
 only updates the non-zero values.
 ```go
-a := Animal{Id: 2}
+a := Animal{ID: 2}
 a.Name = "Update Cat"
 
 // update animal of id 2
@@ -1002,12 +1033,12 @@ if err != nil {
 Update with set uses update sub-package. This is used for more complex updates, like updating a field with zero/nil values or make a batch update.
 
 ```go
-a := Animal{Id: 2}
+a := Animal{ID: 2}
 
-// a.IdHabitat is nil, so is ignored by Save
+// a.IDHabitat is nil, so is ignored by Save
 err = goe.Update(db.Animal).
-	  Sets(update.Set(&db.Animal.IdHabitat, a.IdHabitat)).
-	  Where(where.Equals(&db.Animal.Id, a.Id))
+	  Sets(update.Set(&db.Animal.IDHabitat, a.IDHabitat)).
+	  Where(where.Equals(&db.Animal.ID, a.ID))
 
 if err != nil {
 	//handler error
@@ -1028,7 +1059,7 @@ Check out the [Where](#where) section for more information about where operation
 Remove is used for remove only one record by primary key
 ```go
 // remove animal of id 2
-err = goe.Remove(db.Animal).ById(Animal{Id: 2})
+err = goe.Remove(db.Animal).ByID(Animal{ID: 2})
 
 if err != nil {
 	//handler error
