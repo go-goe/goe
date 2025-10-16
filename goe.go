@@ -21,6 +21,12 @@ func init() {
 //
 //	goe.Open[Database](postgres.Open("user=postgres password=postgres host=localhost port=5432 database=postgres", postgres.Config{}))
 func Open[T any](driver Driver) (*T, error) {
+	driver.GetDatabaseConfig().databaseName = driver.Name()
+	err := driver.Init()
+	if err != nil {
+		return nil, driver.GetDatabaseConfig().ErrorHandler(context.TODO(), err)
+	}
+
 	db := new(T)
 	valueOf := reflect.ValueOf(db).Elem()
 	if valueOf.Kind() != reflect.Struct {
@@ -48,7 +54,6 @@ func Open[T any](driver Driver) (*T, error) {
 		}
 	}
 
-	var err error
 	tableId := 0
 	// init Fields
 	for f := range dbId {
@@ -68,12 +73,6 @@ func Open[T any](driver Driver) (*T, error) {
 		if err != nil {
 			return nil, err
 		}
-	}
-
-	driver.GetDatabaseConfig().databaseName = driver.Name()
-	err = driver.Init()
-	if err != nil {
-		return nil, driver.GetDatabaseConfig().ErrorHandler(context.TODO(), err)
 	}
 
 	dbTarget.driver = driver
@@ -118,7 +117,7 @@ type body struct {
 
 func skipPrimaryKey[T comparable](slice []T, value T, tables reflect.Value, field reflect.StructField) bool {
 	if slices.Contains(slice, value) {
-		table, prefix := checkTablePattern(tables, field)
+		table, prefix := foreignKeyNamePattern(tables, field.Name)
 		if table == "" && prefix == "" {
 			return true
 		}
@@ -238,22 +237,23 @@ func newAttr(b body) error {
 	return nil
 }
 
+func getPks(typeOf reflect.Type) []reflect.StructField {
+	var pks []reflect.StructField
+	pks = append(pks, fieldsByTags("pk", typeOf)...)
+
+	id, valid := getId(typeOf)
+	if valid && !slices.ContainsFunc(pks, func(f reflect.StructField) bool { return f.Name == id.Name }) {
+		pks = append(pks, id)
+	}
+	return pks
+}
+
 func getPk(db *DB, schema *string, typeOf reflect.Type, tableId int, driver Driver) ([]pk, []int, error) {
 	var pks []pk
 	var fieldIds []int
 	var fieldId int
 
-	id, valid := getId(typeOf)
-	if valid {
-		pks := make([]pk, 1)
-		fieldIds = make([]int, 1)
-		fieldId = getFieldId(typeOf, id.Name)
-		pks[0] = createPk(db, schema, typeOf.Name(), id.Name, isAutoIncrement(id), tableId, fieldId, driver)
-		fieldIds[0] = fieldId
-		return pks, fieldIds, nil
-	}
-
-	fields := fieldsByTags("pk", typeOf)
+	fields := getPks(typeOf)
 	if len(fields) == 0 {
 		return nil, nil, fmt.Errorf("goe: struct %q don't have a primary key setted", typeOf.Name())
 	}
@@ -342,34 +342,19 @@ func getTagValue(FieldTag string, subTag string) string {
 	return ""
 }
 
-func checkTablePattern(tables reflect.Value, field reflect.StructField) (table, prefix string) {
-	table, prefix = prefixNamePattern(tables, field)
-	if table != "" {
-		return table, prefix
-	}
-	return posfixNamePattern(tables, field)
-}
-
-func prefixNamePattern(tables reflect.Value, field reflect.StructField) (table, prefix string) {
-	for r := len(field.Name) - 1; r > 1; r-- {
-		if field.Name[r] < 'a' {
-			table = field.Name[r:]
-			prefix = field.Name[:r]
-			if tables.FieldByName(table).IsValid() {
-				return table, prefix
-			}
-		}
-	}
-	return "", ""
-}
-
-func posfixNamePattern(tables reflect.Value, field reflect.StructField) (table, prefix string) {
-	for r := 0; r < len(field.Name); r++ {
-		if field.Name[r] < 'a' {
-			table = field.Name[:r]
-			prefix = field.Name[r:]
-			if tables.FieldByName(table).IsValid() {
-				return table, prefix
+func foreignKeyNamePattern(dbTables reflect.Value, fieldName string) (table, suffix string) {
+	for r := 1; r <= len(fieldName); r++ {
+		table = fieldName[:r]
+		suffix = fieldName[r:]
+		if dbTables.FieldByName(table).IsValid() {
+			pks := getPks(dbTables.FieldByName(table).Elem().Type())
+			for c := 1; c <= len(suffix); c++ {
+				pkName := suffix[:c]
+				if slices.ContainsFunc(pks, func(f reflect.StructField) bool {
+					return f.Name == pkName
+				}) {
+					return table, pkName
+				}
 			}
 		}
 	}
@@ -377,7 +362,7 @@ func posfixNamePattern(tables reflect.Value, field reflect.StructField) (table, 
 }
 
 func helperAttribute(b body) error {
-	table, prefix := checkTablePattern(b.tables, b.valueOf.Type().Field(b.fieldId))
+	table, prefix := foreignKeyNamePattern(b.tables, b.valueOf.Type().Field(b.fieldId).Name)
 	if table != "" {
 		b.stringInfos = stringInfos{prefixName: prefix, tableName: table, fieldName: b.valueOf.Type().Field(b.fieldId).Name}
 		if mto := isManyToOne(b, createManyToOne, createOneToOne); mto != nil {
