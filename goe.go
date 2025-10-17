@@ -231,6 +231,7 @@ func newAttr(b body) error {
 		b.mapp.pks[0].tableName,
 		b.mapp.tableId,
 		b.fieldId,
+		getTagValue(b.valueOf.Type().Field(b.fieldId).Tag.Get("goe"), "default:") != "",
 		b.driver,
 	)
 	addrMap.set(b.mapp.addr, at)

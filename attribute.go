@@ -173,6 +173,7 @@ func createPk(db *DB, schema *string, table string, attributeName string, autoIn
 }
 
 type att struct {
+	isDefault bool
 	attributeStrings
 }
 
@@ -200,8 +201,9 @@ func (a att) getAttributeName() string {
 	return a.attributeName
 }
 
-func createAtt(db *DB, attributeName string, schema *string, table string, tableId, fieldId int, d Driver) att {
+func createAtt(db *DB, attributeName string, schema *string, table string, tableId, fieldId int, isDefault bool, d Driver) att {
 	return att{
+		isDefault:        isDefault,
 		attributeStrings: createAttributeStrings(db, schema, table, attributeName, tableId, fieldId, d)}
 }
 
@@ -272,6 +274,22 @@ func (m manyToOne) getFieldId() int {
 
 func (o oneToOne) getFieldId() int {
 	return o.fieldId
+}
+
+func (p pk) getDefault() bool {
+	return false
+}
+
+func (a att) getDefault() bool {
+	return a.isDefault
+}
+
+func (m manyToOne) getDefault() bool {
+	return false
+}
+
+func (o oneToOne) getDefault() bool {
+	return false
 }
 
 type aggregateResult struct {

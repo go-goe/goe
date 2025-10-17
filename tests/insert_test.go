@@ -47,7 +47,7 @@ func TestInsert(t *testing.T) {
 					NullString: sql.NullString{String: "String Value", Valid: true},
 					Price:      decimal.NewFromUint64(99),
 				}
-				err = goe.Insert(db.Flag).IgnoreFields(&db.Flag.Uint32).One(&f)
+				err = goe.Insert(db.Flag).One(&f)
 				if err != nil {
 					t.Fatalf("Expected a insert, got error: %v", err)
 				}

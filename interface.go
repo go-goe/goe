@@ -13,6 +13,7 @@ type field interface {
 	isPrimaryKey() bool
 	getTableId() int
 	getFieldId() int
+	getDefault() bool
 	getAttributeName() string
 	buildAttributeInsert(*builder)
 }
