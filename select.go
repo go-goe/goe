@@ -178,18 +178,8 @@ func (s stateSelect[T]) Where(o model.Operation) stateSelect[T] {
 
 // Filter creates a where on non-zero values.
 func (s stateSelect[T]) Filter(o model.Operation) stateSelect[T] {
-	// concat where operations with filter
-	if s.builder.brs != nil {
-		s.builder.brs = append(s.builder.brs, model.Operation{
-			Operator: enum.And,
-			Type:     enum.LogicalWhere})
-	}
-	size := len(s.builder.brs)
+	s.builder.filters = nil
 	helperFilter(&s.builder, addrMap.mapField, o)
-	// size equals, filter has no operations
-	if size != 0 && len(s.builder.brs) == size {
-		s.builder.brs = s.builder.brs[:size-1]
-	}
 	return s
 }
 
@@ -289,6 +279,10 @@ func (s stateSelect[T]) AsPagination(page, size int) (*Pagination[T], error) {
 
 	// copy operations
 	stateCount.builder.brs = s.builder.brs
+	stateCount.builder.filters = s.builder.filters
+
+	// copy connection/transaction
+	stateCount.conn = s.conn
 
 	var count int64
 	for row, err := range stateCount.Rows() {
@@ -772,7 +766,7 @@ func helperFilter(builder *builder, addrMap map[uintptr]field, br model.Operatio
 			br.TableId = a.getTableId()
 			br.Attribute = a.getAttributeName()
 
-			builder.brs = append(builder.brs, br)
+			builder.filters = append(builder.filters, br)
 		}
 	case enum.OperationAttributeWhere:
 		a, b := getArg(br.Arg, addrMap, nil), getArg(br.Value.GetValue(), addrMap, nil)
@@ -783,10 +777,10 @@ func helperFilter(builder *builder, addrMap map[uintptr]field, br model.Operatio
 		br.AttributeValue = b.getAttributeName()
 		br.AttributeValueTable = model.Table{Schema: b.schema(), Name: b.table()}
 		br.AttributeTableId = b.getTableId()
-		builder.brs = append(builder.brs, br)
+		builder.filters = append(builder.filters, br)
 	case enum.LogicalWhere:
 		helperWhere(builder, addrMap, *br.FirstOperation)
-		builder.brs = append(builder.brs, br)
+		builder.filters = append(builder.filters, br)
 		helperWhere(builder, addrMap, *br.SecondOperation)
 	}
 }
