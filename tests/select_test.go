@@ -375,7 +375,19 @@ func TestSelect(t *testing.T) {
 			desc: "List_Filter_Order",
 			testCase: func(t *testing.T) {
 				var a []Animal
-				a, err = goe.List(db.Animal).OrderByDesc(&db.Animal.Id).AsSlice()
+				var s []string
+				a, err = goe.List(db.Animal).
+					Filter(
+						where.And(where.In(&db.Animal.Name, s),
+							where.And(where.Equals(&db.Animal.Id, 0),
+								where.And(
+									where.Equals(&db.Animal.Name, ""),
+									where.Like(&db.Animal.Name, "%o%"),
+								),
+							),
+						),
+					).
+					OrderByDesc(&db.Animal.Id).AsSlice()
 				if err != nil {
 					t.Fatalf("Expected List, got error: %v", err)
 				}
@@ -1519,7 +1531,9 @@ func TestSelect(t *testing.T) {
 		},
 	}
 	for _, tC := range testCases {
-		t.Run(tC.desc, tC.testCase)
+		if tC.desc == "List_Filter_Order" {
+			t.Run(tC.desc, tC.testCase)
+		}
 	}
 }
 

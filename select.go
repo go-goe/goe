@@ -6,6 +6,7 @@ import (
 	"iter"
 	"math"
 	"reflect"
+	"slices"
 	"strings"
 
 	"github.com/go-goe/goe/enum"
@@ -757,7 +758,7 @@ func helperWhere(builder *builder, addrMap map[uintptr]field, br model.Operation
 	}
 }
 
-func helperFilter(builder *builder, addrMap map[uintptr]field, br model.Operation) {
+func helperFilter(builder *builder, addrMap map[uintptr]field, br model.Operation) bool {
 	switch br.Type {
 	case enum.OperationWhere, enum.OperationInWhere:
 		if !reflect.ValueOf(br.Value.GetValue()).IsZero() {
@@ -767,6 +768,7 @@ func helperFilter(builder *builder, addrMap map[uintptr]field, br model.Operatio
 			br.Attribute = a.getAttributeName()
 
 			builder.filters = append(builder.filters, br)
+			return true
 		}
 	case enum.OperationAttributeWhere:
 		a, b := getArg(br.Arg, addrMap, nil), getArg(br.Value.GetValue(), addrMap, nil)
@@ -778,9 +780,16 @@ func helperFilter(builder *builder, addrMap map[uintptr]field, br model.Operatio
 		br.AttributeValueTable = model.Table{Schema: b.schema(), Name: b.table()}
 		br.AttributeTableId = b.getTableId()
 		builder.filters = append(builder.filters, br)
+		return true
 	case enum.LogicalWhere:
-		helperWhere(builder, addrMap, *br.FirstOperation)
+		firstFlag := helperFilter(builder, addrMap, *br.FirstOperation)
 		builder.filters = append(builder.filters, br)
-		helperWhere(builder, addrMap, *br.SecondOperation)
+		idx := len(builder.filters) - 1
+		secondFlag := helperFilter(builder, addrMap, *br.SecondOperation)
+		if !firstFlag || !secondFlag {
+			builder.filters = slices.Delete(builder.filters, idx, idx+1)
+		}
+		return true
 	}
+	return false
 }
