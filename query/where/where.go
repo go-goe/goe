@@ -102,7 +102,7 @@ func NotLike[T any](a *T, v string) model.Operation {
 //	Where(where.In(&db.Animal.Name, []string{"Cat", "Dog"}))
 //
 //	// AsQuery for get the query result from a select query
-//	querySelect, err := goe.Select(&struct{ Name *string }{Name: &db.Animal.Name}).AsQuery()
+//	querySelect := goe.Select[any](&struct{ Name *string }{Name: &db.Animal.Name}).AsQuery()
 //
 //	// Use querySelect on in
 //	rows, err := goe.Select(db.Animal).Where(where.In(&db.Animal.Name, querySelect).AsSlice()
