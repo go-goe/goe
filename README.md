@@ -66,6 +66,7 @@ Check out the [Benchmarks](#benchmarks) section for a overview on GOE performanc
 	- [Select From](#select-from)
 	- [Select Specific Fields](#select-specific-fields)
 	- [Where](#where)
+	- [Filter (Non-Zero Dynamic Where)](#filter-non-zero-dynamic-where)
 	- [Join](#join)
 	- [OrderBy](#orderby)
 	- [Pagination](#pagination)
@@ -826,6 +827,35 @@ err = goe.List(db.Exam).
 	Where(where.GreaterArg[float32](&db.Exam.Score, &db.Exam.Minimum)).AsSlice()
 ```
 
+
+[Back to Contents](#content)
+
+### Filter (Non-Zero Dynamic Where)
+
+Filter creates where operations on non-zero values, so if you want a dynamic where to show up only if has values, filter is the call.
+
+```go
+var s []string
+a, err = goe.List(db.Animal).
+	Filter(
+		where.And(where.In(&db.Animal.Name, s),
+			where.And(where.Equals(&db.Animal.Id, 0),
+				where.And(
+					where.Equals(&db.Animal.Name, ""),
+					where.Like(&db.Animal.Name, "%o%"), // valid filter
+				),
+			),
+		),
+	).
+	OrderByDesc(&db.Animal.Id).AsSlice()
+
+if err != nil {
+	//handler error
+}
+```
+
+> [!TIP] 
+> It's possible to call **Filter** and **Where** on the same query.
 
 [Back to Contents](#content)
 
