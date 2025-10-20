@@ -284,10 +284,15 @@ type User struct {
 }
 ```
 
-To ensure that a default value will be used, call the `IgnoreFields` on the `Insert` function, otherwise GOE will try to insert the value stored on the field.
+A default value is used when the field is inserted with no value.
 
 ```go
-err = goe.Insert(db.User).IgnoreFields(&db.User.CreatedAt).One(&u)
+// CreatedAt will have the default value
+err = goe.Insert(db.User).One(&User{Name: "Rose"})
+
+if err != nil {
+	// handler error
+}
 ```
 
 [Back to Contents](#content)
