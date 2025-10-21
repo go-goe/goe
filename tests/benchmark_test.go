@@ -46,7 +46,7 @@ func BenchmarkSelectRaw(b *testing.B) {
 		var a Animal
 		animals = make([]Animal, 0)
 		for rows.Next() {
-			rows.Scan(&a.Id, &a.Name, &a.IdInfo, &a.IdHabitat)
+			rows.Scan(&a.Id, &a.Name, &a.InfoId, &a.HabitatId)
 			animals = append(animals, a)
 		}
 	}
@@ -66,16 +66,16 @@ func BenchmarkJoin(b *testing.B) {
 	w := Weather{Name: "Weather"}
 	goe.Insert(db.Weather).One(&w)
 
-	h := Habitat{Id: uuid.New(), Name: "Habitat", IdWeather: w.Id}
+	h := Habitat{Id: uuid.New(), Name: "Habitat", WeatherId: w.Id}
 	goe.Insert(db.Habitat).One(&h)
 
-	a := Animal{Name: "Animal", IdHabitat: &h.Id}
+	a := Animal{Name: "Animal", HabitatId: &h.Id}
 	goe.Insert(db.Animal).One(&a)
 
 	f := Food{Id: uuid.New(), Name: "Food"}
 	goe.Insert(db.Food).One(&f)
 
-	af := AnimalFood{IdAnimal: a.Id, IdFood: f.Id}
+	af := AnimalFood{AnimalId: a.Id, FoodId: f.Id}
 	goe.Insert(db.AnimalFood).One(&af)
 
 	for b.Loop() {
@@ -83,10 +83,10 @@ func BenchmarkJoin(b *testing.B) {
 
 		for row := range goe.List(db.Food).
 			Joins(
-				join.Join[uuid.UUID](&db.Food.Id, &db.AnimalFood.IdFood),
-				join.Join[int](&db.AnimalFood.IdAnimal, &db.Animal.Id),
-				join.Join[uuid.UUID](&db.Animal.IdHabitat, &db.Habitat.Id),
-				join.Join[int](&db.Habitat.IdWeather, &db.Weather.Id),
+				join.Join[uuid.UUID](&db.Food.Id, &db.AnimalFood.FoodId),
+				join.Join[int](&db.AnimalFood.AnimalId, &db.Animal.Id),
+				join.Join[uuid.UUID](&db.Animal.HabitatId, &db.Habitat.Id),
+				join.Join[int](&db.Habitat.WeatherId, &db.Weather.Id),
 			).
 			Where(
 				where.And(where.Equals(&db.Food.Id, f.Id), where.Equals(&db.Food.Name, f.Name)),
@@ -109,16 +109,16 @@ func BenchmarkJoinSql(b *testing.B) {
 	w := Weather{Name: "Weather"}
 	goe.Insert(db.Weather).One(&w)
 
-	h := Habitat{Id: uuid.New(), Name: "Habitat", IdWeather: w.Id}
+	h := Habitat{Id: uuid.New(), Name: "Habitat", WeatherId: w.Id}
 	goe.Insert(db.Habitat).One(&h)
 
-	a := Animal{Name: "Animal", IdHabitat: &h.Id}
+	a := Animal{Name: "Animal", HabitatId: &h.Id}
 	goe.Insert(db.Animal).One(&a)
 
 	f := Food{Id: uuid.New(), Name: "Food"}
 	goe.Insert(db.Food).One(&f)
 
-	af := AnimalFood{IdAnimal: a.Id, IdFood: f.Id}
+	af := AnimalFood{AnimalId: a.Id, FoodId: f.Id}
 	goe.Insert(db.AnimalFood).One(&af)
 
 	for b.Loop() {

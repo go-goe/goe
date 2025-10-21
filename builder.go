@@ -18,6 +18,7 @@ type builder struct {
 	joins        []enum.JoinType //select
 	joinsArgs    []field         //select
 	brs          []model.Operation
+	filters      []model.Operation
 	sets         []set
 }
 
@@ -77,6 +78,15 @@ func (b *builder) buildSqlDelete() {
 }
 
 func (b *builder) buildWhere() {
+	if len(b.filters) != 0 && len(b.brs) != 0 {
+		b.brs = append(b.brs, model.Operation{
+			Operator: enum.And,
+			Type:     enum.LogicalWhere})
+		b.brs = append(b.brs, b.filters...)
+	} else if len(b.filters) != 0 {
+		b.brs = append(b.brs, b.filters...)
+	}
+
 	if len(b.brs) == 0 {
 		return
 	}

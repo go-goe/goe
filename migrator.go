@@ -437,7 +437,7 @@ func createMigrateAtt(attributeName string, dataType string, nullable bool, defa
 }
 
 func helperAttributeMigrate(b body) error {
-	table, prefix := checkTablePattern(b.tables, b.migrate.field)
+	table, prefix := foreignKeyNamePattern(b.tables, b.migrate.field.Name)
 	if table != "" {
 		b.stringInfos = stringInfos{prefixName: prefix, tableName: table, fieldName: b.migrate.field.Name}
 		if mto := isManyToOne(b, createManyToOneMigrate, createOneToOneMigrate); mto != nil {

@@ -19,15 +19,15 @@ import (
 
 type Animal struct {
 	Name        string `goe:"index"`
-	IdHabitat   *uuid.UUID
-	IdInfo      *[]byte
+	HabitatId   *uuid.UUID
+	InfoId      *[]byte
 	Id          int
 	AnimalFoods []AnimalFood
 }
 
 type AnimalFood struct {
-	IdAnimal int       `goe:"pk"`
-	IdFood   uuid.UUID `goe:"pk"`
+	AnimalId int       `goe:"pk"`
+	FoodId   uuid.UUID `goe:"pk"`
 }
 
 type Food struct {
@@ -39,7 +39,7 @@ type Food struct {
 type Habitat struct {
 	Id          uuid.UUID
 	Name        string `goe:"type:varchar(50)"`
-	IdWeather   int
+	WeatherId   int
 	NameWeather string
 	Animals     []Animal
 }
@@ -54,7 +54,7 @@ type Info struct {
 	Id         []byte
 	Name       string `goe:"index(unique n:idx_name_status);index"`
 	NameStatus string `goe:"index(unique n:idx_name_status)"`
-	IdStatus   int
+	StatusId   int
 }
 
 type Status struct {
@@ -113,7 +113,7 @@ type Person struct {
 
 type PersonJobTitle struct {
 	PersonId   int `goe:"pk"`
-	IdJobTitle int `goe:"pk"`
+	JobTitleId int `goe:"pk"`
 	CreatedAt  time.Time
 }
 
@@ -135,9 +135,10 @@ type Select struct {
 }
 
 type Page struct {
-	Id     int
-	Number int
-	PageId *int
+	ID         int
+	Number     int
+	PageIDNext *int
+	PageIDPrev *int
 }
 
 type FlagSchema struct {

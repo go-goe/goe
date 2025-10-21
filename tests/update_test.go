@@ -239,14 +239,14 @@ func TestUpdate(t *testing.T) {
 				h := Habitat{
 					Id:        uuid.New(),
 					Name:      "City",
-					IdWeather: w.Id,
+					WeatherId: w.Id,
 				}
 				err = goe.Insert(db.Habitat).One(&h)
 				if err != nil {
 					t.Fatalf("Expected a insert habitat, got error: %v", err)
 				}
 
-				a.IdHabitat = &h.Id
+				a.HabitatId = &h.Id
 				a.Name = "Update Cat"
 				err = goe.Save(db.Animal).ByValue(a)
 				if err != nil {
@@ -259,15 +259,15 @@ func TestUpdate(t *testing.T) {
 					t.Fatalf("Expected a select, got error: %v", err)
 				}
 
-				if aselect.IdHabitat == nil || *aselect.IdHabitat != h.Id {
-					t.Errorf("Expected a update on id habitat, got : %v", aselect.IdHabitat)
+				if aselect.HabitatId == nil || *aselect.HabitatId != h.Id {
+					t.Errorf("Expected a update on id habitat, got : %v", aselect.HabitatId)
 				}
 				if aselect.Name != "Update Cat" {
 					t.Errorf("Expected a update on name, got : %v", aselect.Name)
 				}
 
-				aselect.IdHabitat = nil
-				err = goe.Update(db.Animal).Sets(update.Set(&db.Animal.IdHabitat, aselect.IdHabitat)).
+				aselect.HabitatId = nil
+				err = goe.Update(db.Animal).Sets(update.Set(&db.Animal.HabitatId, aselect.HabitatId)).
 					Where(where.Equals(&db.Animal.Id, aselect.Id))
 				if err != nil {
 					t.Fatalf("Expected a update, got error: %v", err)
@@ -278,8 +278,8 @@ func TestUpdate(t *testing.T) {
 					t.Fatalf("Expected a select, got error: %v", err)
 				}
 
-				if aselect.IdHabitat != nil {
-					t.Errorf("Expected IdHabitat to be nil, got : %v", aselect.IdHabitat)
+				if aselect.HabitatId != nil {
+					t.Errorf("Expected HabitatId to be nil, got : %v", aselect.HabitatId)
 				}
 			},
 		},
@@ -316,7 +316,7 @@ func TestUpdate(t *testing.T) {
 				h := Habitat{
 					Id:        uuid.New(),
 					Name:      "City",
-					IdWeather: w.Id,
+					WeatherId: w.Id,
 				}
 				err = goe.Insert(db.Habitat).OnTransaction(tx).One(&h)
 				if err != nil {
@@ -324,7 +324,7 @@ func TestUpdate(t *testing.T) {
 					t.Fatalf("Expected a insert habitat, got error: %v", err)
 				}
 
-				a.IdHabitat = &h.Id
+				a.HabitatId = &h.Id
 				a.Name = "Update Cat"
 				err = goe.Save(db.Animal).OnTransaction(tx).ByValue(a)
 				if err != nil {
@@ -347,8 +347,8 @@ func TestUpdate(t *testing.T) {
 				var aselect *Animal
 				aselect, err = goe.Find(db.Animal).ById(Animal{Id: a.Id})
 
-				if aselect.IdHabitat == nil || *aselect.IdHabitat != h.Id {
-					t.Errorf("Expected a update on id habitat, got : %v", aselect.IdHabitat)
+				if aselect.HabitatId == nil || *aselect.HabitatId != h.Id {
+					t.Errorf("Expected a update on id habitat, got : %v", aselect.HabitatId)
 				}
 				if aselect.Name != "Update Cat" {
 					t.Errorf("Expected a update on name, got : %v", aselect.Name)
@@ -388,9 +388,9 @@ func TestUpdate(t *testing.T) {
 				}
 
 				personJobs := []PersonJobTitle{
-					{PersonId: persons[0].Id, IdJobTitle: jobs[0].Id, CreatedAt: time.Now()},
-					{PersonId: persons[1].Id, IdJobTitle: jobs[0].Id, CreatedAt: time.Now()},
-					{PersonId: persons[2].Id, IdJobTitle: jobs[1].Id, CreatedAt: time.Now()},
+					{PersonId: persons[0].Id, JobTitleId: jobs[0].Id, CreatedAt: time.Now()},
+					{PersonId: persons[1].Id, JobTitleId: jobs[0].Id, CreatedAt: time.Now()},
+					{PersonId: persons[2].Id, JobTitleId: jobs[1].Id, CreatedAt: time.Now()},
 				}
 				err = goe.Insert(db.PersonJobTitle).OnTransaction(tx).All(personJobs)
 				if err != nil {
@@ -414,7 +414,7 @@ func TestUpdate(t *testing.T) {
 				}).OnTransaction(tx).
 					Joins(
 						join.Join[int](&db.Person.Id, &db.PersonJobTitle.PersonId),
-						join.Join[int](&db.JobTitle.Id, &db.PersonJobTitle.IdJobTitle),
+						join.Join[int](&db.JobTitle.Id, &db.PersonJobTitle.JobTitleId),
 					).
 					Where(where.Equals(&db.JobTitle.Id, jobs[0].Id)).Rows() {
 
@@ -427,11 +427,11 @@ func TestUpdate(t *testing.T) {
 				if len(pj) != 2 {
 					t.Errorf("Expected %v, got : %v", 2, len(pj))
 				}
-				err = goe.Update(db.PersonJobTitle).OnTransaction(tx).Sets(update.Set(&db.PersonJobTitle.IdJobTitle, jobs[0].Id)).
+				err = goe.Update(db.PersonJobTitle).OnTransaction(tx).Sets(update.Set(&db.PersonJobTitle.JobTitleId, jobs[0].Id)).
 					Where(
 						where.And(
 							where.Equals(&db.PersonJobTitle.PersonId, persons[2].Id),
-							where.Equals(&db.PersonJobTitle.IdJobTitle, jobs[1].Id),
+							where.Equals(&db.PersonJobTitle.JobTitleId, jobs[1].Id),
 						),
 					)
 
@@ -453,7 +453,7 @@ func TestUpdate(t *testing.T) {
 				}).OnTransaction(tx).
 					Joins(
 						join.Join[int](&db.Person.Id, &db.PersonJobTitle.PersonId),
-						join.Join[int](&db.JobTitle.Id, &db.PersonJobTitle.IdJobTitle),
+						join.Join[int](&db.JobTitle.Id, &db.PersonJobTitle.JobTitleId),
 					).
 					Where(where.Equals(&db.JobTitle.Id, jobs[0].Id)).Rows() {
 
@@ -485,7 +485,7 @@ func TestUpdate(t *testing.T) {
 				}).
 					Joins(
 						join.Join[int](&db.Person.Id, &db.PersonJobTitle.PersonId),
-						join.Join[int](&db.JobTitle.Id, &db.PersonJobTitle.IdJobTitle),
+						join.Join[int](&db.JobTitle.Id, &db.PersonJobTitle.JobTitleId),
 					).
 					Where(where.Equals(&db.JobTitle.Id, jobs[0].Id)).Rows() {
 
@@ -523,9 +523,9 @@ func TestUpdate(t *testing.T) {
 				}
 
 				personJobs := []PersonJobTitle{
-					{PersonId: persons[0].Id, IdJobTitle: jobs[0].Id, CreatedAt: time.Now()},
-					{PersonId: persons[1].Id, IdJobTitle: jobs[0].Id, CreatedAt: time.Now()},
-					{PersonId: persons[2].Id, IdJobTitle: jobs[1].Id, CreatedAt: time.Now()},
+					{PersonId: persons[0].Id, JobTitleId: jobs[0].Id, CreatedAt: time.Now()},
+					{PersonId: persons[1].Id, JobTitleId: jobs[0].Id, CreatedAt: time.Now()},
+					{PersonId: persons[2].Id, JobTitleId: jobs[1].Id, CreatedAt: time.Now()},
 				}
 				err = goe.Insert(db.PersonJobTitle).All(personJobs)
 				if err != nil {
@@ -548,7 +548,7 @@ func TestUpdate(t *testing.T) {
 				}).
 					Joins(
 						join.Join[int](&db.Person.Id, &db.PersonJobTitle.PersonId),
-						join.Join[int](&db.JobTitle.Id, &db.PersonJobTitle.IdJobTitle),
+						join.Join[int](&db.JobTitle.Id, &db.PersonJobTitle.JobTitleId),
 					).
 					Where(where.Equals(&db.JobTitle.Id, jobs[0].Id)).Rows() {
 
@@ -562,8 +562,8 @@ func TestUpdate(t *testing.T) {
 					t.Errorf("Expected %v, got : %v", 2, len(pj))
 				}
 
-				err = goe.Update(db.PersonJobTitle).Sets(update.Set(&db.PersonJobTitle.IdJobTitle, jobs[0].Id)).Where(
-					where.And(where.Equals(&db.PersonJobTitle.PersonId, persons[2].Id), where.Equals(&db.PersonJobTitle.IdJobTitle, jobs[1].Id)))
+				err = goe.Update(db.PersonJobTitle).Sets(update.Set(&db.PersonJobTitle.JobTitleId, jobs[0].Id)).Where(
+					where.And(where.Equals(&db.PersonJobTitle.PersonId, persons[2].Id), where.Equals(&db.PersonJobTitle.JobTitleId, jobs[1].Id)))
 				if err != nil {
 					t.Fatalf("Expected a update, got error: %v", err)
 				}
@@ -581,7 +581,7 @@ func TestUpdate(t *testing.T) {
 				}).
 					Joins(
 						join.Join[int](&db.Person.Id, &db.PersonJobTitle.PersonId),
-						join.Join[int](&db.JobTitle.Id, &db.PersonJobTitle.IdJobTitle),
+						join.Join[int](&db.JobTitle.Id, &db.PersonJobTitle.JobTitleId),
 					).
 					Where(where.Equals(&db.JobTitle.Id, jobs[0].Id)).Rows() {
 

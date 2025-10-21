@@ -6,6 +6,7 @@ import (
 	"iter"
 	"math"
 	"reflect"
+	"slices"
 	"strings"
 
 	"github.com/go-goe/goe/enum"
@@ -176,6 +177,13 @@ func (s stateSelect[T]) Where(o model.Operation) stateSelect[T] {
 	return s
 }
 
+// Filter creates a where on non-zero values.
+func (s stateSelect[T]) Filter(o model.Operation) stateSelect[T] {
+	s.builder.filters = nil
+	helperFilter(&s.builder, addrMap.mapField, o)
+	return s
+}
+
 // Take takes i elements
 func (s stateSelect[T]) Take(i int) stateSelect[T] {
 	s.builder.query.Limit = i
@@ -272,6 +280,10 @@ func (s stateSelect[T]) AsPagination(page, size int) (*Pagination[T], error) {
 
 	// copy operations
 	stateCount.builder.brs = s.builder.brs
+	stateCount.builder.filters = s.builder.filters
+
+	// copy connection/transaction
+	stateCount.conn = s.conn
 
 	var count int64
 	for row, err := range stateCount.Rows() {
@@ -393,14 +405,8 @@ func (l list[T]) OrderByDesc(a any) list[T] {
 }
 
 // Filter creates a where on non-zero values.
-func (l list[T]) Filter(v T) list[T] {
-	args, values, skip := getNonZeroFields(getArgs{addrMap: addrMap.mapField, table: l.table, value: v})
-	// skip empty model
-	if skip {
-		return l
-	}
-
-	l.sSelect = helperNonZeroOperation(l.sSelect, args, values)
+func (l list[T]) Filter(o model.Operation) list[T] {
+	l.sSelect = l.sSelect.Filter(o)
 	return l
 }
 
@@ -512,18 +518,6 @@ func getNonZeroFields(a getArgs) ([]any, []any, bool) {
 		return nil, nil, true
 	}
 	return args, values, false
-}
-
-func helperNonZeroOperation[T any](stateSelect stateSelect[T], args []any, values []any) stateSelect[T] {
-	if len(args) == 0 || len(values) == 0 {
-		return stateSelect
-	}
-
-	if len(args) == 1 || len(values) == 1 {
-		return stateSelect.Where(equalsOrLike(args[0], values[0]))
-	}
-
-	return stateSelect.Where(operations(args, values))
 }
 
 func operations(args, values []any) model.Operation {
@@ -733,7 +727,7 @@ func getAnyArg(value reflect.Value, addrMap map[uintptr]field) field {
 
 func helperWhere(builder *builder, addrMap map[uintptr]field, br model.Operation) {
 	switch br.Type {
-	case enum.OperationWhere:
+	case enum.OperationWhere, enum.OperationInWhere:
 		a := getArg(br.Arg, addrMap, &br)
 		br.Table = model.Table{Schema: a.schema(), Name: a.table()}
 		br.TableId = a.getTableId()
@@ -750,13 +744,6 @@ func helperWhere(builder *builder, addrMap map[uintptr]field, br model.Operation
 		br.AttributeValueTable = model.Table{Schema: b.schema(), Name: b.table()}
 		br.AttributeTableId = b.getTableId()
 		builder.brs = append(builder.brs, br)
-	case enum.OperationInWhere:
-		a := getArg(br.Arg, addrMap, &br)
-		br.Table = model.Table{Schema: a.schema(), Name: a.table()}
-		br.TableId = a.getTableId()
-		br.Attribute = a.getAttributeName()
-
-		builder.brs = append(builder.brs, br)
 	case enum.OperationIsWhere:
 		a := getArg(br.Arg, addrMap, nil)
 		br.Table = model.Table{Schema: a.schema(), Name: a.table()}
@@ -769,4 +756,40 @@ func helperWhere(builder *builder, addrMap map[uintptr]field, br model.Operation
 		builder.brs = append(builder.brs, br)
 		helperWhere(builder, addrMap, *br.SecondOperation)
 	}
+}
+
+func helperFilter(builder *builder, addrMap map[uintptr]field, br model.Operation) bool {
+	switch br.Type {
+	case enum.OperationWhere, enum.OperationInWhere:
+		if !reflect.ValueOf(br.Value.GetValue()).IsZero() {
+			a := getArg(br.Arg, addrMap, &br)
+			br.Table = model.Table{Schema: a.schema(), Name: a.table()}
+			br.TableId = a.getTableId()
+			br.Attribute = a.getAttributeName()
+
+			builder.filters = append(builder.filters, br)
+			return true
+		}
+	case enum.OperationAttributeWhere:
+		a, b := getArg(br.Arg, addrMap, nil), getArg(br.Value.GetValue(), addrMap, nil)
+		br.Table = model.Table{Schema: a.schema(), Name: a.table()}
+		br.TableId = a.getTableId()
+		br.Attribute = a.getAttributeName()
+
+		br.AttributeValue = b.getAttributeName()
+		br.AttributeValueTable = model.Table{Schema: b.schema(), Name: b.table()}
+		br.AttributeTableId = b.getTableId()
+		builder.filters = append(builder.filters, br)
+		return true
+	case enum.LogicalWhere:
+		firstFlag := helperFilter(builder, addrMap, *br.FirstOperation)
+		builder.filters = append(builder.filters, br)
+		idx := len(builder.filters) - 1
+		secondFlag := helperFilter(builder, addrMap, *br.SecondOperation)
+		if !firstFlag || !secondFlag {
+			builder.filters = slices.Delete(builder.filters, idx, idx+1)
+		}
+		return true
+	}
+	return false
 }
