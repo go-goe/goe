@@ -1531,9 +1531,7 @@ func TestSelect(t *testing.T) {
 		},
 	}
 	for _, tC := range testCases {
-		if tC.desc == "List_Filter_Order" {
-			t.Run(tC.desc, tC.testCase)
-		}
+		t.Run(tC.desc, tC.testCase)
 	}
 }
 
