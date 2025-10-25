@@ -16,8 +16,8 @@ type Database struct {
 	*goe.DB
 }
 
-func NewDatabase() (*Database, error) {
-	db, err := goe.Open[Database](sqlite.Open("crud-basic.db", sqlite.Config{}))
+func NewDatabase(uri string) (*Database, error) {
+	db, err := goe.Open[Database](sqlite.Open(uri, sqlite.Config{}))
 	if err != nil {
 		return nil, err
 	}
