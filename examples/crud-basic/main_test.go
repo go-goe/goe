@@ -18,7 +18,10 @@ import (
 func TestApi(t *testing.T) {
 	db, err := data.NewDatabase("crud-basic_test.db")
 	assert.Nil(t, err)
-	defer goe.Close(db)
+	defer func() {
+		goe.Close(db)
+		os.Remove("crud-basic_test.db")
+	}()
 
 	starter := frameworks[os.Getenv("PK")]
 	if !assert.NotNil(t, starter) {
@@ -27,7 +30,6 @@ func TestApi(t *testing.T) {
 
 	router, err := starter(db).Route()
 	assert.Nil(t, err)
-	defer os.Remove("crud-basic_test.db")
 
 	testCases := []struct {
 		desc     string
