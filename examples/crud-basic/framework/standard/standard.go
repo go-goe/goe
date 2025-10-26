@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/go-goe/examples/crud-basic/data"
 	"github.com/go-goe/examples/crud-basic/framework"
@@ -22,13 +23,11 @@ func NewStarter(db *data.Database) framework.Starter {
 
 func LoggingMiddleware(next http.Handler, logger *slog.Logger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Pre-processing logic here (e.g., logging, authentication)
-		// ...
+		startTime := time.Now()
 
-		next.ServeHTTP(w, r) // Call the next handler in the chain
+		next.ServeHTTP(w, r)
 
-		// Post-processing logic here (e.g., modifying response headers)
-		// ...
+		logger.Info("request info", "method", r.Method, "path", r.URL.Path, "duration", time.Since(startTime).String())
 	})
 }
 

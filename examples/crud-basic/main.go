@@ -16,7 +16,7 @@ var frameworks map[string]func(db *data.Database) framework.Starter = map[string
 }
 
 func main() {
-	db, err := data.NewDatabase("crud-basic_test.db")
+	db, err := data.NewDatabase("crud-basic.db")
 	if err != nil {
 		panic(err)
 	}

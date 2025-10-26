@@ -21,7 +21,9 @@ func TestApi(t *testing.T) {
 	defer goe.Close(db)
 
 	starter := frameworks[os.Getenv("PK")]
-	assert.NotNil(t, starter)
+	if !assert.NotNil(t, starter) {
+		t.Fatal("invalid package")
+	}
 
 	router, err := starter(db).Route()
 	assert.Nil(t, err)

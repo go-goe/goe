@@ -1,7 +1,6 @@
 package gin
 
 import (
-	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -24,18 +23,11 @@ func NewStarter(db *data.Database) framework.Starter {
 
 func LoggingMiddleware(logger *slog.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// Log information before the request is handled
 		startTime := time.Now()
-		fmt.Printf("Incoming Request - Method: %s, Path: %s, IP: %s\n",
-			c.Request.Method, c.Request.URL.Path, c.ClientIP())
 
-		// Process the request
 		c.Next()
 
-		// Log information after the request has been handled
-		duration := time.Since(startTime)
-		fmt.Printf("Outgoing Response - Status: %d, Duration: %v\n",
-			c.Writer.Status(), duration)
+		logger.Info("request info", "method", c.Request.Method, "path", c.Request.URL.Path, "clientIP", c.ClientIP(), "duration", time.Since(startTime).String())
 	}
 }
 
