@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	"github.com/go-goe/examples/crud-basic/data"
-	"github.com/go-goe/examples/crud-basic/framework/standard"
 	"github.com/go-goe/examples/crud-basic/handler"
 	"github.com/go-goe/goe"
 	"github.com/stretchr/testify/assert"
@@ -18,11 +17,14 @@ import (
 
 func TestApi(t *testing.T) {
 	db, err := data.NewDatabase("crud-basic_test.db")
-	assert.Error(t, err)
+	assert.Nil(t, err)
 	defer goe.Close(db)
 
-	router, err := standard.Router(db)
-	assert.Error(t, err)
+	starter := frameworks[os.Getenv("PK")]
+	assert.NotNil(t, starter)
+
+	router, err := starter(db).Route()
+	assert.Nil(t, err)
 	defer os.Remove("crud-basic_test.db")
 
 	testCases := []struct {
@@ -36,48 +38,48 @@ func TestApi(t *testing.T) {
 				buf := &bytes.Buffer{}
 				json.NewEncoder(buf).Encode(data.Person{Name: "Lauro", Email: "email@teste.com"})
 
-				response := httptest.NewRecorder()
-				request := httptest.NewRequest("POST", "/persons", buf)
-				router.ServeHTTP(response, request)
+				w := httptest.NewRecorder()
+				r := httptest.NewRequest("POST", "/persons", buf)
+				router.ServeHTTP(w, r)
 
-				assert.Equal(t, http.StatusCreated, response.Code)
+				assert.Equal(t, http.StatusCreated, w.Code)
 
 				var res handler.Response[handler.ResponsePost[int]]
-				json.NewDecoder(response.Body).Decode(&res)
+				json.NewDecoder(w.Body).Decode(&res)
 
 				id := fmt.Sprint(res.Data.ID)
-				response = httptest.NewRecorder()
-				request = httptest.NewRequest("GET", "/persons/"+id, nil)
-				router.ServeHTTP(response, request)
+				w = httptest.NewRecorder()
+				r = httptest.NewRequest("GET", "/persons/"+id, nil)
+				router.ServeHTTP(w, r)
 
-				assert.Equal(t, http.StatusOK, response.Code)
+				assert.Equal(t, http.StatusOK, w.Code)
 			},
 		},
 		{
 			desc: "Create_List",
 			testCase: func(t *testing.T) {
 				var buf *bytes.Buffer
-				var response *httptest.ResponseRecorder
-				var request *http.Request
+				var w *httptest.ResponseRecorder
+				var r *http.Request
 				for range 10 {
 					buf = &bytes.Buffer{}
 					json.NewEncoder(buf).Encode(data.Person{Name: "Lauro", Email: "email@teste.com"})
 
-					response = httptest.NewRecorder()
-					request = httptest.NewRequest("POST", "/persons", buf)
-					router.ServeHTTP(response, request)
+					w = httptest.NewRecorder()
+					r = httptest.NewRequest("POST", "/persons", buf)
+					router.ServeHTTP(w, r)
 
-					assert.Equal(t, http.StatusCreated, response.Code)
+					assert.Equal(t, http.StatusCreated, w.Code)
 				}
 
-				response = httptest.NewRecorder()
-				request = httptest.NewRequest("GET", "/persons?page=1&size=5", nil)
-				router.ServeHTTP(response, request)
+				w = httptest.NewRecorder()
+				r = httptest.NewRequest("GET", "/persons?page=1&size=5", nil)
+				router.ServeHTTP(w, r)
 
-				assert.Equal(t, http.StatusOK, response.Code)
+				assert.Equal(t, http.StatusOK, w.Code)
 
 				var res handler.Response[goe.Pagination[data.Person]]
-				json.NewDecoder(response.Body).Decode(&res)
+				json.NewDecoder(w.Body).Decode(&res)
 
 				assert.Len(t, res.Data.Values, 5)
 			},
@@ -88,28 +90,28 @@ func TestApi(t *testing.T) {
 				buf := &bytes.Buffer{}
 				json.NewEncoder(buf).Encode(data.Person{Name: "Lauro", Email: "email@teste.com"})
 
-				response := httptest.NewRecorder()
-				request := httptest.NewRequest("POST", "/persons", buf)
-				router.ServeHTTP(response, request)
+				w := httptest.NewRecorder()
+				r := httptest.NewRequest("POST", "/persons", buf)
+				router.ServeHTTP(w, r)
 
-				assert.Equal(t, http.StatusCreated, response.Code)
+				assert.Equal(t, http.StatusCreated, w.Code)
 
 				var res handler.Response[handler.ResponsePost[int]]
-				json.NewDecoder(response.Body).Decode(&res)
+				json.NewDecoder(w.Body).Decode(&res)
 
 				id := fmt.Sprint(res.Data.ID)
 
-				response = httptest.NewRecorder()
-				request = httptest.NewRequest("DELETE", "/persons/"+id, nil)
-				router.ServeHTTP(response, request)
+				w = httptest.NewRecorder()
+				r = httptest.NewRequest("DELETE", "/persons/"+id, nil)
+				router.ServeHTTP(w, r)
 
-				assert.Equal(t, http.StatusOK, response.Code)
+				assert.Equal(t, http.StatusOK, w.Code)
 
-				response = httptest.NewRecorder()
-				request = httptest.NewRequest("GET", "/persons/"+id, nil)
-				router.ServeHTTP(response, request)
+				w = httptest.NewRecorder()
+				r = httptest.NewRequest("GET", "/persons/"+id, nil)
+				router.ServeHTTP(w, r)
 
-				assert.Equal(t, http.StatusNotFound, response.Code)
+				assert.Equal(t, http.StatusNotFound, w.Code)
 			},
 		},
 		{
@@ -118,35 +120,35 @@ func TestApi(t *testing.T) {
 				buf := &bytes.Buffer{}
 				json.NewEncoder(buf).Encode(data.Person{Name: "Lauro", Email: "email@teste.com"})
 
-				response := httptest.NewRecorder()
-				request := httptest.NewRequest("POST", "/persons", buf)
-				router.ServeHTTP(response, request)
+				w := httptest.NewRecorder()
+				r := httptest.NewRequest("POST", "/persons", buf)
+				router.ServeHTTP(w, r)
 
-				assert.Equal(t, http.StatusCreated, response.Code)
+				assert.Equal(t, http.StatusCreated, w.Code)
 
 				var res handler.Response[handler.ResponsePost[int]]
-				json.NewDecoder(response.Body).Decode(&res)
+				json.NewDecoder(w.Body).Decode(&res)
 
 				id := fmt.Sprint(res.Data.ID)
 
-				response = httptest.NewRecorder()
+				w = httptest.NewRecorder()
 
 				buf = &bytes.Buffer{}
 				json.NewEncoder(buf).Encode(data.Person{Name: "Lauro Save"})
 
-				request = httptest.NewRequest("PUT", "/persons/"+id, buf)
-				router.ServeHTTP(response, request)
+				r = httptest.NewRequest("PUT", "/persons/"+id, buf)
+				router.ServeHTTP(w, r)
 
-				assert.Equal(t, http.StatusOK, response.Code)
+				assert.Equal(t, http.StatusOK, w.Code)
 
-				response = httptest.NewRecorder()
-				request = httptest.NewRequest("GET", "/persons/"+id, nil)
-				router.ServeHTTP(response, request)
+				w = httptest.NewRecorder()
+				r = httptest.NewRequest("GET", "/persons/"+id, nil)
+				router.ServeHTTP(w, r)
 
-				assert.Equal(t, http.StatusOK, response.Code)
+				assert.Equal(t, http.StatusOK, w.Code)
 
 				var resFind handler.Response[data.Person]
-				json.NewDecoder(response.Body).Decode(&resFind)
+				json.NewDecoder(w.Body).Decode(&resFind)
 
 				assert.Equal(t, resFind.Data.Name, "Lauro Save")
 			},

@@ -17,9 +17,20 @@ classDiagram
 ```
 
 ## Running the project
+
+Packages used:
+- Standard Package (net/http) `PK=standard`
+- Gin `PK=gin`
+
 ```bash
-PORT=8888 go run main.go
+PK=standard PORT=8888 go run main.go
 ```
+
+## Testing
+
+```bash
+GO_ENV=test PK=standard go test -v .
+``` 
 
 ## APIs
 

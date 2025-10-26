@@ -3,7 +3,7 @@ package standard
 import (
 	"encoding/json"
 	"errors"
-	"log"
+	"log/slog"
 	"net/http"
 	"strconv"
 
@@ -21,11 +21,11 @@ func NewHandler(r repository.Repository[data.Person]) handlerStandard {
 	return handlerStandard{r}
 }
 
-func Use(f func(w http.ResponseWriter, r *http.Request) error) http.HandlerFunc {
+func Use(f func(w http.ResponseWriter, r *http.Request) error, logger *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		if err := f(w, r); err != nil {
-			log.Printf("error %v on %v", err, r.RequestURI)
+		if err := f(w, r); err != nil && logger != nil {
+			logger.Error("request error", "error", err, "uri", r.RequestURI)
 		}
 	}
 }
