@@ -87,7 +87,7 @@ func TestDelete(t *testing.T) {
 				}
 
 				var as *Animal
-				as, err = goe.Find(db.Animal).ById(Animal{Id: a.Id})
+				as, err = goe.Find(db.Animal).ByID(Animal{Id: a.Id})
 				if err != nil {
 					t.Fatalf("Expected a select, got error: %v", err)
 				}
@@ -96,7 +96,7 @@ func TestDelete(t *testing.T) {
 					t.Errorf("Expected closed connection, got: %v", db.DB.Stats().InUse)
 				}
 
-				err = goe.Remove(db.Animal).ById(Animal{Id: as.Id})
+				err = goe.Remove(db.Animal).ByID(Animal{Id: as.Id})
 				if err != nil {
 					t.Errorf("Expected a delete animal, got error: %v", err)
 				}
@@ -105,7 +105,7 @@ func TestDelete(t *testing.T) {
 					t.Errorf("Expected closed connection, got: %v", db.DB.Stats().InUse)
 				}
 
-				_, err = goe.Find(db.Animal).ById(Animal{Id: as.Id})
+				_, err = goe.Find(db.Animal).ByID(Animal{Id: as.Id})
 				if !errors.Is(err, goe.ErrNotFound) {
 					t.Errorf("Expected a select, got error: %v", err)
 				}
@@ -121,7 +121,7 @@ func TestDelete(t *testing.T) {
 				}
 
 				var as *Animal
-				as, err = goe.Find(db.Animal).ById(Animal{Id: a.Id})
+				as, err = goe.Find(db.Animal).ByID(Animal{Id: a.Id})
 				if err != nil {
 					t.Fatalf("Expected a select, got error: %v", err)
 				}
@@ -133,12 +133,12 @@ func TestDelete(t *testing.T) {
 				}
 				defer tx.Rollback()
 
-				err = goe.Remove(db.Animal).OnTransaction(tx).ById(Animal{Id: as.Id})
+				err = goe.Remove(db.Animal).OnTransaction(tx).ByID(Animal{Id: as.Id})
 				if err != nil {
 					t.Errorf("Expected a delete animal, got error: %v", err)
 				}
 
-				_, err = goe.Find(db.Animal).OnTransaction(tx).ById(Animal{Id: as.Id})
+				_, err = goe.Find(db.Animal).OnTransaction(tx).ByID(Animal{Id: as.Id})
 				if !errors.Is(err, goe.ErrNotFound) {
 					tx.Rollback()
 					t.Fatalf("Expected a select, got error: %v", err)
@@ -149,7 +149,7 @@ func TestDelete(t *testing.T) {
 					t.Fatalf("Expected Rollback, got error: %v", err)
 				}
 
-				_, err = goe.Find(db.Animal).ById(Animal{Id: a.Id})
+				_, err = goe.Find(db.Animal).ByID(Animal{Id: a.Id})
 				if err != nil {
 					t.Fatalf("Expected a select, got error: %v", err)
 				}

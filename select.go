@@ -40,7 +40,7 @@ type find[T any] struct {
 //
 // # Example
 //
-//	goe.Find(db.Animal).ById(Animal{Id: 2})
+//	goe.Find(db.Animal).ByID(Animal{Id: 2})
 func Find[T any](table *T) find[T] {
 	return FindContext(context.Background(), table)
 }
@@ -65,7 +65,7 @@ func (f find[T]) OnErrNotFound(err error) find[T] {
 }
 
 // Finds the record by values on Ids
-func (f find[T]) ById(value T) (*T, error) {
+func (f find[T]) ByID(value T) (*T, error) {
 	pks, valuesPks, err := getArgsPks(getArgs{
 		addrMap: addrMap.mapField,
 		table:   f.table,
@@ -309,7 +309,7 @@ func (s stateSelect[T]) AsPagination(page, size int) (*Pagination[T], error) {
 	p.TotalPages = int(math.Ceil(float64(count) / float64(size)))
 	p.CurrentPage = page
 
-	if page == p.TotalPages {
+	if page == p.TotalPages || p.TotalPages == 0 {
 		p.NextPage = page
 	} else {
 		p.NextPage = page + 1
