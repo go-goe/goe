@@ -23,7 +23,7 @@ type save[T any] struct {
 // # Examples
 //
 //	// updates animal name on record id 1
-//	err = goe.Save(db.Animal).ByValue(Animal{Id: 1, Name: "Cat"})
+//	err = goe.Save(db.Animal).ByID(Animal{Id: 1, Name: "Cat"})
 func Save[T any](table *T) save[T] {
 	return SaveContext(context.Background(), table)
 }
@@ -42,7 +42,7 @@ func (s save[T]) OnTransaction(tx Transaction) save[T] {
 	return s
 }
 
-func (s save[T]) ByValue(v T) error {
+func (s save[T]) ByID(v T) error {
 	argsSave := getArgsSave(addrMap.mapField, s.table, v)
 	// skip queries on empty models
 	if argsSave.skip {

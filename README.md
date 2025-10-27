@@ -1052,7 +1052,7 @@ a := Animal{ID: 2}
 a.Name = "Update Cat"
 
 // update animal of id 2
-err = goe.Save(db.Animal).ByValue(a)
+err = goe.Save(db.Animal).ByID(a)
 
 if err != nil {
 	//handler error

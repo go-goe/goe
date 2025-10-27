@@ -28,7 +28,7 @@ type remove[T any] struct {
 // # Examples
 //
 //	// remove animal of id 2
-//	err = goe.Remove(db.Animal).ById(Animal{Id: 2})
+//	err = goe.Remove(db.Animal).ByID(Animal{Id: 2})
 func Remove[T any](table *T) remove[T] {
 	return RemoveContext(context.Background(), table)
 }
@@ -42,7 +42,7 @@ func (r remove[T]) OnTransaction(tx Transaction) remove[T] {
 	return r
 }
 
-func (r remove[T]) ById(value T) error {
+func (r remove[T]) ByID(value T) error {
 	pks, valuesPks, skip := getArgsRemove(getArgs{
 		addrMap: addrMap.mapField,
 		table:   r.table,

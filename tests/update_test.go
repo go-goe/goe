@@ -86,7 +86,7 @@ func TestUpdate(t *testing.T) {
 				}
 
 				var fselect *Flag
-				fselect, err = goe.Find(db.Flag).ById(Flag{Id: f.Id})
+				fselect, err = goe.Find(db.Flag).ByID(Flag{Id: f.Id})
 				if err != nil {
 					t.Fatalf("Expected a select, got error: %v", err)
 				}
@@ -160,13 +160,13 @@ func TestUpdate(t *testing.T) {
 					NullString: sql.NullString{String: "String Value", Valid: true},
 					Price:      price,
 				}
-				err = goe.Save(db.Flag).ByValue(ff)
+				err = goe.Save(db.Flag).ByID(ff)
 				if err != nil {
 					t.Fatalf("Expected a update, got error: %v", err)
 				}
 
 				var fselect *Flag
-				fselect, err = goe.Find(db.Flag).ById(Flag{Id: f.Id})
+				fselect, err = goe.Find(db.Flag).ByID(Flag{Id: f.Id})
 				if err != nil {
 					t.Fatalf("Expected a select, got error: %v", err)
 				}
@@ -211,7 +211,7 @@ func TestUpdate(t *testing.T) {
 						defer wg.Done()
 						au := Animal{Id: a.Id}
 						au.Name = "Update Cat"
-						goe.Save(db.Animal).ByValue(au)
+						goe.Save(db.Animal).ByID(au)
 					}()
 				}
 				wg.Wait()
@@ -248,13 +248,13 @@ func TestUpdate(t *testing.T) {
 
 				a.HabitatId = &h.Id
 				a.Name = "Update Cat"
-				err = goe.Save(db.Animal).ByValue(a)
+				err = goe.Save(db.Animal).ByID(a)
 				if err != nil {
 					t.Fatalf("Expected a update, got error: %v", err)
 				}
 
 				var aselect *Animal
-				aselect, err = goe.Find(db.Animal).ById(Animal{Id: a.Id})
+				aselect, err = goe.Find(db.Animal).ByID(Animal{Id: a.Id})
 				if err != nil {
 					t.Fatalf("Expected a select, got error: %v", err)
 				}
@@ -273,7 +273,7 @@ func TestUpdate(t *testing.T) {
 					t.Fatalf("Expected a update, got error: %v", err)
 				}
 
-				aselect, err = goe.Find(db.Animal).ById(Animal{Id: a.Id})
+				aselect, err = goe.Find(db.Animal).ByID(Animal{Id: a.Id})
 				if err != nil {
 					t.Fatalf("Expected a select, got error: %v", err)
 				}
@@ -326,14 +326,14 @@ func TestUpdate(t *testing.T) {
 
 				a.HabitatId = &h.Id
 				a.Name = "Update Cat"
-				err = goe.Save(db.Animal).OnTransaction(tx).ByValue(a)
+				err = goe.Save(db.Animal).OnTransaction(tx).ByID(a)
 				if err != nil {
 					tx.Rollback()
 					t.Fatalf("Expected a update, got error: %v", err)
 				}
 
 				// get record before commit or not using tx, will result in a goe.ErrNotFound
-				_, err = goe.Find(db.Animal).ById(Animal{Id: a.Id})
+				_, err = goe.Find(db.Animal).ByID(Animal{Id: a.Id})
 				if !errors.Is(err, goe.ErrNotFound) {
 					tx.Rollback()
 					t.Fatalf("Expected a goe.ErrNotFound, got error: %v", err)
@@ -345,7 +345,7 @@ func TestUpdate(t *testing.T) {
 				}
 
 				var aselect *Animal
-				aselect, err = goe.Find(db.Animal).ById(Animal{Id: a.Id})
+				aselect, err = goe.Find(db.Animal).ByID(Animal{Id: a.Id})
 
 				if aselect.HabitatId == nil || *aselect.HabitatId != h.Id {
 					t.Errorf("Expected a update on id habitat, got : %v", aselect.HabitatId)

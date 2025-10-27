@@ -983,7 +983,7 @@ func TestSelect(t *testing.T) {
 			desc: "Find",
 			testCase: func(t *testing.T) {
 				var a *Animal
-				a, err = goe.Find(db.Animal).ById(Animal{Id: animals[0].Id})
+				a, err = goe.Find(db.Animal).ByID(Animal{Id: animals[0].Id})
 				if err != nil {
 					t.Fatalf("Expected a select, got error: %v", err)
 				}
@@ -996,7 +996,7 @@ func TestSelect(t *testing.T) {
 			desc: "Find_Composed_Pk",
 			testCase: func(t *testing.T) {
 				var a *AnimalFood
-				a, err = goe.Find(db.AnimalFood).ById(AnimalFood{AnimalId: animals[0].Id, FoodId: foods[0].Id})
+				a, err = goe.Find(db.AnimalFood).ByID(AnimalFood{AnimalId: animals[0].Id, FoodId: foods[0].Id})
 				if err != nil {
 					t.Fatalf("Expected a select, got error: %v", err)
 				}
@@ -1120,7 +1120,7 @@ func TestSelect(t *testing.T) {
 		{
 			desc: "Find_Not_Found",
 			testCase: func(t *testing.T) {
-				_, err = goe.Find(db.Animal).ById(Animal{Id: -1})
+				_, err = goe.Find(db.Animal).ByID(Animal{Id: -1})
 				if !errors.Is(err, goe.ErrNotFound) {
 					t.Errorf("Expected a select, got error: %v", err)
 				}
@@ -1527,6 +1527,32 @@ func TestSelect(t *testing.T) {
 					}()
 				}
 				wg.Wait()
+			},
+		},
+		{
+			desc: "Select_As_Pagination_Total_Zero",
+			testCase: func(t *testing.T) {
+				err = goe.Delete(db.Page).All()
+				if err != nil {
+					t.Fatalf("Expected delete, got: %v", err)
+				}
+
+				p, err := goe.List(db.Page).AsPagination(1, 10)
+				if err != nil {
+					t.Fatalf("Expected pagination, got: %v", err)
+				}
+
+				if p.TotalValues != 0 {
+					t.Errorf("Expected 0, got %v", p.TotalValues)
+				}
+
+				if p.HasNextPage != false {
+					t.Error("Expected false, got true")
+				}
+
+				if p.HasPreviousPage != false {
+					t.Error("Expected false, got true")
+				}
 			},
 		},
 	}
