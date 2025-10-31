@@ -23,7 +23,7 @@ type save[T any] struct {
 // # Examples
 //
 //	// updates animal name on record id 1
-//	err = goe.Save(db.Animal).ByID(Animal{Id: 1, Name: "Cat"})
+//	err = goe.Save(db.Animal).ByID(Animal{ID: 1, Name: "Cat"})
 func Save[T any](table *T) save[T] {
 	return SaveContext(context.Background(), table)
 }
@@ -37,6 +37,25 @@ func SaveContext[T any](ctx context.Context, table *T) save[T] {
 	return save[T]{update: UpdateContext(ctx, table), table: table}
 }
 
+// OnTransaction sets a transaction on the query.
+//
+// # Example
+//
+//	tx, err = db.NewTransaction()
+//	if err != nil {
+//		// handler error
+//	}
+//	defer tx.Rollback()
+//
+//	err = goe.Save(db.Animal).OnTransaction(tx).ByID(Animal{ID: 2})
+//	if err != nil {
+//		// handler error
+//	}
+//
+//	err = tx.Commit()
+//	if err != nil {
+//		// handler error
+//	}
 func (s save[T]) OnTransaction(tx Transaction) save[T] {
 	s.update.conn = tx
 	return s
@@ -66,13 +85,13 @@ type stateUpdate[T any] struct {
 //
 // # Examples
 //
-//	// update only the attribute IdJobTitle from PersonJobTitle with the value 3
+//	// update only the attribute JobTitleID from PersonJobTitle with the value 3
 //	err = goe.Update(db.PersonJobTitle).
-//	Sets(update.Set(&db.PersonJobTitle.IdJobTitle, 3)).
+//	Sets(update.Set(&db.PersonJobTitle.JobTitleID, 3)).
 //	Where(
 //		where.And(
-//			where.Equals(&db.PersonJobTitle.PersonId, 2),
-//			where.Equals(&db.PersonJobTitle.IdJobTitle, 1),
+//			where.Equals(&db.PersonJobTitle.PersonID, 2),
+//			where.Equals(&db.PersonJobTitle.JobTitleID, 1),
 //	    ),
 //	)
 //
@@ -98,6 +117,27 @@ func (s stateUpdate[T]) Sets(sets ...model.Set) stateUpdate[T] {
 	return s
 }
 
+// OnTransaction sets a transaction on the query.
+//
+// # Example
+//
+//	tx, err = db.NewTransaction()
+//	if err != nil {
+//		// handler error
+//	}
+//	defer tx.Rollback()
+//
+//	err = goe.Update(db.Animal).OnTransaction(tx).
+//	  		Sets(update.Set(&db.Animal.HabitatID, 44)).
+//	  		Where(where.Equals(&db.Animal.ID, 2))
+//	if err != nil {
+//		// handler error
+//	}
+//
+//	err = tx.Commit()
+//	if err != nil {
+//		// handler error
+//	}
 func (s stateUpdate[T]) OnTransaction(tx Transaction) stateUpdate[T] {
 	s.conn = tx
 	return s

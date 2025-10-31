@@ -40,7 +40,14 @@ type find[T any] struct {
 //
 // # Example
 //
-//	goe.Find(db.Animal).ByID(Animal{Id: 2})
+//	// one primary key
+//	animal, err = goe.Find(db.Animal).ByID(Animal{ID: 2})
+//
+//	// two primary keys
+//	animalFood, err = goe.Find(db.AnimalFood).ByID(AnimalFood{AnimalID: 3, FoodID: 2})
+//
+//	// find record by value, if have more than one it will returns the first
+//	cat, err = goe.Find(db.Animal).ByValue(Animal{Name: "Cat"})
 func Find[T any](table *T) find[T] {
 	return FindContext(context.Background(), table)
 }
@@ -53,6 +60,27 @@ func FindContext[T any](ctx context.Context, table *T) find[T] {
 	return find[T]{sSelect: SelectContext[T](ctx, table), errNotFound: ErrNotFound}
 }
 
+// OnTransaction sets a transaction on the query.
+//
+// # Example
+//
+//	tx, err = db.NewTransaction()
+//	if err != nil {
+//		// handler error
+//	}
+//	defer tx.Rollback()
+//
+//	var animals []Animal
+//
+//	animals, err = goe.List(db.Animal).OnTransaction(tx).AsSlice()
+//	if err != nil {
+//		// handler error
+//	}
+//
+//	err = tx.Commit()
+//	if err != nil {
+//		// handler error
+//	}
 func (f find[T]) OnTransaction(tx Transaction) find[T] {
 	f.sSelect.conn = tx
 	return f
@@ -64,7 +92,7 @@ func (f find[T]) OnErrNotFound(err error) find[T] {
 	return f
 }
 
-// Finds the record by values on Ids
+// Finds the record by values on IDs
 func (f find[T]) ByID(value T) (*T, error) {
 	pks, valuesPks, err := getArgsPks(getArgs{
 		addrMap:   addrMap.mapField,
@@ -119,41 +147,38 @@ func (f find[T]) ByValue(value T) (*T, error) {
 //
 // # Example
 //
-//	// simple select
-//	goe.Select(db.Animal).AsSlice()
-//
-//	// iterator select
-//	for row, err := range goe.Select(db.Animal).Rows() { ... }
-//
-//	// pagination select
-//	var p *goe.Pagination[Animal]
-//	p, err = goe.Select(db.Animal).AsPagination(1, 10)
-//
-//	// select with where, joins and order by
-//	goe.Select(db.Food).
-//		Joins(
-//			join.Join[uuid.UUID](&db.Food.Id, &db.AnimalFood.IdFood),
-//			join.Join[int](&db.AnimalFood.IdAnimal, &db.Animal.Id),
-//			join.Join[uuid.UUID](&db.Animal.IdHabitat, &db.Habitat.Id),
-//			join.Join[int](&db.Habitat.IdWeather, &db.Weather.Id),
-//		).
-//		Where(
-//			where.And(
-//				where.Equals(&db.Food.Id, 1),
-//				where.Equals(&db.Food.Name, "Beef"),
-//			),
-//		).OrderByAsc(&db.Food.Name).AsSlice()
-//
-//	// select any argument
-//	goe.Select(&struct {
-//		User    *string
+//	var result []struct {
+//		User    string
 //		Role    *string
-//		EndTime **time.Time
-//	}{
-//		User:    &db.User.Name,
-//		Role:    &db.Role.Name,
-//		EndTime: &db.UserRole.EndDate,
-//	}).AsSlice()
+//		EndTime *time.Time
+//	}
+//
+//	// row is the generic struct
+//	for row, err := range goe.Select[struct {
+//			User    string     // output row
+//			Role    *string    // output row
+//			EndTime *time.Time // output row
+//		}](&struct {
+//			User    *string     // table column
+//			Role    *string     // table column
+//			EndTime **time.Time // table column
+//		}{
+//			User:    &db.User.Name,
+//			Role:    &db.Role.Name,
+//			EndTime: &db.UserRole.EndDate,
+//		}).
+//		Joins(
+//			join.LeftJoin[int](&db.User.ID, &db.UserRole.UserID),
+//			join.LeftJoin[int](&db.UserRole.RoleID, &db.Role.ID),
+//		).
+//		OrderByAsc(&db.User.ID).Rows() {
+//
+//		if err != nil {
+//			//handler error
+//		}
+//		//handler rows
+//		result = append(result, row)
+//	}
 func Select[T any](table any) stateSelect[T] {
 	return SelectContext[T](context.Background(), table)
 }
@@ -353,6 +378,27 @@ func (s stateSelect[T]) AsPagination(page, size int) (*Pagination[T], error) {
 	return p, nil
 }
 
+// OnTransaction sets a transaction on the query.
+//
+// # Example
+//
+//	tx, err = db.NewTransaction()
+//	if err != nil {
+//		// handler error
+//	}
+//	defer tx.Rollback()
+//
+//	var animals []Animal
+//
+//	animals, err = goe.List(db.Animal).OnTransaction(tx).AsSlice()
+//	if err != nil {
+//		// handler error
+//	}
+//
+//	err = tx.Commit()
+//	if err != nil {
+//		// handler error
+//	}
 func (s stateSelect[T]) OnTransaction(tx Transaction) stateSelect[T] {
 	s.conn = tx
 	return s
@@ -387,7 +433,7 @@ type list[T any] struct {
 // # Example
 //
 //	// where animals.name LIKE $1 AND animal.id = $2 AND animals.habitat_id = $3
-//	goe.List(db.Animal).OrderByAsc(&db.Animal.Name).Match(Animal{Name: "Cat", Id: 3, IdHabitat: &habitatId}).AsSlice()
+//	goe.List(db.Animal).OrderByAsc(&db.Animal.Name).Match(Animal{Name: "Cat", Id: 3, HabitatID: &habitatId}).AsSlice()
 //
 //	// pagination list
 //	var p *goe.Pagination[Animal]
@@ -439,6 +485,27 @@ func (l list[T]) Joins(joins ...model.Joins) list[T] {
 	return l
 }
 
+// OnTransaction sets a transaction on the query.
+//
+// # Example
+//
+//	tx, err = db.NewTransaction()
+//	if err != nil {
+//		// handler error
+//	}
+//	defer tx.Rollback()
+//
+//	var animals []Animal
+//
+//	animals, err = goe.List(db.Animal).OnTransaction(tx).AsSlice()
+//	if err != nil {
+//		// handler error
+//	}
+//
+//	err = tx.Commit()
+//	if err != nil {
+//		// handler error
+//	}
 func (l list[T]) OnTransaction(tx Transaction) list[T] {
 	l.sSelect.conn = tx
 	return l

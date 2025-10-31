@@ -23,14 +23,11 @@ type stateInsert[T any] struct {
 // # Examples
 //
 //	// insert one record
-//	err = goe.Insert(db.Person).One(&Person{Name: "Jhon"})
+//	err = goe.Insert(db.Person).One(&Person{Name: "John"})
 //	// insert a list of records
 //
-//	persons := []Person{{Name: "Jhon"}, {Name: "Mary"}}
+//	persons := []Person{{Name: "John"}, {Name: "Mary"}}
 //	err = goe.Insert(db.Person).All(persons)
-//
-//	// use IgnoreFields to ensure default values on insert
-//	err = goe.Insert(db.Person).IgnoreFields(&db.Person.CreatedAt).One(&f)
 func Insert[T any](table *T) stateInsert[T] {
 	return InsertContext(context.Background(), table)
 }
@@ -43,6 +40,26 @@ func InsertContext[T any](ctx context.Context, table *T) stateInsert[T] {
 	return state
 }
 
+// OnTransaction sets a transaction on the query.
+//
+// # Example
+//
+//	tx, err = db.NewTransaction()
+//	if err != nil {
+//		// handler error
+//	}
+//	defer tx.Rollback()
+//
+//	a := Animal{Name: "Cat"}
+//	err = goe.Insert(db.Animal).OnTransaction(tx).One(&a)
+//	if err != nil {
+//		// handler error
+//	}
+//
+//	err = tx.Commit()
+//	if err != nil {
+//		// handler error
+//	}
 func (s stateInsert[T]) OnTransaction(tx Transaction) stateInsert[T] {
 	s.conn = tx
 	return s
