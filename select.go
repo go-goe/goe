@@ -20,14 +20,14 @@ import (
 var ErrNotFound = errors.New("goe: not found any element on result set")
 
 type stateSelect[T any] struct {
-	conn    Connection
-	builder builder
-	ctx     context.Context
-	table   any
+	conn      Connection
+	builder   builder
+	tableArgs []any
+	ctx       context.Context
+	table     any
 }
 
 type find[T any] struct {
-	table       *T
 	errNotFound error
 	sSelect     stateSelect[T]
 }
@@ -50,7 +50,7 @@ func Find[T any](table *T) find[T] {
 //
 // See [Find] for examples
 func FindContext[T any](ctx context.Context, table *T) find[T] {
-	return find[T]{table: table, sSelect: SelectContext[T](ctx, table), errNotFound: ErrNotFound}
+	return find[T]{sSelect: SelectContext[T](ctx, table), errNotFound: ErrNotFound}
 }
 
 func (f find[T]) OnTransaction(tx Transaction) find[T] {
@@ -67,9 +67,9 @@ func (f find[T]) OnErrNotFound(err error) find[T] {
 // Finds the record by values on Ids
 func (f find[T]) ByID(value T) (*T, error) {
 	pks, valuesPks, err := getArgsPks(getArgs{
-		addrMap: addrMap.mapField,
-		table:   f.table,
-		value:   value})
+		addrMap:   addrMap.mapField,
+		tableArgs: f.sSelect.tableArgs,
+		value:     value})
 
 	if err != nil {
 		return nil, err
@@ -92,9 +92,9 @@ func (f find[T]) ByID(value T) (*T, error) {
 // and ignores the rest
 func (f find[T]) ByValue(value T) (*T, error) {
 	pks, valuesPks, skip := getNonZeroFields(getArgs{
-		addrMap: addrMap.mapField,
-		table:   f.table,
-		value:   value})
+		addrMap:   addrMap.mapField,
+		tableArgs: f.sSelect.tableArgs,
+		value:     value})
 
 	if skip {
 		return nil, f.errNotFound
@@ -167,6 +167,7 @@ func SelectContext[T any](ctx context.Context, table any) stateSelect[T] {
 
 	state.table = argsSelect.table
 	state.builder.fieldsSelect = argsSelect.fields
+	state.tableArgs = argsSelect.tableArgs
 	return state
 }
 
@@ -182,6 +183,21 @@ func (s stateSelect[T]) Filter(o model.Operation) stateSelect[T] {
 	s.builder.filters = nil
 	helperFilter(&s.builder, addrMap.mapField, o)
 	return s
+}
+
+// Match creates a where on non-zero values over the model T, all strings will be a LIKE operator
+// using the ToUpper function to ensure all values is matched.
+func (s stateSelect[T]) Match(value T) stateSelect[T] {
+	args, values, skip := getNonZeroFields(getArgs{
+		addrMap:   addrMap.mapField,
+		tableArgs: s.tableArgs,
+		value:     value})
+
+	if skip {
+		return s
+	}
+
+	return s.Filter(operationsList(args, values))
 }
 
 // Take takes i elements
@@ -359,7 +375,6 @@ func createSelectState[T any](ctx context.Context) stateSelect[T] {
 }
 
 type list[T any] struct {
-	table   *T
 	sSelect stateSelect[T]
 	err     error
 }
@@ -371,12 +386,8 @@ type list[T any] struct {
 //
 // # Example
 //
-//	// where animals.name LIKE $1
-//	// on LIKE Filter goe uses ToUpper to match all results
-//	goe.List(db.Animal).OrderByDesc(&db.Animal.Name).Filter(Animal{Name: "%Cat%"}).AsSlice()
-//
-//	// where animals.name equals $1 AND animal.id = $2 AND animals.idhabitat = $3
-//	goe.List(db.Animal).OrderByAsc(&db.Animal.Name).Filter(Animal{Name: "Cat", Id: animals[0].Id, IdHabitat: &habitats[0].Id}).AsSlice()
+//	// where animals.name LIKE $1 AND animal.id = $2 AND animals.habitat_id = $3
+//	goe.List(db.Animal).OrderByAsc(&db.Animal.Name).Match(Animal{Name: "Cat", Id: 3, IdHabitat: &habitatId}).AsSlice()
 //
 //	// pagination list
 //	var p *goe.Pagination[Animal]
@@ -389,7 +400,7 @@ func List[T any](table *T) list[T] {
 //
 // See [List] for examples.
 func ListContext[T any](ctx context.Context, table *T) list[T] {
-	return list[T]{sSelect: SelectContext[T](ctx, table), table: table}
+	return list[T]{sSelect: SelectContext[T](ctx, table)}
 }
 
 // OrderByAsc makes a ordained by arg ascending query.
@@ -410,11 +421,19 @@ func (l list[T]) Filter(o model.Operation) list[T] {
 	return l
 }
 
+// Match creates a where on non-zero values over the model T, all strings will be a LIKE operator.
+func (l list[T]) Match(value T) list[T] {
+	l.sSelect = l.sSelect.Match(value)
+	return l
+}
+
+// Where receives [model.Operation] as where operations from where sub package
 func (l list[T]) Where(o model.Operation) list[T] {
 	l.sSelect = l.sSelect.Where(o)
 	return l
 }
 
+// Joins receives [model.Joins] as joins from join sub package
 func (l list[T]) Joins(joins ...model.Joins) list[T] {
 	l.sSelect = l.sSelect.Joins(joins...)
 	return l
@@ -450,9 +469,9 @@ func (l list[T]) Rows() iter.Seq2[T, error] {
 }
 
 type getArgs struct {
-	addrMap map[uintptr]field
-	table   any
-	value   any
+	addrMap   map[uintptr]field
+	value     any
+	tableArgs []any
 }
 
 func getArgsPks(a getArgs) ([]any, []any, error) {
@@ -465,29 +484,13 @@ func getArgsPks(a getArgs) ([]any, []any, error) {
 }
 
 func getPrimaryArgs(a getArgs) ([]any, []any) {
-	if a.table == nil {
-		panic("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
-	}
-
-	tableOf := reflect.ValueOf(a.table).Elem()
-
-	if tableOf.Kind() != reflect.Struct {
-		panic("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
-	}
-
 	valueOf := reflect.ValueOf(a.value)
 
 	args, values := make([]any, 0, valueOf.NumField()), make([]any, 0, valueOf.NumField())
-	var addr uintptr
 	for i := 0; i < valueOf.NumField(); i++ {
 		if !valueOf.Field(i).IsZero() {
-			addr = uintptr(tableOf.Field(i).Addr().UnsafePointer())
-			if a.addrMap[addr] != nil {
-				if a.addrMap[addr].isPrimaryKey() {
-					args = append(args, tableOf.Field(i).Addr().Interface())
-					values = append(values, valueOf.Field(i).Interface())
-				}
-			}
+			args = append(args, a.tableArgs[i])
+			values = append(values, valueOf.Field(i).Interface())
 		}
 	}
 
@@ -497,20 +500,11 @@ func getPrimaryArgs(a getArgs) ([]any, []any) {
 func getNonZeroFields(a getArgs) ([]any, []any, bool) {
 	args, values := make([]any, 0), make([]any, 0)
 
-	tableOf := reflect.ValueOf(a.table).Elem()
-	if tableOf.Kind() != reflect.Struct {
-		panic("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
-	}
-
 	valueOf := reflect.ValueOf(a.value)
-	var addr uintptr
 	for i := 0; i < valueOf.NumField(); i++ {
 		if !valueOf.Field(i).IsZero() {
-			addr = uintptr(tableOf.Field(i).Addr().UnsafePointer())
-			if a.addrMap[addr] != nil {
-				args = append(args, tableOf.Field(i).Addr().Interface())
-				values = append(values, valueOf.Field(i).Interface())
-			}
+			args = append(args, a.tableArgs[i])
+			values = append(values, valueOf.Field(i).Interface())
 		}
 	}
 
@@ -522,6 +516,24 @@ func getNonZeroFields(a getArgs) ([]any, []any, bool) {
 
 func operations(args, values []any) model.Operation {
 	if len(args) == 1 {
+		return equals(args[0], values[0])
+	}
+
+	if len(args) == 2 {
+		return where.And(equals(args[0], values[0]), equals(args[1], values[1]))
+	}
+
+	middle := len(args) / 2
+
+	return where.And(operations(args[:middle], values[:middle]), operations(args[middle:], values[middle:]))
+}
+
+func equals(f any, a any) model.Operation {
+	return where.Equals(&f, a)
+}
+
+func operationsList(args, values []any) model.Operation {
+	if len(args) == 1 {
 		return equalsOrLike(args[0], values[0])
 	}
 
@@ -531,7 +543,7 @@ func operations(args, values []any) model.Operation {
 
 	middle := len(args) / 2
 
-	return where.And(operations(args[:middle], values[:middle]), operations(args[middle:], values[middle:]))
+	return where.And(operationsList(args[:middle], values[:middle]), operationsList(args[middle:], values[middle:]))
 }
 
 func equalsOrLike(f any, a any) model.Operation {
@@ -541,16 +553,13 @@ func equalsOrLike(f any, a any) model.Operation {
 		return where.Equals(&f, a)
 	}
 
-	if strings.Contains(v, "%") {
-		return where.Like(function.ToUpper(f.(*string)), strings.ToUpper(v))
-	}
-
-	return where.Equals(&f, a)
+	return where.Like(function.ToUpper(f.(*string)), strings.ToUpper("%"+v+"%"))
 }
 
 type argsSelect struct {
-	fields []fieldSelect
-	table  any
+	fields    []fieldSelect
+	table     any
+	tableArgs []any
 }
 
 func getArgsSelect(addrMap map[uintptr]field, arg any) argsSelect {
@@ -565,7 +574,7 @@ func getArgsSelect(addrMap map[uintptr]field, arg any) argsSelect {
 	if valueOf.Kind() != reflect.Struct {
 		panic("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
 	}
-
+	args := make([]any, 0, valueOf.NumField())
 	var fieldOf reflect.Value
 	for i := 0; i < valueOf.NumField(); i++ {
 		fieldOf = valueOf.Field(i)
@@ -574,6 +583,7 @@ func getArgsSelect(addrMap map[uintptr]field, arg any) argsSelect {
 		}
 		addr := uintptr(fieldOf.Addr().UnsafePointer())
 		if addrMap[addr] != nil {
+			args = append(args, fieldOf.Addr().Interface())
 			fields = append(fields, addrMap[addr])
 			continue
 		}
@@ -585,11 +595,12 @@ func getArgsSelect(addrMap map[uintptr]field, arg any) argsSelect {
 		panic("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
 	}
 
-	return argsSelect{fields: fields, table: arg}
+	return argsSelect{fields: fields, table: arg, tableArgs: args}
 }
 
 func getArgsSelectAno(addrMap map[uintptr]field, valueOf reflect.Value) argsSelect {
-	fields := make([]fieldSelect, 0)
+	fields := make([]fieldSelect, 0, valueOf.NumField())
+	args := make([]any, 0, valueOf.NumField())
 	var fieldOf reflect.Value
 	var table any = valueOf.Field(0).Elem().Addr().Interface()
 	for i := 0; i < valueOf.NumField(); i++ {
@@ -600,6 +611,7 @@ func getArgsSelectAno(addrMap map[uintptr]field, valueOf reflect.Value) argsSele
 		fieldOf = valueOf.Field(i).Elem()
 		addr := uintptr(fieldOf.Addr().UnsafePointer())
 		if addrMap[addr] != nil {
+			args = append(args, fieldOf.Addr().Interface())
 			fields = append(fields, addrMap[addr])
 			continue
 		}
@@ -624,7 +636,7 @@ func getArgsSelectAno(addrMap map[uintptr]field, valueOf reflect.Value) argsSele
 	if len(fields) == 0 {
 		panic("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
 	}
-	return argsSelect{fields: fields, table: table}
+	return argsSelect{fields: fields, table: table, tableArgs: args}
 }
 
 func createFunction(field field, a any) fieldSelect {

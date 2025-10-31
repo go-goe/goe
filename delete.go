@@ -44,9 +44,9 @@ func (r remove[T]) OnTransaction(tx Transaction) remove[T] {
 
 func (r remove[T]) ByID(value T) error {
 	pks, valuesPks, skip := getArgsRemove(getArgs{
-		addrMap: addrMap.mapField,
-		table:   r.table,
-		value:   value})
+		addrMap:   addrMap.mapField,
+		tableArgs: getRemoveTableArgs(r.table),
+		value:     value})
 
 	// skip queries on empty models
 	if skip {
@@ -129,4 +129,24 @@ func getArgDelete(arg any, addrMap map[uintptr]field) field {
 	}
 
 	return nil
+}
+
+func getRemoveTableArgs(table any) []any {
+	valueOf := reflect.ValueOf(table).Elem()
+
+	if valueOf.Kind() != reflect.Struct {
+		panic("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
+	}
+	args := make([]any, 0, valueOf.NumField())
+	var fieldOf reflect.Value
+	for i := 0; i < valueOf.NumField(); i++ {
+		fieldOf = valueOf.Field(i)
+		if fieldOf.Kind() == reflect.Slice && fieldOf.Type().Elem().Kind() == reflect.Struct {
+			continue
+		}
+
+		args = append(args, fieldOf.Addr().Interface())
+	}
+
+	return args
 }
