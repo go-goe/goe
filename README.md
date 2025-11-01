@@ -63,10 +63,10 @@ Check out the [Benchmarks](#benchmarks) section for a overview on GOE performanc
 - [Select](#select)
 	- [Find](#find)
 	- [List](#list)
-	- [Select From](#select-from)
 	- [Select Specific Fields](#select-specific-fields)
 	- [Where](#where)
 	- [Filter (Non-Zero Dynamic Where)](#filter-non-zero-dynamic-where)
+	- [Match (Non-Zero Dynamic Where)](#match-non-zero-dynamic-where)
 	- [Join](#join)
 	- [OrderBy](#orderby)
 	- [Pagination](#pagination)
@@ -691,23 +691,6 @@ animals, err = goe.List(db.Animal).Filter(Animal{Name: "%Cat%"}).AsSlice()
 > Use **goe.ListContext** for specify a context.
 
 [Back to Contents](#content)
-### Select From
-
-Return all animals as a slice
-```go
-// select * from animals
-animals, err = goe.List(db.Animal).AsSlice()
-
-if err != nil {
-	// handler error
-}
-```
-
-> [!TIP]
-> Use **goe.SelectContext** for specify a context.
-
-[Back to Contents](#content)
-
 ### Select Iterator
 
 Iterate over the rows
@@ -861,6 +844,52 @@ if err != nil {
 
 > [!TIP] 
 > It's possible to call **Filter** and **Where** on the same query.
+
+[Back to Contents](#content)
+
+### Match (Non-Zero Dynamic Where)
+
+Match creates where operations on non-zero values using the query model. Match uses a LIKE operator with the ToUpper function on all string values.
+
+```go
+// SELECT * FROM "status" where UPPER("status"."name") LIKE '%A%'
+result, err := goe.List(db.Status).Match(Status{Name: "a"}).AsSlice()
+if err != nil {
+	//handler error
+}
+```
+
+It's possible to use Match on Select
+
+```go
+// SELECT "animals"."name", "foods"."name" FROM "animals"
+// JOIN "animal_foods" on ("animals"."id" = "animal_foods"."animal_id")
+// JOIN "food_habitat_schema"."foods" on ("animal_foods"."food_id" = "foods"."id")
+// WHERE UPPER("foods"."name") LIKE '%A%'
+result, err := goe.Select[struct {
+	AnimalName string
+	FoodName   string
+}](&struct {
+	AnimalName *string
+	FoodName   *string
+}{
+	AnimalName: &db.Animal.Name,
+	FoodName:   &db.Food.Name,
+}).Match(struct {
+	AnimalName string
+	FoodName   string
+}{FoodName: "a"}).Joins(
+	join.Join[int](&db.Animal.Id, &db.AnimalFood.AnimalId),
+	join.Join[uuid.UUID](&db.AnimalFood.FoodId, &db.Food.Id),
+).AsSlice()
+
+if err != nil {
+	//handler error
+}
+```
+
+> [!TIP] 
+> It's possible to call **Match** and **Where** on the same query.
 
 [Back to Contents](#content)
 

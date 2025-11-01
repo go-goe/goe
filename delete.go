@@ -33,10 +33,33 @@ func Remove[T any](table *T) remove[T] {
 	return RemoveContext(context.Background(), table)
 }
 
+// Remove is a wrapper over [Delete] for more simple deletes,
+// uses the value for create a where matching the primary keys.
+//
+// See [Remove] for examples
 func RemoveContext[T any](ctx context.Context, table *T) remove[T] {
 	return remove[T]{table: table, delete: DeleteContext(ctx, table)}
 }
 
+// OnTransaction sets a transaction on the query.
+//
+// # Example
+//
+//	tx, err = db.NewTransaction()
+//	if err != nil {
+//		// handler error
+//	}
+//	defer tx.Rollback()
+//
+//	err = err = goe.Remove(db.Animal).OnTransaction(tx).ByID(Animal{ID: 2})
+//	if err != nil {
+//		// handler error
+//	}
+//
+//	err = tx.Commit()
+//	if err != nil {
+//		// handler error
+//	}
 func (r remove[T]) OnTransaction(tx Transaction) remove[T] {
 	r.delete.conn = tx
 	return r
@@ -44,9 +67,9 @@ func (r remove[T]) OnTransaction(tx Transaction) remove[T] {
 
 func (r remove[T]) ByID(value T) error {
 	pks, valuesPks, skip := getArgsRemove(getArgs{
-		addrMap: addrMap.mapField,
-		table:   r.table,
-		value:   value})
+		addrMap:   addrMap.mapField,
+		tableArgs: getRemoveTableArgs(r.table),
+		value:     value})
 
 	// skip queries on empty models
 	if skip {
@@ -66,7 +89,7 @@ func (r remove[T]) ByID(value T) error {
 //	// delete all records
 //	err = goe.Delete(db.UserRole).All()
 //	// delete one record
-//	err = goe.Delete(db.Animal).Where(where.Equals(&db.Animal.Id, 2))
+//	err = goe.Delete(db.Animal).Where(where.Equals(&db.Animal.ID, 2))
 func Delete[T any](table *T) stateDelete {
 	return DeleteContext(context.Background(), table)
 }
@@ -80,6 +103,25 @@ func DeleteContext[T any](ctx context.Context, table *T) stateDelete {
 	return state
 }
 
+// OnTransaction sets a transaction on the query.
+//
+// # Example
+//
+//	tx, err = db.NewTransaction()
+//	if err != nil {
+//		// handler error
+//	}
+//	defer tx.Rollback()
+//
+//	err = goe.Delete(db.Animal).OnTransaction(tx).All()
+//	if err != nil {
+//		// handler error
+//	}
+//
+//	err = tx.Commit()
+//	if err != nil {
+//		// handler error
+//	}
 func (s stateDelete) OnTransaction(tx Transaction) stateDelete {
 	s.conn = tx
 	return s
@@ -129,4 +171,24 @@ func getArgDelete(arg any, addrMap map[uintptr]field) field {
 	}
 
 	return nil
+}
+
+func getRemoveTableArgs(table any) []any {
+	valueOf := reflect.ValueOf(table).Elem()
+
+	if valueOf.Kind() != reflect.Struct {
+		panic("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
+	}
+	args := make([]any, 0, valueOf.NumField())
+	var fieldOf reflect.Value
+	for i := 0; i < valueOf.NumField(); i++ {
+		fieldOf = valueOf.Field(i)
+		if fieldOf.Kind() == reflect.Slice && fieldOf.Type().Elem().Kind() == reflect.Struct {
+			continue
+		}
+
+		args = append(args, fieldOf.Addr().Interface())
+	}
+
+	return args
 }

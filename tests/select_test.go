@@ -1555,6 +1555,46 @@ func TestSelect(t *testing.T) {
 				}
 			},
 		},
+		{
+			desc: "List_Match",
+			testCase: func(t *testing.T) {
+				result, err := goe.List(db.Status).Match(Status{Name: "a"}).AsSlice()
+				if err != nil {
+					t.Fatalf("Expected list, got: %v", err)
+				}
+				if len(result) != len(status) {
+					t.Errorf("Expected %v, got %v", len(status), len(result))
+				}
+			},
+		},
+		{
+			desc: "Select_Match",
+			testCase: func(t *testing.T) {
+				result, err := goe.Select[struct {
+					AnimalName string
+					FoodName   string
+				}](&struct {
+					AnimalName *string
+					FoodName   *string
+				}{
+					AnimalName: &db.Animal.Name,
+					FoodName:   &db.Food.Name,
+				}).Match(struct {
+					AnimalName string
+					FoodName   string
+				}{FoodName: "a"}).Joins(
+					join.Join[int](&db.Animal.Id, &db.AnimalFood.AnimalId),
+					join.Join[uuid.UUID](&db.AnimalFood.FoodId, &db.Food.Id),
+				).AsSlice()
+
+				if err != nil {
+					t.Fatalf("Expected list, got: %v", err)
+				}
+				if len(result) != len(foods) {
+					t.Errorf("Expected %v, got %v", len(foods), len(result))
+				}
+			},
+		},
 	}
 	for _, tC := range testCases {
 		t.Run(tC.desc, tC.testCase)
