@@ -420,11 +420,6 @@ func createSelectState[T any](ctx context.Context) stateSelect[T] {
 	return stateSelect[T]{builder: createBuilder(enum.SelectQuery), ctx: ctx}
 }
 
-type list[T any] struct {
-	sSelect stateSelect[T]
-	err     error
-}
-
 // List is a wrapper over [Select] for more simple queries using filters, pagination and ordering.
 //
 // List uses [context.Background] internally;
@@ -438,101 +433,15 @@ type list[T any] struct {
 //	// pagination list
 //	var p *goe.Pagination[Animal]
 //	p, err = goe.List(db.Animal).AsPagination(1, 10)
-func List[T any](table *T) list[T] {
+func List[T any](table *T) stateSelect[T] {
 	return ListContext(context.Background(), table)
 }
 
 // ListContext is a wrapper over [Select] for more simple queries using filters, pagination and ordering.
 //
 // See [List] for examples.
-func ListContext[T any](ctx context.Context, table *T) list[T] {
-	return list[T]{sSelect: SelectContext[T](ctx, table)}
-}
-
-// OrderByAsc makes a ordained by arg ascending query.
-func (l list[T]) OrderByAsc(a any) list[T] {
-	l.sSelect = l.sSelect.OrderByAsc(a)
-	return l
-}
-
-// OrderByDesc makes a ordained by arg descending query.
-func (l list[T]) OrderByDesc(a any) list[T] {
-	l.sSelect = l.sSelect.OrderByDesc(a)
-	return l
-}
-
-// Filter creates a where on non-zero values.
-func (l list[T]) Filter(o model.Operation) list[T] {
-	l.sSelect = l.sSelect.Filter(o)
-	return l
-}
-
-// Match creates a where on non-zero values over the model T, all strings will be a LIKE operator.
-func (l list[T]) Match(value T) list[T] {
-	l.sSelect = l.sSelect.Match(value)
-	return l
-}
-
-// Where receives [model.Operation] as where operations from where sub package
-func (l list[T]) Where(o model.Operation) list[T] {
-	l.sSelect = l.sSelect.Where(o)
-	return l
-}
-
-// Joins receives [model.Joins] as joins from join sub package
-func (l list[T]) Joins(joins ...model.Joins) list[T] {
-	l.sSelect = l.sSelect.Joins(joins...)
-	return l
-}
-
-// OnTransaction sets a transaction on the query.
-//
-// # Example
-//
-//	tx, err = db.NewTransaction()
-//	if err != nil {
-//		// handler error
-//	}
-//	defer tx.Rollback()
-//
-//	var animals []Animal
-//
-//	animals, err = goe.List(db.Animal).OnTransaction(tx).AsSlice()
-//	if err != nil {
-//		// handler error
-//	}
-//
-//	err = tx.Commit()
-//	if err != nil {
-//		// handler error
-//	}
-func (l list[T]) OnTransaction(tx Transaction) list[T] {
-	l.sSelect.conn = tx
-	return l
-}
-
-// AsSlice return all the rows as a slice
-func (l list[T]) AsSlice() ([]T, error) {
-	if l.err != nil {
-		return nil, l.err
-	}
-	return l.sSelect.AsSlice()
-}
-
-// AsPagination return a paginated query as [Pagination].
-//
-// Default values for page and size are 1 and 10 respectively.
-func (l list[T]) AsPagination(page, size int) (*Pagination[T], error) {
-	if l.err != nil {
-		return nil, l.err
-	}
-
-	return l.sSelect.AsPagination(page, size)
-}
-
-// Rows return a iterator on rows.
-func (l list[T]) Rows() iter.Seq2[T, error] {
-	return l.sSelect.Rows()
+func ListContext[T any](ctx context.Context, table *T) stateSelect[T] {
+	return SelectContext[T](ctx, table)
 }
 
 type getArgs struct {
