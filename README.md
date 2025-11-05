@@ -12,6 +12,14 @@ GO Entity or just "GOE" is a type safe ORM for Go
 ## Requirements
 - go v1.24 or above;
 
+## Real world examples
+GOE has [examples](https://github.com/go-goe/goe/tree/main/examples) of queries and integrations, if you think in a nice example and wanted to see if GOE can handler, just try out.
+
+Common examples are:
+
+- How to use GOE with other frameworks;
+- Where GOE key features can shine;
+
 ## Features
 Check out the [Benchmarks](#benchmarks) section for a overview on GOE performance compared to other packages like, ent, GORM, sqlc, and others.
 
