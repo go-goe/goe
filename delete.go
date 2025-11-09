@@ -79,6 +79,20 @@ func (r remove[T]) ByID(value T) error {
 	return r.delete.Where(operations(pks, valuesPks))
 }
 
+// Removes the record by non-zero values
+func (r remove[T]) ByValue(value T) error {
+	args, valuesArgs, skip := getNonZeroFields(getArgs{
+		addrMap:   addrMap.mapField,
+		tableArgs: getRemoveTableArgs(r.table),
+		value:     value})
+
+	if skip {
+		return nil
+	}
+
+	return r.delete.Where(operations(args, valuesArgs))
+}
+
 // Delete remove records in the given table
 //
 // Delete uses [context.Background] internally;
