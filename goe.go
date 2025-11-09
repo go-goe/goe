@@ -21,7 +21,10 @@ func init() {
 //
 //	goe.Open[Database](postgres.Open("user=postgres password=postgres host=localhost port=5432 database=postgres", postgres.Config{}))
 func Open[T any](driver Driver) (*T, error) {
+	driver.GetDatabaseConfig().initCallback = nil
+	driver.GetDatabaseConfig().schemas = nil
 	driver.GetDatabaseConfig().databaseName = driver.Name()
+	driver.GetDatabaseConfig().errorTranslator = driver.ErrorTranslator()
 	err := driver.Init()
 	if err != nil {
 		return nil, driver.GetDatabaseConfig().ErrorHandler(context.TODO(), err)
@@ -59,6 +62,7 @@ func Open[T any](driver Driver) (*T, error) {
 	for f := range dbId {
 		if strings.Contains(valueOf.Type().Field(f).Tag.Get("goe"), "schema") || strings.HasSuffix(valueOf.Field(f).Elem().Type().Name(), "Schema") {
 			schema := driver.KeywordHandler(utils.ColumnNamePattern(valueOf.Field(f).Elem().Type().Name()))
+			driver.GetDatabaseConfig().schemas = append(driver.GetDatabaseConfig().schemas, schema)
 			for i := range valueOf.Field(f).Elem().NumField() {
 				tableId += i + 1
 				err = initField(&schema, valueOf, valueOf.Field(f).Elem().Field(i).Elem(), dbTarget, tableId, driver)
@@ -74,7 +78,11 @@ func Open[T any](driver Driver) (*T, error) {
 			return nil, err
 		}
 	}
-
+	if driver.GetDatabaseConfig().initCallback != nil {
+		if err = driver.GetDatabaseConfig().initCallback(); err != nil {
+			return nil, err
+		}
+	}
 	dbTarget.driver = driver
 	return db, nil
 }

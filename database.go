@@ -116,6 +116,9 @@ type DatabaseConfig struct {
 	IncludeArguments bool          // include all arguments used on query
 	QueryThreshold   time.Duration // query threshold to warning on slow queries
 	databaseName     string
+	errorTranslator  func(err error) error
+	schemas          []string
+	initCallback     func() error
 }
 
 func (c DatabaseConfig) ErrorHandler(ctx context.Context, err error) error {
@@ -126,6 +129,7 @@ func (c DatabaseConfig) ErrorHandler(ctx context.Context, err error) error {
 }
 
 func (c DatabaseConfig) ErrorQueryHandler(ctx context.Context, query model.Query) error {
+	query.Header.Err = c.errorTranslator(query.Header.Err)
 	if c.Logger == nil {
 		return query.Header.Err
 	}
@@ -161,6 +165,14 @@ func (c DatabaseConfig) InfoHandler(ctx context.Context, query model.Query) {
 	}
 
 	c.Logger.InfoContext(ctx, "query_runned", logs...)
+}
+
+func (c DatabaseConfig) Schemas() []string {
+	return c.schemas
+}
+
+func (c *DatabaseConfig) SetInitCallback(f func() error) {
+	c.initCallback = f
 }
 
 func getDatabase(dbTarget any) *DB {
