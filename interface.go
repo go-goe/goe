@@ -42,6 +42,7 @@ type Driver interface {
 	NewTransaction(ctx context.Context, opts *sql.TxOptions) (Transaction, error)
 	Stats() sql.DBStats
 	Close() error
+	ErrorTranslator() func(err error) error
 	Config
 }
 
