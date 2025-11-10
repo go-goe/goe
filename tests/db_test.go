@@ -223,6 +223,10 @@ func SetupSqlite() (*Database, error) {
 	var err error
 	db, err := goe.Open[Database](sqlite.Open(filepath.Join(os.TempDir(), "goe.db"), sqlite.Config{
 		//DatabaseConfig: goe.DatabaseConfig{Logger: slog.New(slog.NewJSONHandler(os.Stdout, nil))},
+		ConnectionHook: func(conn sqlite.ExecQuerierContext, dsn string) error {
+			conn.ExecContext(context.Background(), "PRAGMA foreign_keys = OFF;", nil)
+			return nil
+		},
 	}))
 	if err != nil {
 		return nil, err

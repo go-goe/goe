@@ -305,6 +305,72 @@ func TestInsert(t *testing.T) {
 				}
 			},
 		},
+		{
+			desc: "Insert_ErrUniqueValue",
+			testCase: func(t *testing.T) {
+				err = goe.Remove(db.User).ByValue(User{Email: "email@email.com"})
+				if err != nil {
+					t.Fatalf("Expected a remove, got error: %v", err)
+				}
+
+				u := User{
+					Name:  "User_Zero",
+					Email: "email@email.com",
+				}
+				err = goe.Insert(db.User).One(&u)
+				if err != nil {
+					t.Fatalf("Expected a insert, got error: %v", err)
+				}
+
+				err = goe.Insert(db.User).One(&u)
+				if !errors.Is(err, goe.ErrUniqueValue) {
+					t.Fatalf("Expected goe.ErrUniqueValue, got error: %v", err)
+				}
+
+				if !errors.Is(err, goe.ErrBadRequest) {
+					t.Fatalf("Expected goe.ErrBadRequest, got error: %v", err)
+				}
+			},
+		},
+		{
+			desc: "Insert_ErrUniqueValue_PrimaryKey",
+			testCase: func(t *testing.T) {
+				f := Food{
+					Id:   uuid.New(),
+					Name: "Bread",
+				}
+				err = goe.Insert(db.Food).One(&f)
+				if err != nil {
+					t.Fatalf("Expected a insert, got error: %v", err)
+				}
+
+				err = goe.Insert(db.Food).One(&f)
+				if !errors.Is(err, goe.ErrUniqueValue) {
+					t.Fatalf("Expected goe.ErrUniqueValue, got error: %v", err)
+				}
+
+				if !errors.Is(err, goe.ErrBadRequest) {
+					t.Fatalf("Expected goe.ErrBadRequest, got error: %v", err)
+				}
+			},
+		},
+		{
+			desc: "Insert_ErrForeignKey",
+			testCase: func(t *testing.T) {
+				if db.Name() == "SQLite" {
+					db.RawExecContext(context.Background(), "PRAGMA foreign_keys = ON;")
+					defer db.RawExecContext(context.Background(), "PRAGMA foreign_keys = OFF;")
+				}
+				err = goe.Insert(db.UserRole).One(&UserRole{})
+				if !errors.Is(err, goe.ErrForeignKey) {
+					t.Fatalf("Expected goe.ErrForeignKey, got error: %v", err)
+				}
+
+				if !errors.Is(err, goe.ErrBadRequest) {
+					t.Fatalf("Expected goe.ErrBadRequest, got error: %v", err)
+				}
+			},
+		},
 	}
 	for _, tC := range testCases {
 		t.Run(tC.desc, tC.testCase)
