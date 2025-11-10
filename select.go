@@ -2,7 +2,6 @@ package goe
 
 import (
 	"context"
-	"errors"
 	"iter"
 	"math"
 	"reflect"
@@ -16,8 +15,6 @@ import (
 	"github.com/go-goe/goe/query/function"
 	"github.com/go-goe/goe/query/where"
 )
-
-var ErrNotFound = errors.New("goe: not found any element on result set")
 
 type stateSelect[T any] struct {
 	conn      Connection
