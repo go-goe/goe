@@ -17,6 +17,9 @@ type save[T any] struct {
 // uses the value for create a where matching the primary keys
 // and includes for update all non-zero values excluding the primary keys.
 //
+// Save can return [ErrUniqueValue, ErrForeignKey and ErrBadRequest];
+// use ErrBadRequest as a generic error for any user interaction.
+//
 // Save uses [context.Background] internally;
 // to specify the context, use [SaveContext].
 //
@@ -78,7 +81,10 @@ type stateUpdate[T any] struct {
 	ctx     context.Context
 }
 
-// Update updates records in the given table
+// Update updates records in the given table.
+//
+// Update can return [ErrUniqueValue, ErrForeignKey and ErrBadRequest];
+// use ErrBadRequest as a generic error for any user interaction.
 //
 // Update uses [context.Background] internally;
 // to specify the context, use [UpdateContext].
@@ -101,7 +107,7 @@ func Update[T any](table *T) stateUpdate[T] {
 	return UpdateContext(context.Background(), table)
 }
 
-// Update updates records in the given table
+// Update updates records in the given table.
 //
 // See [Update] for examples
 func UpdateContext[T any](ctx context.Context, table *T) stateUpdate[T] {

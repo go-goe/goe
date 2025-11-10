@@ -17,6 +17,9 @@ type stateInsert[T any] struct {
 
 // Insert inserts a new record into the given table.
 //
+// Insert can return [ErrUniqueValue, ErrForeignKey and ErrBadRequest];
+// use ErrBadRequest as a generic error for any user interaction.
+//
 // Insert uses [context.Background] internally;
 // to specify the context, use [InsertContext].
 //
