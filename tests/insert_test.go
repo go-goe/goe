@@ -233,7 +233,7 @@ func TestInsert(t *testing.T) {
 				// get record after rollback will result in a goe.ErrNotFound
 				_, err = goe.Find(db.Animal).ByID(Animal{Id: a.Id})
 				if !errors.Is(err, goe.ErrNotFound) {
-					t.Fatalf("Expected a Id value, got : %v", a.Id)
+					t.Fatalf("Expected a goe.ErrNotFound, got : %v", err)
 				}
 			},
 		},

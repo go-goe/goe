@@ -614,9 +614,6 @@ func TestSelect(t *testing.T) {
 			desc: "Select_Where_NotIn_Query_No_Values",
 			testCase: func(t *testing.T) {
 				querySelect := goe.Select[any](&struct{ Name *string }{Name: &db.Animal.Name}).AsQuery()
-				if err != nil {
-					t.Fatalf("Expected a query, got error: %v", err)
-				}
 
 				//whereIn as the first where argument
 				a, err := goe.List(db.Animal).Where(
@@ -644,9 +641,6 @@ func TestSelect(t *testing.T) {
 					Where(
 						where.Or(where.Equals(&db.Animal.Name, "Cat"), where.In(&db.Food.Name, []string{foods[0].Name, foods[1].Name}))).
 					AsQuery()
-				if err != nil {
-					t.Fatalf("Expected a query, got error: %v", err)
-				}
 
 				//whereIn as the first where argument
 				a, err := goe.List(db.Animal).Where(
@@ -702,9 +696,6 @@ func TestSelect(t *testing.T) {
 						where.NotIn(&db.Food.Name, []string{foods[0].Name, foods[1].Name}),
 					)).
 					AsQuery()
-				if err != nil {
-					t.Fatalf("Expected a query, got error: %v", err)
-				}
 
 				//whereIn as the first where argument
 				a, err := goe.List(db.Animal).Where(
