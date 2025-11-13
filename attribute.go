@@ -63,6 +63,7 @@ func createOneToOne(b body, typeOf reflect.Type) any {
 }
 
 type manyToOne struct {
+	isDefault bool
 	attributeStrings
 }
 
@@ -103,7 +104,7 @@ func createManyToOne(b body, typeOf reflect.Type) any {
 	if count == 0 {
 		return nil
 	}
-
+	mto.isDefault = getTagValue(b.valueOf.Type().Field(b.fieldId).Tag.Get("goe"), "default:") != ""
 	mto.attributeStrings = createAttributeStrings(
 		b.mapp.db,
 		b.schema,
@@ -285,7 +286,7 @@ func (a att) getDefault() bool {
 }
 
 func (m manyToOne) getDefault() bool {
-	return false
+	return m.isDefault
 }
 
 func (o oneToOne) getDefault() bool {

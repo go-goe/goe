@@ -251,6 +251,7 @@ func createManyToOneMigrate(b body, typeOf reflect.Type) any {
 	mto.Name = utils.ColumnNamePattern(b.fieldName)
 	mto.EscapingName = b.driver.KeywordHandler(mto.Name)
 	mto.Nullable = b.nullable
+	mto.Default = getTagValue(b.migrate.field.Tag.Get("goe"), "default:")
 	return mto
 }
 
