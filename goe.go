@@ -271,7 +271,7 @@ func getPk(db *DB, schema *string, typeOf reflect.Type, tableId int, driver Driv
 	fieldIds = make([]int, len(fields))
 	for i := range fields {
 		fieldId = getFieldId(typeOf, fields[i].Name)
-		pks[i] = createPk(db, schema, typeOf.Name(), fields[i].Name, isAutoIncrement(fields[i]), tableId, fieldId, driver)
+		pks[i] = createPk(db, schema, typeOf.Name(), fields[i].Name, isReturningId(fields[i]), tableId, fieldId, driver)
 		fieldIds[i] = fieldId
 	}
 
@@ -287,8 +287,8 @@ func getFieldId(typeOf reflect.Type, fieldName string) int {
 	return 0
 }
 
-func isAutoIncrement(id reflect.StructField) bool {
-	return strings.Contains(id.Type.Kind().String(), "int")
+func isReturningId(id reflect.StructField) bool {
+	return strings.Contains(id.Type.Kind().String(), "int") || getTagValue(id.Tag.Get("goe"), "default:") != ""
 }
 
 func isManyToOne(b body, createMany func(b body, typeOf reflect.Type) any, createOne func(b body, typeOf reflect.Type) any) any {

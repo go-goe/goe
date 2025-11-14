@@ -44,9 +44,7 @@ type IndexMigrate struct {
 
 type PrimaryKeyMigrate struct {
 	AutoIncrement bool
-	Name          string
-	EscapingName  string
-	DataType      string
+	AttributeMigrate
 }
 
 type AttributeMigrate struct {
@@ -283,30 +281,22 @@ func createOneToOneMigrate(b body, typeOf reflect.Type) any {
 }
 
 func migratePk(typeOf reflect.Type, driver Driver) ([]*PrimaryKeyMigrate, []string, error) {
-	var pks []*PrimaryKeyMigrate
-	var fieldsNames []string
-
-	id, valid := getId(typeOf)
-	if valid {
-		pks = make([]*PrimaryKeyMigrate, 1)
-		fieldsNames = make([]string, 1)
-		pks[0] = createMigratePk(id.Name, isAutoIncrement(id), getTagType(id), driver)
-		fieldsNames[0] = id.Name
-		return pks, fieldsNames, nil
-	}
-
-	fields := fieldsByTags("pk", typeOf)
+	fields := getPks(typeOf)
 	if len(fields) == 0 {
 		return nil, nil, fmt.Errorf("goe: struct %q don't have a primary key setted", typeOf.Name())
 	}
 
-	pks = make([]*PrimaryKeyMigrate, len(fields))
-	fieldsNames = make([]string, len(fields))
+	pks := make([]*PrimaryKeyMigrate, len(fields))
+	fieldsNames := make([]string, len(fields))
 	for i := range fields {
-		pks[i] = createMigratePk(fields[i].Name, isAutoIncrement(fields[i]), getTagType(fields[i]), driver)
+		pks[i] = createMigratePk(fields[i].Name, isAutoIncrement(fields[i]), getTagType(fields[i]), getTagValue(fields[i].Tag.Get("goe"), "default:"), driver)
 		fieldsNames[i] = fields[i].Name
 	}
 	return pks, fieldsNames, nil
+}
+
+func isAutoIncrement(id reflect.StructField) bool {
+	return strings.Contains(id.Type.Kind().String(), "int")
 }
 
 func migrateAtt(b body) error {
@@ -419,12 +409,16 @@ func getIndexValue(valueTag string, tag string) string {
 	return ""
 }
 
-func createMigratePk(attributeName string, autoIncrement bool, dataType string, driver Driver) *PrimaryKeyMigrate {
+func createMigratePk(attributeName string, autoIncrement bool, dataType, defaultTag string, driver Driver) *PrimaryKeyMigrate {
 	return &PrimaryKeyMigrate{
-		Name:          utils.ColumnNamePattern(attributeName),
-		EscapingName:  driver.KeywordHandler(utils.ColumnNamePattern(attributeName)),
-		DataType:      dataType,
-		AutoIncrement: autoIncrement}
+		AttributeMigrate: AttributeMigrate{
+			Name:         utils.ColumnNamePattern(attributeName),
+			EscapingName: driver.KeywordHandler(utils.ColumnNamePattern(attributeName)),
+			DataType:     dataType,
+			Default:      defaultTag,
+		},
+		AutoIncrement: autoIncrement,
+	}
 }
 
 func createMigrateAtt(attributeName string, dataType string, nullable bool, defaultValue string, driver Driver) *AttributeMigrate {
