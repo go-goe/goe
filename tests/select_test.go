@@ -413,6 +413,53 @@ func TestSelect(t *testing.T) {
 			},
 		},
 		{
+			desc: "Select_Count_GroupBy",
+			testCase: func(t *testing.T) {
+				foodCount, err := goe.Select[struct {
+					query.Count
+					AnimalName string
+				}](&struct {
+					FoodCount  *query.Count
+					AnimalName *string
+				}{
+					FoodCount:  aggregate.Count(&db.AnimalFood.FoodId),
+					AnimalName: &db.Animal.Name,
+				}).Joins(join.LeftJoin[int](&db.Animal.Id, &db.AnimalFood.AnimalId)).GroupBy(&db.Animal.Name).AsSlice()
+
+				if err != nil {
+					t.Fatalf("Expected select, got error: %v", err)
+				}
+
+				if len(foodCount) != len(animals) {
+					t.Fatalf("Expected %v, got %v", len(animals), len(foodCount))
+				}
+			},
+		},
+		{
+			desc: "Select_Count_GroupBy_Habitat_Animal",
+			testCase: func(t *testing.T) {
+				habitatCount, err := goe.Select[struct {
+					Name string
+					query.Count
+				}](&struct {
+					Name         *string
+					HabitatCount *query.Count
+				}{
+					Name:         &db.Habitat.Name,
+					HabitatCount: aggregate.Count(&db.Animal.Id),
+				}).Joins(join.Join[uuid.UUID](&db.Animal.HabitatId, &db.Habitat.Id)).
+					OrderByDesc(aggregate.Count(&db.Animal.Id)).
+					GroupBy(&db.Habitat.Name).AsSlice()
+
+				if err != nil {
+					t.Fatalf("Expected select, got error: %v", err)
+				}
+				if habitatCount[0].Count.Value != 5 {
+					t.Fatalf("Expected select, got error: %v", err)
+				}
+			},
+		},
+		{
 			desc: "Select_Max_Min",
 			testCase: func(t *testing.T) {
 				a := runSelect(t, goe.Select[struct {

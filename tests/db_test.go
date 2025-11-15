@@ -165,6 +165,11 @@ type DropSchema struct {
 	Drop *Drop
 }
 
+type Default struct {
+	ID   string `goe:"default:'Default'"`
+	Name string
+}
+
 type Database struct {
 	Animal     *Animal
 	AnimalFood *AnimalFood
@@ -180,6 +185,7 @@ type Database struct {
 	Exam           *Exam
 	Select         *Select
 	Page           *Page
+	Default        *Default
 	*DropSchema
 	*goe.DB
 }

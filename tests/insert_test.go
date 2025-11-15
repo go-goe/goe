@@ -52,7 +52,10 @@ func TestInsert(t *testing.T) {
 					t.Fatalf("Expected a insert, got error: %v", err)
 				}
 
-				fs, _ := goe.Find(db.Flag).ByID(Flag{Id: f.Id})
+				fs, err := goe.Find(db.Flag).ByID(Flag{Id: f.Id})
+				if err != nil {
+					t.Fatalf("Expected a find, got error: %v", err)
+				}
 
 				if fs.Id != f.Id {
 					t.Errorf("Expected %v, got : %v", f.Id, fs.Id)
@@ -368,6 +371,24 @@ func TestInsert(t *testing.T) {
 
 				if !errors.Is(err, goe.ErrBadRequest) {
 					t.Fatalf("Expected goe.ErrBadRequest, got error: %v", err)
+				}
+			},
+		},
+		{
+			desc: "Insert_Pk_Default",
+			testCase: func(t *testing.T) {
+				err = goe.Delete(db.Default).All()
+				if err != nil {
+					t.Fatalf("Expected a delete, got error: %v", err)
+				}
+				d := Default{Name: "Default"}
+				err = goe.Insert(db.Default).One(&d)
+				if err != nil {
+					t.Fatalf("Expected a insert, got error: %v", err)
+				}
+
+				if d.ID != "Default" {
+					t.Fatalf("Expected a Default, got error: %v", err)
 				}
 			},
 		},
