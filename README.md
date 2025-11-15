@@ -76,7 +76,8 @@ Check out the [Benchmarks](#benchmarks) section for a overview on GOE performanc
 	- [Filter (Non-Zero Dynamic Where)](#filter-non-zero-dynamic-where)
 	- [Match (Non-Zero Dynamic Where)](#match-non-zero-dynamic-where)
 	- [Join](#join)
-	- [OrderBy](#orderby)
+	- [Order By](#order-by)
+	- [Group By](#group-by)
 	- [Pagination](#pagination)
 	- [Aggregates](#aggregates)
 	- [Functions](#functions)
@@ -139,6 +140,9 @@ type Database struct {
 
 db, err := goe.Open[Database](sqlite.Open("goe.db", sqlite.Config{}))
 ```
+
+Checkout the exclusive features of sqlite on [goe-sqlite](https://github.com/go-goe/sqlite)
+
 ## Quick Start
 ```go
 package main
@@ -200,6 +204,29 @@ func main() {
 	fmt.Println(animals)
 }
 ```
+
+To run the quick start follow this steps:
+
+1. Init the go.mod file
+	```bash
+	go mod init quickstart
+	```
+
+2. Get the necessary packages:
+	```bash
+	go mod tidy
+	```
+
+3. Run the example:
+	```bash
+	go run main.go
+	```
+
+4. If everything was ok, you should see a output like this:
+	```
+	[{1 Cat 🐈} {2 Dog 🐕} {3 Rat 🐀} {4 Pig 🐖} {5 Whale 🐋} {6 Fish 🐟} {7 Bird 🐦}]
+	```
+
 ## Database
 ```go
 type Database struct {
@@ -920,7 +947,7 @@ if err != nil {
 Same as where, you can use a if to only make a join if the condition match.
 
 [Back to Contents](#content)
-### OrderBy
+### Order By
 For OrderBy you need to pass a reference to a mapped database field.
 
 It's possible to OrderBy desc and asc. List and Select has support for OrderBy queries.
@@ -935,6 +962,30 @@ if err != nil {
 #### Select
 ```go
 animals, err = goe.List(db.Animal).OrderByAsc(&db.Animal.ID).AsSlice()
+
+if err != nil {
+	//handler error
+}
+```
+
+### Group By
+For GroupBy you need to pass a reference to a mapped database field.
+
+It's possible to GroupBy by a aggregate.
+#### Select
+```go
+habitatCount, err := goe.Select[struct {
+	Name string
+	query.Count
+}](&struct {
+	Name         *string
+	HabitatCount *query.Count
+}{
+	Name:         &db.Habitat.Name,
+	HabitatCount: aggregate.Count(&db.Animal.Id),
+}).Joins(join.Join[uuid.UUID](&db.Animal.HabitatId, &db.Habitat.Id)).
+	OrderByDesc(aggregate.Count(&db.Animal.Id)).
+	GroupBy(&db.Habitat.Name).AsSlice()
 
 if err != nil {
 	//handler error
