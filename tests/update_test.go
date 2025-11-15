@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/go-goe/goe"
-	"github.com/go-goe/goe/query/join"
 	"github.com/go-goe/goe/query/update"
 	"github.com/go-goe/goe/query/where"
 	"github.com/google/uuid"
@@ -412,10 +411,8 @@ func TestUpdate(t *testing.T) {
 					JobTitle: &db.JobTitle.Name,
 					Person:   &db.Person.Name,
 				}).OnTransaction(tx).
-					Joins(
-						join.Join[int](&db.Person.Id, &db.PersonJobTitle.PersonId),
-						join.Join[int](&db.JobTitle.Id, &db.PersonJobTitle.JobTitleId),
-					).
+					Join(&db.Person.Id, &db.PersonJobTitle.PersonId).
+					Join(&db.JobTitle.Id, &db.PersonJobTitle.JobTitleId).
 					Where(where.Equals(&db.JobTitle.Id, jobs[0].Id)).Rows() {
 
 					if err != nil {
@@ -451,10 +448,8 @@ func TestUpdate(t *testing.T) {
 					JobTitle: &db.JobTitle.Name,
 					Person:   &db.Person.Name,
 				}).OnTransaction(tx).
-					Joins(
-						join.Join[int](&db.Person.Id, &db.PersonJobTitle.PersonId),
-						join.Join[int](&db.JobTitle.Id, &db.PersonJobTitle.JobTitleId),
-					).
+					Join(&db.Person.Id, &db.PersonJobTitle.PersonId).
+					Join(&db.JobTitle.Id, &db.PersonJobTitle.JobTitleId).
 					Where(where.Equals(&db.JobTitle.Id, jobs[0].Id)).Rows() {
 
 					if err != nil {
@@ -483,10 +478,8 @@ func TestUpdate(t *testing.T) {
 					JobTitle: &db.JobTitle.Name,
 					Person:   &db.Person.Name,
 				}).
-					Joins(
-						join.Join[int](&db.Person.Id, &db.PersonJobTitle.PersonId),
-						join.Join[int](&db.JobTitle.Id, &db.PersonJobTitle.JobTitleId),
-					).
+					Join(&db.Person.Id, &db.PersonJobTitle.PersonId).
+					Join(&db.JobTitle.Id, &db.PersonJobTitle.JobTitleId).
 					Where(where.Equals(&db.JobTitle.Id, jobs[0].Id)).Rows() {
 
 					if err != nil {
@@ -546,10 +539,8 @@ func TestUpdate(t *testing.T) {
 					JobTitle: &db.JobTitle.Name,
 					Person:   &db.Person.Name,
 				}).
-					Joins(
-						join.Join[int](&db.Person.Id, &db.PersonJobTitle.PersonId),
-						join.Join[int](&db.JobTitle.Id, &db.PersonJobTitle.JobTitleId),
-					).
+					Join(&db.Person.Id, &db.PersonJobTitle.PersonId).
+					Join(&db.JobTitle.Id, &db.PersonJobTitle.JobTitleId).
 					Where(where.Equals(&db.JobTitle.Id, jobs[0].Id)).Rows() {
 
 					if err != nil {
@@ -579,10 +570,8 @@ func TestUpdate(t *testing.T) {
 					JobTitle: &db.JobTitle.Name,
 					Person:   &db.Person.Name,
 				}).
-					Joins(
-						join.Join[int](&db.Person.Id, &db.PersonJobTitle.PersonId),
-						join.Join[int](&db.JobTitle.Id, &db.PersonJobTitle.JobTitleId),
-					).
+					Join(&db.Person.Id, &db.PersonJobTitle.PersonId).
+					Join(&db.JobTitle.Id, &db.PersonJobTitle.JobTitleId).
 					Where(where.Equals(&db.JobTitle.Id, jobs[0].Id)).Rows() {
 
 					if err != nil {

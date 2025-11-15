@@ -1188,10 +1188,8 @@ func TestSelect(t *testing.T) {
 			desc: "Select_Join",
 			testCase: func(t *testing.T) {
 				qr := goe.List(db.Animal).
-					Joins(
-						join.Join[int](&db.Animal.Id, &db.AnimalFood.AnimalId),
-						join.Join[uuid.UUID](&db.Food.Id, &db.AnimalFood.FoodId),
-					).Rows()
+					Join(&db.Animal.Id, &db.AnimalFood.AnimalId).
+					Join(&db.Food.Id, &db.AnimalFood.FoodId).Rows()
 				a := runSelect(t, qr)
 
 				if len(a) != len(animalFoods) {
@@ -1226,10 +1224,8 @@ func TestSelect(t *testing.T) {
 			desc: "Select_Join_Where",
 			testCase: func(t *testing.T) {
 				qr := goe.List(db.Food).
-					Joins(
-						join.Join[uuid.UUID](&db.Food.Id, &db.AnimalFood.FoodId),
-						join.Join[int](&db.Animal.Id, &db.AnimalFood.AnimalId),
-					).
+					Join(&db.Food.Id, &db.AnimalFood.FoodId).
+					Join(&db.Animal.Id, &db.AnimalFood.AnimalId).
 					Where(
 						where.Equals(&db.Animal.Name, animals[0].Name)).Rows()
 				f := runSelect(t, qr)
@@ -1318,11 +1314,9 @@ func TestSelect(t *testing.T) {
 			desc: "Select_Join_Many_To_Many_And_Many_To_One",
 			testCase: func(t *testing.T) {
 				qr := goe.List(db.Food).
-					Joins(
-						join.Join[uuid.UUID](&db.Food.Id, &db.AnimalFood.FoodId),
-						join.Join[int](&db.Animal.Id, &db.AnimalFood.AnimalId),
-						join.Join[uuid.UUID](&db.Animal.HabitatId, &db.Habitat.Id),
-					).
+					Join(&db.Food.Id, &db.AnimalFood.FoodId).
+					Join(&db.Animal.Id, &db.AnimalFood.AnimalId).
+					Join(&db.Animal.HabitatId, &db.Habitat.Id).
 					Where(where.Equals(&db.Habitat.Id, habitats[0].Id)).Rows()
 				f := runSelect(t, qr)
 
@@ -1349,12 +1343,10 @@ func TestSelect(t *testing.T) {
 			desc: "Select_Info_Join_Status_One_To_One_And_Many_To_Many",
 			testCase: func(t *testing.T) {
 				qr := goe.List(db.Info).
-					Joins(
-						join.Join[int](&db.Status.Id, &db.Info.StatusId),
-						join.Join[[]byte](&db.Animal.InfoId, &db.Info.Id),
-						join.Join[int](&db.Animal.Id, &db.AnimalFood.AnimalId),
-						join.Join[uuid.UUID](&db.Food.Id, &db.AnimalFood.FoodId),
-					).
+					Join(&db.Status.Id, &db.Info.StatusId).
+					Join(&db.Animal.InfoId, &db.Info.Id).
+					Join(&db.Animal.Id, &db.AnimalFood.AnimalId).
+					Join(&db.Food.Id, &db.AnimalFood.FoodId).
 					Where(where.Equals(&db.Food.Id, foods[0].Id)).Rows()
 				s := runSelect(t, qr)
 
@@ -1367,9 +1359,7 @@ func TestSelect(t *testing.T) {
 			desc: "Select_Join_Name",
 			testCase: func(t *testing.T) {
 				qr := goe.List(db.Habitat).
-					Joins(
-						join.Join[string](&db.Habitat.Name, &db.Weather.Name),
-					).Rows()
+					Join(&db.Habitat.Name, &db.Weather.Name).Rows()
 				h := runSelect(t, qr)
 
 				if h[0].Name != "Ocean" {
@@ -1381,12 +1371,10 @@ func TestSelect(t *testing.T) {
 			desc: "Select_Benchmark_Joins",
 			testCase: func(t *testing.T) {
 				for _, err := range goe.List(db.Food).
-					Joins(
-						join.Join[uuid.UUID](&db.Food.Id, &db.AnimalFood.FoodId),
-						join.Join[int](&db.AnimalFood.AnimalId, &db.Animal.Id),
-						join.Join[uuid.UUID](&db.Animal.HabitatId, &db.Habitat.Id),
-						join.Join[int](&db.Habitat.WeatherId, &db.Weather.Id),
-					).
+					Join(&db.Food.Id, &db.AnimalFood.FoodId).
+					Join(&db.AnimalFood.AnimalId, &db.Animal.Id).
+					Join(&db.Animal.HabitatId, &db.Habitat.Id).
+					Join(&db.Habitat.WeatherId, &db.Weather.Id).
 					Where(
 						where.And(
 							where.Equals(&db.Food.Id, foods[0].Id),
@@ -1422,10 +1410,8 @@ func TestSelect(t *testing.T) {
 					Role:    &db.Role.Name,
 					EndTime: &db.UserRole.EndDate,
 				}).
-					Joins(
-						join.LeftJoin[int](&db.User.Id, &db.UserRole.UserId),
-						join.LeftJoin[int](&db.UserRole.RoleId, &db.Role.Id),
-					).
+					LeftJoin(&db.User.Id, &db.UserRole.UserId).
+					LeftJoin(&db.UserRole.RoleId, &db.Role.Id).
 					OrderByAsc(&db.User.Id).Rows() {
 
 					if err != nil {
@@ -1464,11 +1450,7 @@ func TestSelect(t *testing.T) {
 					User:    &db.User.Name,
 					Role:    &db.Role.Name,
 					EndTime: &db.UserRole.EndDate,
-				}).
-					Joins(
-						join.RightJoin[int](&db.UserRole.UserId, &db.User.Id),
-						join.RightJoin[int](&db.Role.Id, &db.UserRole.RoleId),
-					).
+				}).RightJoin(&db.UserRole.UserId, &db.User.Id).RightJoin(&db.Role.Id, &db.UserRole.RoleId).
 					OrderByAsc(&db.Role.Id).Rows() {
 
 					if err != nil {
@@ -1504,10 +1486,7 @@ func TestSelect(t *testing.T) {
 					JobTitle: &db.JobTitle.Name,
 					Person:   &db.Person.Name,
 				}).
-					Joins(
-						join.Join[int](&db.Person.Id, &db.PersonJobTitle.PersonId),
-						join.Join[int](&db.PersonJobTitle.JobTitleId, &db.JobTitle.Id),
-					).Rows() {
+					Join(&db.Person.Id, &db.PersonJobTitle.PersonId).Join(&db.PersonJobTitle.JobTitleId, &db.JobTitle.Id).Rows() {
 
 					if err != nil {
 						t.Fatal(err)

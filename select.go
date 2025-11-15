@@ -266,10 +266,27 @@ func (s stateSelect[T]) GroupBy(args ...any) stateSelect[T] {
 }
 
 // Joins receives [model.Joins] as joins from join sub package
+//
+// Deprecated: Use Join, LeftJoin or RightJoin instead.
 func (s stateSelect[T]) Joins(joins ...model.Joins) stateSelect[T] {
 	for _, j := range joins {
 		s.builder.buildSelectJoins(j.Join(), getArgsJoin(addrMap.mapField, j.FirstArg(), j.SecondArg()))
 	}
+	return s
+}
+
+func (s stateSelect[T]) Join(left, right any) stateSelect[T] {
+	s.builder.buildSelectJoins(enum.Join, getArgsJoin(addrMap.mapField, left, right))
+	return s
+}
+
+func (s stateSelect[T]) LeftJoin(left, right any) stateSelect[T] {
+	s.builder.buildSelectJoins(enum.LeftJoin, getArgsJoin(addrMap.mapField, left, right))
+	return s
+}
+
+func (s stateSelect[T]) RightJoin(left, right any) stateSelect[T] {
+	s.builder.buildSelectJoins(enum.RightJoin, getArgsJoin(addrMap.mapField, left, right))
 	return s
 }
 
