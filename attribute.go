@@ -242,7 +242,7 @@ func (p pk) buildAttributeInsert(b *builder) {
 		b.query.Attributes = append(b.query.Attributes, model.Attribute{Name: p.getAttributeName()})
 		return
 	}
-	b.query.ReturningId = &model.Attribute{Name: p.getAttributeName()}
+	b.query.ReturningID = &model.Attribute{Name: p.getAttributeName()}
 	b.pkFieldId = p.fieldId
 }
 

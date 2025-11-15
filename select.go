@@ -234,19 +234,34 @@ func (s stateSelect[T]) Skip(i int) stateSelect[T] {
 	return s
 }
 
-// OrderByAsc makes a ordained by arg ascending query
-func (s stateSelect[T]) OrderByAsc(arg any) stateSelect[T] {
-	field := getArg(arg, addrMap.mapField, nil)
-	s.builder.query.OrderBy = &model.OrderBy{Attribute: model.Attribute{Name: field.getAttributeName(), Table: field.table()}}
+// OrderByAsc makes a ordained by args ascending query
+func (s stateSelect[T]) OrderByAsc(args ...any) stateSelect[T] {
+	for _, arg := range args {
+		if a, ok := getAttribute(arg, addrMap.mapField); ok {
+			s.builder.query.OrderBy = append(s.builder.query.OrderBy, model.OrderBy{Attribute: a})
+		}
+	}
 	return s
 }
 
-// OrderByDesc makes a ordained by arg descending query
-func (s stateSelect[T]) OrderByDesc(arg any) stateSelect[T] {
-	field := getArg(arg, addrMap.mapField, nil)
-	s.builder.query.OrderBy = &model.OrderBy{
-		Attribute: model.Attribute{Name: field.getAttributeName(), Table: field.table()},
-		Desc:      true}
+// OrderByDesc makes a ordained by args descending query
+func (s stateSelect[T]) OrderByDesc(args ...any) stateSelect[T] {
+	for _, arg := range args {
+		if a, ok := getAttribute(arg, addrMap.mapField); ok {
+			s.builder.query.OrderBy = append(s.builder.query.OrderBy, model.OrderBy{Attribute: a, Desc: true})
+		}
+	}
+	return s
+}
+
+// GroupBy makes a group by args
+func (s stateSelect[T]) GroupBy(args ...any) stateSelect[T] {
+	s.builder.query.GroupBy = make([]model.GroupBy, len(args))
+	for i := range args {
+		if a, ok := getAttribute(args[i], addrMap.mapField); ok {
+			s.builder.query.GroupBy[i].Attribute = a
+		}
+	}
 	return s
 }
 
@@ -708,6 +723,30 @@ func getAnyArg(value reflect.Value, addrMap map[uintptr]field) field {
 		return addrMap[addr]
 	}
 	return nil
+}
+
+func getAttribute(arg any, addrMap map[uintptr]field) (model.Attribute, bool) {
+	v := reflect.ValueOf(arg)
+	if v.Kind() != reflect.Pointer {
+		panic("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
+	}
+
+	f := addrMap[uintptr(v.UnsafePointer())]
+	if f != nil {
+		return model.Attribute{Table: f.table(), Name: f.getAttributeName()}, true
+	}
+
+	if a, ok := v.Elem().Interface().(model.Attributer); ok {
+		f = addrMap[uintptr(reflect.ValueOf(a.GetField()).UnsafePointer())]
+		if f != nil {
+			return a.Attribute(model.Body{
+				Table: f.table(),
+				Name:  f.getAttributeName(),
+			}), true
+		}
+	}
+
+	return model.Attribute{}, false
 }
 
 func helperWhere(builder *builder, addrMap map[uintptr]field, br model.Operation) {

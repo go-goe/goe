@@ -39,6 +39,10 @@ type OrderBy struct {
 	Attribute Attribute
 }
 
+type GroupBy struct {
+	Attribute Attribute
+}
+
 type Table struct {
 	Schema *string
 	Name   string
@@ -56,16 +60,17 @@ type Query struct {
 	Attributes []Attribute
 	Tables     []Table
 
-	Joins   []Join   //Select
-	Limit   int      //Select
-	Offset  int      //Select
-	OrderBy *OrderBy //Select
+	Joins   []Join    //Select
+	Limit   int       //Select
+	Offset  int       //Select
+	OrderBy []OrderBy //Select
+	GroupBy []GroupBy //Select
 
 	WhereOperations []Where //Select, Update and Delete
 	WhereIndex      int     //Start of where position arguments $1, $2...
 	Arguments       []any
 
-	ReturningId    *Attribute //Insert
+	ReturningID    *Attribute //Insert
 	BatchSizeQuery int        //Insert
 	SizeArguments  int        //Insert
 
@@ -116,4 +121,14 @@ type FunctionType interface {
 
 type ValueOperation interface {
 	GetValue() any
+}
+
+type Body struct {
+	Table string
+	Name  string
+}
+
+type Attributer interface {
+	Attribute(Body) Attribute
+	GetField() any
 }

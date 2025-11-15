@@ -83,7 +83,7 @@ func (s stateInsert[T]) One(value *T) error {
 		s.conn = driver.NewConnection()
 	}
 
-	if s.builder.query.ReturningId != nil {
+	if s.builder.query.ReturningID != nil {
 		return handlerValuesReturning(s.ctx, s.conn, s.builder.query, valueOf, pkFieldId, driver.GetDatabaseConfig())
 	}
 	return handlerValues(s.ctx, s.conn, s.builder.query, driver.GetDatabaseConfig())
