@@ -21,12 +21,10 @@ type stateSelect[T any] struct {
 	builder   builder
 	tableArgs []any
 	ctx       context.Context
-	table     any
 }
 
 type find[T any] struct {
-	errNotFound error
-	sSelect     stateSelect[T]
+	sSelect stateSelect[T]
 }
 
 // Find returns a matched record,
@@ -54,7 +52,7 @@ func Find[T any](table *T) find[T] {
 //
 // See [Find] for examples
 func FindContext[T any](ctx context.Context, table *T) find[T] {
-	return find[T]{sSelect: SelectContext[T](ctx, table), errNotFound: ErrNotFound}
+	return find[T]{sSelect: SelectContext[T](ctx, table)}
 }
 
 // OnTransaction sets a transaction on the query.
@@ -83,12 +81,6 @@ func (f find[T]) OnTransaction(tx Transaction) find[T] {
 	return f
 }
 
-// Replace the ErrNotFound with err
-func (f find[T]) OnErrNotFound(err error) find[T] {
-	f.errNotFound = err
-	return f
-}
-
 // Finds the record by values on IDs
 func (f find[T]) ByID(value T) (*T, error) {
 	pks, valuesPks, err := getArgsPks(getArgs{
@@ -109,7 +101,7 @@ func (f find[T]) ByID(value T) (*T, error) {
 		return &row, nil
 	}
 
-	return nil, f.errNotFound
+	return nil, ErrNotFound
 }
 
 // Finds the record by non-zero values,
@@ -122,7 +114,7 @@ func (f find[T]) ByValue(value T) (*T, error) {
 		value:     value})
 
 	if skip {
-		return nil, f.errNotFound
+		return nil, ErrNotFound
 	}
 
 	f.sSelect = f.sSelect.Where(operations(pks, valuesPks))
@@ -134,7 +126,7 @@ func (f find[T]) ByValue(value T) (*T, error) {
 		return &row, nil
 	}
 
-	return nil, f.errNotFound
+	return nil, ErrNotFound
 }
 
 // Select retrieves rows from tables.
@@ -187,7 +179,6 @@ func SelectContext[T any](ctx context.Context, table any) stateSelect[T] {
 	var state stateSelect[T] = createSelectState[T](ctx)
 	argsSelect := getArgsSelect(addrMap.mapField, table)
 
-	state.table = argsSelect.table
 	state.builder.fieldsSelect = argsSelect.fields
 	state.tableArgs = argsSelect.tableArgs
 	return state
@@ -563,7 +554,6 @@ func equalsOrLike(f any, a any) model.Operation {
 
 type argsSelect struct {
 	fields    []fieldSelect
-	table     any
 	tableArgs []any
 }
 
@@ -572,7 +562,7 @@ func getArgsSelect(addrMap map[uintptr]field, arg any) argsSelect {
 	valueOf := reflect.ValueOf(arg)
 
 	if valueOf.Kind() == reflect.Pointer {
-		return getArgsPtr(valueOf.Elem(), addrMap, arg)
+		return getArgsPtr(valueOf.Elem(), addrMap)
 	}
 
 	if valueOf.Kind() != reflect.Struct {
@@ -607,10 +597,10 @@ func getArgsSelect(addrMap map[uintptr]field, arg any) argsSelect {
 		panic("goe: invalid argument. try sending a pointer to a database mapped argument")
 	}
 
-	return argsSelect{fields: fields, table: arg, tableArgs: args}
+	return argsSelect{fields: fields, tableArgs: args}
 }
 
-func getArgsPtr(valueOf reflect.Value, addrMap map[uintptr]field, arg any) argsSelect {
+func getArgsPtr(valueOf reflect.Value, addrMap map[uintptr]field) argsSelect {
 	if valueOf.Kind() != reflect.Struct {
 		panic("goe: invalid argument. try sending a pointer to a database mapped argument")
 	}
@@ -636,7 +626,7 @@ func getArgsPtr(valueOf reflect.Value, addrMap map[uintptr]field, arg any) argsS
 		panic("goe: invalid argument. try sending a pointer to a database mapped argument")
 	}
 
-	return argsSelect{fields: fields, table: arg, tableArgs: args}
+	return argsSelect{fields: fields, tableArgs: args}
 }
 
 func createFunction(field field, a any) fieldSelect {
