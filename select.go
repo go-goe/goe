@@ -155,7 +155,7 @@ func (f find[T]) ByValue(value T) (*T, error) {
 //			User    string     // output row
 //			Role    *string    // output row
 //			EndTime *time.Time // output row
-//		}](&struct {
+//		}](struct {
 //			User    *string     // table column
 //			Role    *string     // table column
 //			EndTime **time.Time // table column
@@ -321,10 +321,10 @@ func (s stateSelect[T]) AsPagination(page, size int) (*Pagination[T], error) {
 	}
 
 	var err error
-	stateCount := Select[struct{ query.Count }](&struct {
+	stateCount := Select[struct{ query.Count }](struct {
 		*query.Count
 	}{
-		Count: aggregate.Count(s.table),
+		Count: aggregate.Count(s.tableArgs[0]),
 	})
 
 	// copy joins
@@ -551,80 +551,75 @@ type argsSelect struct {
 }
 
 func getArgsSelect(addrMap map[uintptr]field, arg any) argsSelect {
-	fields := make([]fieldSelect, 0)
 
-	if reflect.ValueOf(arg).Kind() != reflect.Pointer {
-		panic("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
+	valueOf := reflect.ValueOf(arg)
+
+	if valueOf.Kind() == reflect.Pointer {
+		return getArgsPtr(valueOf.Elem(), addrMap, arg)
 	}
-
-	valueOf := reflect.ValueOf(arg).Elem()
 
 	if valueOf.Kind() != reflect.Struct {
-		panic("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
+		panic("goe: invalid argument. try sending a pointer to a database mapped argument")
 	}
 	args := make([]any, 0, valueOf.NumField())
+	fields := make([]fieldSelect, 0, valueOf.NumField())
+	var f field
+	var fieldOf reflect.Value
+	for i := 0; i < valueOf.NumField(); i++ {
+		fieldOf = valueOf.Field(i)
+		f = addrMap[uintptr(fieldOf.UnsafePointer())]
+		if f != nil {
+			args = append(args, fieldOf.Interface())
+			fields = append(fields, f)
+			continue
+		}
+
+		if a, ok := fieldOf.Elem().Interface().(model.Attributer); ok {
+			f = addrMap[uintptr(reflect.ValueOf(a.GetField()).UnsafePointer())]
+			if f != nil {
+				if a.Attribute(model.Body{}).AggregateType != 0 {
+					fields = append(fields, createAggregate(f, fieldOf.Elem().Interface()))
+					continue
+				}
+				fields = append(fields, createFunction(f, fieldOf.Elem().Interface()))
+			}
+		}
+	}
+
+	if len(fields) == 0 {
+		panic("goe: invalid argument. try sending a pointer to a database mapped argument")
+	}
+
+	return argsSelect{fields: fields, table: arg, tableArgs: args}
+}
+
+func getArgsPtr(valueOf reflect.Value, addrMap map[uintptr]field, arg any) argsSelect {
+	if valueOf.Kind() != reflect.Struct {
+		panic("goe: invalid argument. try sending a pointer to a database mapped argument")
+	}
+
+	args := make([]any, 0, valueOf.NumField())
+	fields := make([]fieldSelect, 0, valueOf.NumField())
+	var f field
 	var fieldOf reflect.Value
 	for i := 0; i < valueOf.NumField(); i++ {
 		fieldOf = valueOf.Field(i)
 		if fieldOf.Kind() == reflect.Slice && fieldOf.Type().Elem().Kind() == reflect.Struct {
 			continue
 		}
-		addr := uintptr(fieldOf.Addr().UnsafePointer())
-		if addrMap[addr] != nil {
+
+		f = addrMap[uintptr(fieldOf.Addr().UnsafePointer())]
+		if f != nil {
 			args = append(args, fieldOf.Addr().Interface())
-			fields = append(fields, addrMap[addr])
+			fields = append(fields, f)
 			continue
 		}
-		//get args from anonymous struct
-		return getArgsSelectAno(addrMap, valueOf)
 	}
-
 	if len(fields) == 0 {
-		panic("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
+		panic("goe: invalid argument. try sending a pointer to a database mapped argument")
 	}
 
 	return argsSelect{fields: fields, table: arg, tableArgs: args}
-}
-
-func getArgsSelectAno(addrMap map[uintptr]field, valueOf reflect.Value) argsSelect {
-	fields := make([]fieldSelect, 0, valueOf.NumField())
-	args := make([]any, 0, valueOf.NumField())
-	var fieldOf reflect.Value
-	var table any = valueOf.Field(0).Elem().Addr().Interface()
-	for i := 0; i < valueOf.NumField(); i++ {
-		if valueOf.Field(i).Kind() != reflect.Pointer {
-			//TODO: update to get value from one column query
-			panic("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
-		}
-		fieldOf = valueOf.Field(i).Elem()
-		addr := uintptr(fieldOf.Addr().UnsafePointer())
-		if addrMap[addr] != nil {
-			args = append(args, fieldOf.Addr().Interface())
-			fields = append(fields, addrMap[addr])
-			continue
-		}
-
-		if fieldOf.Kind() == reflect.Struct {
-			// check if is aggregate
-			addr = uintptr(fieldOf.Field(0).Elem().UnsafePointer())
-			if addrMap[addr] != nil {
-				fields = append(fields, createAggregate(addrMap[addr], fieldOf.Interface()))
-				continue
-			}
-			// check if is function
-			addr := uintptr(fieldOf.Field(0).UnsafePointer())
-			if addrMap[addr] != nil {
-				fields = append(fields, createFunction(addrMap[addr], fieldOf.Interface()))
-				continue
-			}
-
-		}
-		panic("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
-	}
-	if len(fields) == 0 {
-		panic("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
-	}
-	return argsSelect{fields: fields, table: table, tableArgs: args}
 }
 
 func createFunction(field field, a any) fieldSelect {

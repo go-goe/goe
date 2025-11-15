@@ -750,7 +750,7 @@ for row, err := range goe.Select[struct {
 		User    string     // output row
 		Role    *string    // output row
 		EndTime *time.Time // output row
-	}](&struct {
+	}](struct {
 		User    *string     // table column
 		Role    *string     // table column
 		EndTime **time.Time // table column
@@ -826,7 +826,7 @@ It's possible to use a query inside a `where.In`
 
 ```go
 // use AsQuery() for get a result as a query
-querySelect := goe.Select[any](&struct{ Name *string }{Name: &db.Animal.Name}).
+querySelect := goe.Select[any](struct{ Name *string }{Name: &db.Animal.Name}).
 					Joins(
 						join.Join[int](&db.Animal.ID, &db.AnimalFood.IDAnimal),
 						join.Join[uuid.UUID](&db.AnimalFood.IDFood, &db.Food.ID)).
@@ -904,7 +904,7 @@ It's possible to use Match on Select
 result, err := goe.Select[struct {
 	AnimalName string
 	FoodName   string
-}](&struct {
+}](struct {
 	AnimalName *string
 	FoodName   *string
 }{
@@ -977,7 +977,7 @@ It's possible to GroupBy by a aggregate.
 habitatCount, err := goe.Select[struct {
 	Name string
 	query.Count
-}](&struct {
+}](struct {
 	Name         *string
 	HabitatCount *query.Count
 }{
@@ -1028,7 +1028,7 @@ On select fields, goe uses query sub-package for declaring a aggregate field on 
 ```go
 result, err := goe.Select[struct {
 					Count query.Count
-				}](&struct{ 
+				}](struct{ 
 					Count *query.Count 
 				}{
 					Count: aggregate.Count(&db.Animal.ID),
@@ -1050,7 +1050,7 @@ On select fields, goe uses query sub-package for declaring a function result fie
 ```go
 for row, err := range goe.Select[struct {
 					UpperName query.Function[string]
-				}](&struct {
+				}](struct {
 					UpperName *query.Function[string]
 				}{
 					UpperName: function.ToUpper(&db.Animal.Name),

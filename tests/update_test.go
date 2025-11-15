@@ -405,7 +405,7 @@ func TestUpdate(t *testing.T) {
 				for row, err := range goe.Select[struct {
 					JobTitle string
 					Person   string
-				}](&struct {
+				}](struct {
 					JobTitle *string
 					Person   *string
 				}{
@@ -444,7 +444,7 @@ func TestUpdate(t *testing.T) {
 				for row, err := range goe.Select[struct {
 					JobTitle string
 					Person   string
-				}](&struct {
+				}](struct {
 					JobTitle *string
 					Person   *string
 				}{
@@ -476,7 +476,7 @@ func TestUpdate(t *testing.T) {
 				for row, err := range goe.Select[struct {
 					JobTitle string
 					Person   string
-				}](&struct {
+				}](struct {
 					JobTitle *string
 					Person   *string
 				}{
@@ -539,7 +539,7 @@ func TestUpdate(t *testing.T) {
 				for row, err := range goe.Select[struct {
 					JobTitle string
 					Person   string
-				}](&struct {
+				}](struct {
 					JobTitle *string
 					Person   *string
 				}{
@@ -572,7 +572,7 @@ func TestUpdate(t *testing.T) {
 				for row, err := range goe.Select[struct {
 					JobTitle string
 					Person   string
-				}](&struct {
+				}](struct {
 					JobTitle *string
 					Person   *string
 				}{
