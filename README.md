@@ -703,13 +703,10 @@ cat, err = goe.Find(db.Animal).ByValue(Animal{Name: "Cat"})
 > [!TIP]
 > Use **goe.FindContext** for specify a context.
 
-> [!TIP]
-> Use **OnErrNotFound** to replace ErrNotFound with a new error.
-
 [Back to Contents](#content)
 ### List
 
-List has support for [OrderBy](#orderby), [Pagination](#pagination) and [Joins](#select-join).
+List has support for [OrderBy](#orderby), [Pagination](#pagination) and [Join](#join).
 
 ```go
 // list all animals
@@ -759,10 +756,8 @@ for row, err := range goe.Select[struct {
 		Role:    &db.Role.Name,
 		EndTime: &db.UserRole.EndDate,
 }).
-	Joins(
-		join.LeftJoin[int](&db.User.ID, &db.UserRole.UserID),
-		join.LeftJoin[int](&db.UserRole.RoleID, &db.Role.ID),
-	).
+	Join(&db.User.ID, &db.UserRole.UserID).
+	Join(&db.UserRole.RoleID, &db.Role.ID).
 	OrderByAsc(&db.User.ID).Rows() {
 
 	if err != nil {
@@ -827,9 +822,8 @@ It's possible to use a query inside a `where.In`
 ```go
 // use AsQuery() for get a result as a query
 querySelect := goe.Select[any](struct{ Name *string }{Name: &db.Animal.Name}).
-					Joins(
-						join.Join[int](&db.Animal.ID, &db.AnimalFood.IDAnimal),
-						join.Join[uuid.UUID](&db.AnimalFood.IDFood, &db.Food.ID)).
+					Join(&db.Animal.ID, &db.AnimalFood.IDAnimal).
+					Join(&db.AnimalFood.IDFood, &db.Food.ID).
 					Where(
 						where.In(&db.Food.Name, []string{foods[0].Name, foods[1].Name})).
 					AsQuery()
@@ -913,10 +907,9 @@ result, err := goe.Select[struct {
 }).Match(struct {
 	AnimalName string
 	FoodName   string
-}{FoodName: "a"}).Joins(
-	join.Join[int](&db.Animal.Id, &db.AnimalFood.AnimalId),
-	join.Join[uuid.UUID](&db.AnimalFood.FoodId, &db.Food.Id),
-).AsSlice()
+}{FoodName: "a"}).
+	Join(&db.Animal.Id, &db.AnimalFood.AnimalId).
+	Join(&db.AnimalFood.FoodId, &db.Food.Id).AsSlice()
 
 if err != nil {
 	//handler error
@@ -934,10 +927,9 @@ On join, goe uses a sub-package join, on join package you have all the goe avail
 For the join operations, you need to specify the type, this make the joins operations more safe. So if you change a type from a field, the compiler will throw a error.
 ```go
 animals, err = goe.List(db.Animal).
-			   Joins(
-					join.Join[int](&db.Animal.ID, &db.AnimalFood.IDAnimal),
-					join.Join[uuid.UUID](&db.Food.ID, &db.AnimalFood.IDFood),
-			   ).AsSlice()
+				Join(&db.Animal.ID, &db.AnimalFood.IDAnimal).
+				Join(&db.Food.ID, &db.AnimalFood.IDFood).
+			   AsSlice()
 
 if err != nil {
 	//handler error
@@ -983,7 +975,7 @@ habitatCount, err := goe.Select[struct {
 }{
 	Name:         &db.Habitat.Name,
 	HabitatCount: aggregate.Count(&db.Animal.Id),
-}).Joins(join.Join[uuid.UUID](&db.Animal.HabitatId, &db.Habitat.Id)).
+}).Join(&db.Animal.HabitatId, &db.Habitat.Id).
 	OrderByDesc(aggregate.Count(&db.Animal.Id)).
 	GroupBy(&db.Habitat.Name).AsSlice()
 
