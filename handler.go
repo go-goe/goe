@@ -9,7 +9,7 @@ import (
 	"github.com/go-goe/goe/model"
 )
 
-func handlerValues(ctx context.Context, conn Connection, query model.Query, dbConfig *DatabaseConfig) error {
+func handlerValues(ctx context.Context, conn model.Connection, query model.Query, dbConfig *model.DatabaseConfig) error {
 	query.Header.Err = wrapperExec(ctx, conn, &query)
 	if query.Header.Err != nil {
 		return dbConfig.ErrorQueryHandler(ctx, query)
@@ -18,7 +18,7 @@ func handlerValues(ctx context.Context, conn Connection, query model.Query, dbCo
 	return nil
 }
 
-func handlerValuesReturning(ctx context.Context, conn Connection, query model.Query, value reflect.Value, pkFieldId int, dbConfig *DatabaseConfig) error {
+func handlerValuesReturning(ctx context.Context, conn model.Connection, query model.Query, value reflect.Value, pkFieldId int, dbConfig *model.DatabaseConfig) error {
 	row := wrapperQueryRow(ctx, conn, &query)
 
 	query.Header.Err = row.Scan(value.Field(pkFieldId).Addr().Interface())
@@ -29,8 +29,8 @@ func handlerValuesReturning(ctx context.Context, conn Connection, query model.Qu
 	return nil
 }
 
-func handlerValuesReturningBatch(ctx context.Context, conn Connection, query model.Query, value reflect.Value, pkFieldId int, dbConfig *DatabaseConfig) error {
-	var rows Rows
+func handlerValuesReturningBatch(ctx context.Context, conn model.Connection, query model.Query, value reflect.Value, pkFieldId int, dbConfig *model.DatabaseConfig) error {
+	var rows model.Rows
 	rows, query.Header.Err = wrapperQuery(ctx, conn, &query)
 
 	if query.Header.Err != nil {
@@ -51,8 +51,8 @@ func handlerValuesReturningBatch(ctx context.Context, conn Connection, query mod
 	return nil
 }
 
-func handlerResult[T any](ctx context.Context, conn Connection, query model.Query, numFields int, dbConfig *DatabaseConfig) iter.Seq2[T, error] {
-	var rows Rows
+func handlerResult[T any](ctx context.Context, conn model.Connection, query model.Query, numFields int, dbConfig *model.DatabaseConfig) iter.Seq2[T, error] {
+	var rows model.Rows
 	rows, query.Header.Err = wrapperQuery(ctx, conn, &query)
 
 	var v T
@@ -73,7 +73,7 @@ func handlerResult[T any](ctx context.Context, conn Connection, query model.Quer
 	return mapStructQuery[T](ctx, rows, dest, value, dbConfig, query)
 }
 
-func mapStructQuery[T any](ctx context.Context, rows Rows, dest []any, value reflect.Type, dbConfig *DatabaseConfig, query model.Query) iter.Seq2[T, error] {
+func mapStructQuery[T any](ctx context.Context, rows model.Rows, dest []any, value reflect.Type, dbConfig *model.DatabaseConfig, query model.Query) iter.Seq2[T, error] {
 	return func(yield func(T, error) bool) {
 		var (
 			s, f reflect.Value
@@ -101,19 +101,19 @@ func mapStructQuery[T any](ctx context.Context, rows Rows, dest []any, value ref
 	}
 }
 
-func wrapperQuery(ctx context.Context, conn Connection, query *model.Query) (Rows, error) {
+func wrapperQuery(ctx context.Context, conn model.Connection, query *model.Query) (model.Rows, error) {
 	queryStart := time.Now()
 	defer func() { query.Header.QueryDuration = time.Since(queryStart) }()
 	return conn.QueryContext(ctx, query)
 }
 
-func wrapperQueryRow(ctx context.Context, conn Connection, query *model.Query) Row {
+func wrapperQueryRow(ctx context.Context, conn model.Connection, query *model.Query) model.Row {
 	queryStart := time.Now()
 	defer func() { query.Header.QueryDuration = time.Since(queryStart) }()
 	return conn.QueryRowContext(ctx, query)
 }
 
-func wrapperExec(ctx context.Context, conn Connection, query *model.Query) error {
+func wrapperExec(ctx context.Context, conn model.Connection, query *model.Query) error {
 	queryStart := time.Now()
 	defer func() { query.Header.QueryDuration = time.Since(queryStart) }()
 	return conn.ExecContext(ctx, query)

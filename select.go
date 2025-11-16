@@ -17,7 +17,7 @@ import (
 )
 
 type stateSelect[T any] struct {
-	conn      Connection
+	conn      model.Connection
 	builder   builder
 	tableArgs []any
 	ctx       context.Context
@@ -76,7 +76,7 @@ func FindContext[T any](ctx context.Context, table *T) find[T] {
 //	if err != nil {
 //		// handler error
 //	}
-func (f find[T]) OnTransaction(tx Transaction) find[T] {
+func (f find[T]) OnTransaction(tx model.Transaction) find[T] {
 	f.sSelect.conn = tx
 	return f
 }
@@ -419,7 +419,7 @@ func (s stateSelect[T]) AsPagination(page, size int) (*Pagination[T], error) {
 //	if err != nil {
 //		// handler error
 //	}
-func (s stateSelect[T]) OnTransaction(tx Transaction) stateSelect[T] {
+func (s stateSelect[T]) OnTransaction(tx model.Transaction) stateSelect[T] {
 	s.conn = tx
 	return s
 }

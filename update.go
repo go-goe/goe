@@ -59,7 +59,7 @@ func SaveContext[T any](ctx context.Context, table *T) save[T] {
 //	if err != nil {
 //		// handler error
 //	}
-func (s save[T]) OnTransaction(tx Transaction) save[T] {
+func (s save[T]) OnTransaction(tx model.Transaction) save[T] {
 	s.update.conn = tx
 	return s
 }
@@ -76,7 +76,7 @@ func (s save[T]) ByID(v T) error {
 }
 
 type stateUpdate[T any] struct {
-	conn    Connection
+	conn    model.Connection
 	builder builder
 	ctx     context.Context
 }
@@ -144,7 +144,7 @@ func (s stateUpdate[T]) Sets(sets ...model.Set) stateUpdate[T] {
 //	if err != nil {
 //		// handler error
 //	}
-func (s stateUpdate[T]) OnTransaction(tx Transaction) stateUpdate[T] {
+func (s stateUpdate[T]) OnTransaction(tx model.Transaction) stateUpdate[T] {
 	s.conn = tx
 	return s
 }

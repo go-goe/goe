@@ -163,9 +163,8 @@ func TestInsert(t *testing.T) {
 			testCase: func(t *testing.T) {
 				a := &Animal{Name: "Cat"}
 
-				var tx goe.Transaction
 				// defult level of isolation is sql.LevelSerializable
-				tx, err = db.NewTransaction()
+				tx, err := db.NewTransaction()
 				if err != nil {
 					t.Fatalf("Expected a tx, got error: %v", err)
 				}
@@ -210,9 +209,8 @@ func TestInsert(t *testing.T) {
 			testCase: func(t *testing.T) {
 				a := &Animal{Name: "Cat"}
 
-				var tx goe.Transaction
 				// defult level of isolation is sql.LevelSerializable
-				tx, err = db.NewTransaction()
+				tx, err := db.NewTransaction()
 				if err != nil {
 					t.Fatalf("Expected a tx, got error: %v", err)
 				}

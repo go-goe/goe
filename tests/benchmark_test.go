@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/go-goe/goe"
-	"github.com/go-goe/goe/query/join"
 	"github.com/go-goe/goe/query/where"
 	"github.com/google/uuid"
 )
@@ -40,7 +39,7 @@ func BenchmarkSelectRaw(b *testing.B) {
 	goe.Insert(db.Animal).All(animals)
 
 	for b.Loop() {
-		rows, _ := db.DB.RawQueryContext(context.Background(), "select a.id, a.name, a.id_info, a.id_habitat from animals a;")
+		rows, _ := db.DB.RawQueryContext(context.Background(), "select a.id, a.name, a.info_id, a.habitat_id from animals a;")
 		defer rows.Close()
 
 		var a Animal
@@ -82,12 +81,10 @@ func BenchmarkJoin(b *testing.B) {
 		foods = make([]Food, 0)
 
 		for row := range goe.List(db.Food).
-			Joins(
-				join.Join[uuid.UUID](&db.Food.Id, &db.AnimalFood.FoodId),
-				join.Join[int](&db.AnimalFood.AnimalId, &db.Animal.Id),
-				join.Join[uuid.UUID](&db.Animal.HabitatId, &db.Habitat.Id),
-				join.Join[int](&db.Habitat.WeatherId, &db.Weather.Id),
-			).
+			Join(&db.Food.Id, &db.AnimalFood.FoodId).
+			Join(&db.AnimalFood.AnimalId, &db.Animal.Id).
+			Join(&db.Animal.HabitatId, &db.Habitat.Id).
+			Join(&db.Habitat.WeatherId, &db.Weather.Id).
 			Where(
 				where.And(where.Equals(&db.Food.Id, f.Id), where.Equals(&db.Food.Name, f.Name)),
 			).
@@ -124,10 +121,10 @@ func BenchmarkJoinSql(b *testing.B) {
 	for b.Loop() {
 
 		rows, _ := db.DB.RawQueryContext(context.Background(), `select f.id, f.name from foods f
-						join animal_foods af on f.id = af.id_food
-						join animals a on af.id_animal = a.id
-						join habitats h on a.id_habitat = h.id
-						join weathers w on h.id_weather = w.id
+						join animal_foods af on f.id = af.food_id
+						join animals a on af.animal_id = a.id
+						join habitats h on a.habitat_id = h.id
+						join weathers w on h.weather_id = w.id
 						where f.id = $1 and f.name = $2;`, f.Id, f.Name)
 		defer rows.Close()
 

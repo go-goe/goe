@@ -126,7 +126,7 @@ type attributeStrings struct {
 	fieldId       int
 }
 
-func createAttributeStrings(db *DB, schema *string, table string, attributeName string, tableId, fieldId int, Driver Driver) attributeStrings {
+func createAttributeStrings(db *DB, schema *string, table string, attributeName string, tableId, fieldId int, Driver model.Driver) attributeStrings {
 	return attributeStrings{
 		db:            db,
 		tableName:     table,
@@ -166,7 +166,7 @@ func (p pk) getAttributeName() string {
 	return p.attributeName
 }
 
-func createPk(db *DB, schema *string, table string, attributeName string, autoIncrement bool, tableId, fieldId int, Driver Driver) pk {
+func createPk(db *DB, schema *string, table string, attributeName string, autoIncrement bool, tableId, fieldId int, Driver model.Driver) pk {
 	table = Driver.KeywordHandler(utils.TableNamePattern(table))
 	return pk{
 		attributeStrings: createAttributeStrings(db, schema, table, attributeName, tableId, fieldId, Driver),
@@ -202,7 +202,7 @@ func (a att) getAttributeName() string {
 	return a.attributeName
 }
 
-func createAtt(db *DB, attributeName string, schema *string, table string, tableId, fieldId int, isDefault bool, d Driver) att {
+func createAtt(db *DB, attributeName string, schema *string, table string, tableId, fieldId int, isDefault bool, d model.Driver) att {
 	return att{
 		isDefault:        isDefault,
 		attributeStrings: createAttributeStrings(db, schema, table, attributeName, tableId, fieldId, d)}

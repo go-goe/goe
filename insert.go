@@ -6,10 +6,11 @@ import (
 	"reflect"
 
 	"github.com/go-goe/goe/enum"
+	"github.com/go-goe/goe/model"
 )
 
 type stateInsert[T any] struct {
-	conn    Connection
+	conn    model.Connection
 	table   *T
 	builder builder
 	ctx     context.Context
@@ -63,7 +64,7 @@ func InsertContext[T any](ctx context.Context, table *T) stateInsert[T] {
 //	if err != nil {
 //		// handler error
 //	}
-func (s stateInsert[T]) OnTransaction(tx Transaction) stateInsert[T] {
+func (s stateInsert[T]) OnTransaction(tx model.Transaction) stateInsert[T] {
 	s.conn = tx
 	return s
 }

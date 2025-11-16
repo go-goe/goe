@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/go-goe/goe/model"
 	"github.com/go-goe/goe/utils"
 )
 
@@ -20,11 +21,9 @@ func init() {
 // # Example
 //
 //	goe.Open[Database](postgres.Open("user=postgres password=postgres host=localhost port=5432 database=postgres", postgres.Config{}))
-func Open[T any](driver Driver) (*T, error) {
-	driver.GetDatabaseConfig().initCallback = nil
-	driver.GetDatabaseConfig().schemas = nil
-	driver.GetDatabaseConfig().databaseName = driver.Name()
-	driver.GetDatabaseConfig().errorTranslator = driver.ErrorTranslator()
+func Open[T any](driver model.Driver) (*T, error) {
+	driver.GetDatabaseConfig().Init(driver.Name(), driver.ErrorTranslator())
+
 	err := driver.Init()
 	if err != nil {
 		return nil, driver.GetDatabaseConfig().ErrorHandler(context.TODO(), err)
@@ -56,13 +55,13 @@ func Open[T any](driver Driver) (*T, error) {
 			}
 		}
 	}
-
+	var schemas []string
 	tableId := 0
 	// init Fields
 	for f := range dbId {
 		if strings.Contains(valueOf.Type().Field(f).Tag.Get("goe"), "schema") || strings.HasSuffix(valueOf.Field(f).Elem().Type().Name(), "Schema") {
 			schema := driver.KeywordHandler(utils.ColumnNamePattern(valueOf.Field(f).Elem().Type().Name()))
-			driver.GetDatabaseConfig().schemas = append(driver.GetDatabaseConfig().schemas, schema)
+			schemas = append(schemas, schema)
 			for i := range valueOf.Field(f).Elem().NumField() {
 				tableId += i + 1
 				err = initField(&schema, valueOf, valueOf.Field(f).Elem().Field(i).Elem(), dbTarget, tableId, driver)
@@ -78,8 +77,9 @@ func Open[T any](driver Driver) (*T, error) {
 			return nil, err
 		}
 	}
-	if driver.GetDatabaseConfig().initCallback != nil {
-		if err = driver.GetDatabaseConfig().initCallback(); err != nil {
+	driver.GetDatabaseConfig().SetSchemas(schemas)
+	if ic := driver.GetDatabaseConfig().InitCallback(); ic != nil {
+		if err = ic(); err != nil {
 			return nil, err
 		}
 	}
@@ -98,7 +98,7 @@ type infosMap struct {
 // data used for migrate
 type infosMigrate struct {
 	field      reflect.StructField
-	table      *TableMigrate
+	table      *model.TableMigrate
 	fieldNames []string
 }
 
@@ -117,7 +117,7 @@ type body struct {
 	migrate     *infosMigrate // used on migrate
 	schemasMap  map[string]*string
 	fieldId     int
-	driver      Driver
+	driver      model.Driver
 	nullable    bool
 	schema      *string
 	stringInfos
@@ -133,7 +133,7 @@ func skipPrimaryKey[T comparable](slice []T, value T, tables reflect.Value, fiel
 	return false
 }
 
-func initField(schema *string, tables reflect.Value, valueOf reflect.Value, db *DB, tableId int, driver Driver) error {
+func initField(schema *string, tables reflect.Value, valueOf reflect.Value, db *DB, tableId int, driver model.Driver) error {
 	pks, fieldIds, err := getPk(db, schema, valueOf.Type(), tableId, driver)
 	if err != nil {
 		return err
@@ -257,7 +257,7 @@ func getPks(typeOf reflect.Type) []reflect.StructField {
 	return pks
 }
 
-func getPk(db *DB, schema *string, typeOf reflect.Type, tableId int, driver Driver) ([]pk, []int, error) {
+func getPk(db *DB, schema *string, typeOf reflect.Type, tableId int, driver model.Driver) ([]pk, []int, error) {
 	var pks []pk
 	var fieldIds []int
 	var fieldId int
