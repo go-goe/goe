@@ -660,12 +660,15 @@ func createAggregate(field field, a any) fieldSelect {
 func getArgsJoin(addrMap map[uintptr]field, args ...any) []field {
 	fields := make([]field, 2)
 	var ptr uintptr
+	var valueOf reflect.Value
+	var f field
 	for i := range args {
-		if reflect.ValueOf(args[i]).Kind() == reflect.Ptr {
-			valueOf := reflect.ValueOf(args[i]).Elem()
-			ptr = uintptr(valueOf.Addr().UnsafePointer())
-			if addrMap[ptr] != nil {
-				fields[i] = addrMap[ptr]
+		valueOf = reflect.ValueOf(args[i])
+		if valueOf.Kind() == reflect.Pointer {
+			ptr = uintptr(valueOf.UnsafePointer())
+			f = addrMap[ptr]
+			if f != nil {
+				fields[i] = f
 			}
 			continue
 		}
