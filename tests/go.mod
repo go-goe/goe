@@ -4,8 +4,8 @@ go 1.24.0
 
 require (
 	github.com/go-goe/goe v0.6.1
-	github.com/go-goe/postgres v0.4.2-0.20251114223832-cf3e69d683ac
-	github.com/go-goe/sqlite v0.4.2-0.20251114223750-f672b95061cc
+	github.com/go-goe/postgres v0.4.2-0.20251117011819-1e4dc1a593dd
+	github.com/go-goe/sqlite v0.4.2-0.20251117011734-47057330efea
 	github.com/google/uuid v1.6.0
 	github.com/shopspring/decimal v1.4.0
 )
