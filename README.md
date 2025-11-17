@@ -119,7 +119,7 @@ type Database struct {
 }
 
 dns := "user=postgres password=postgres host=localhost port=5432 database=postgres"
-db, err := goe.Open[Database](postgres.Open(dns, postgres.Config{}))
+db, err := goe.Open[Database](postgres.Open(dns, postgres.NewConfig(postgres.Config{})))
 ```
 
 ### SQLite
@@ -138,7 +138,7 @@ type Database struct {
 	*goe.DB
 }
 
-db, err := goe.Open[Database](sqlite.Open("goe.db", sqlite.Config{}))
+db, err := goe.Open[Database](sqlite.Open("goe.db", sqlite.NewConfig(sqlite.Config{})))
 ```
 
 Checkout the exclusive features of sqlite on [goe-sqlite](https://github.com/go-goe/sqlite)
@@ -166,7 +166,7 @@ type Database struct {
 }
 
 func main() {
-	db, err := goe.Open[Database](sqlite.Open("goe.db", sqlite.Config{}))
+	db, err := goe.Open[Database](sqlite.Open("goe.db", sqlite.NewConfig(sqlite.Config{})))
 	if err != nil {
 		panic(err)
 	}
