@@ -55,46 +55,31 @@ func handlerResult[T any](ctx context.Context, conn model.Connection, query mode
 	var rows model.Rows
 	rows, query.Header.Err = wrapperQuery(ctx, conn, &query)
 
-	var v T
+	var entity T
 	if query.Header.Err != nil {
 		return func(yield func(T, error) bool) {
-			yield(v, dbConfig.ErrorQueryHandler(ctx, query))
+			yield(entity, dbConfig.ErrorQueryHandler(ctx, query))
 		}
 	}
 	dbConfig.InfoHandler(ctx, query)
 
-	value := reflect.TypeOf(v)
 	dest := make([]any, numFields)
-
+	value := reflect.ValueOf(&entity).Elem()
 	for i := range dest {
-		dest[i] = reflect.New(value.Field(i).Type).Interface()
+		dest[i] = value.Field(i).Addr().Interface()
 	}
 
-	return mapStructQuery[T](ctx, rows, dest, value, dbConfig, query)
-}
-
-func mapStructQuery[T any](ctx context.Context, rows model.Rows, dest []any, value reflect.Type, dbConfig *model.DatabaseConfig, query model.Query) iter.Seq2[T, error] {
 	return func(yield func(T, error) bool) {
-		var (
-			s, f reflect.Value
-		)
 		defer rows.Close()
-		s = reflect.New(value).Elem()
 
 		for rows.Next() {
 			query.Header.Err = rows.Scan(dest...)
-
 			if query.Header.Err != nil {
 				//TODO: add infos about row
-				yield(s.Interface().(T), dbConfig.ErrorQueryHandler(ctx, query))
+				yield(entity, dbConfig.ErrorQueryHandler(ctx, query))
 				return
 			}
-
-			for i, a := range dest {
-				f = s.Field(i)
-				f.Set(reflect.ValueOf(a).Elem())
-			}
-			if !yield(s.Interface().(T), nil) {
+			if !yield(entity, nil) {
 				return
 			}
 		}
