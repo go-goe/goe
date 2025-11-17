@@ -212,9 +212,9 @@ func Setup() (*Database, error) {
 
 func SetupPostgres() (*Database, error) {
 	var err error
-	db, err := goe.Open[Database](postgres.Open("user=postgres password=postgres host=localhost port=5432 database=postgres", postgres.Config{
-		//DatabaseConfig: goe.DatabaseConfig{Logger: slog.New(slog.NewJSONHandler(os.Stdout, nil))},
-	}))
+	db, err := goe.Open[Database](postgres.Open("user=postgres password=postgres host=localhost port=5432 database=postgres", postgres.NewConfig(postgres.Config{
+		//Logger: slog.New(slog.NewJSONHandler(os.Stdout, nil)),
+	})))
 	if err != nil {
 		return nil, err
 	}
@@ -227,13 +227,15 @@ func SetupPostgres() (*Database, error) {
 
 func SetupSqlite() (*Database, error) {
 	var err error
-	db, err := goe.Open[Database](sqlite.Open(filepath.Join(os.TempDir(), "goe.db"), sqlite.Config{
-		//DatabaseConfig: goe.DatabaseConfig{Logger: slog.New(slog.NewJSONHandler(os.Stdout, nil))},
-		ConnectionHook: func(conn sqlite.ExecQuerierContext, dsn string) error {
-			conn.ExecContext(context.Background(), "PRAGMA foreign_keys = OFF;", nil)
-			return nil
+	db, err := goe.Open[Database](sqlite.Open(filepath.Join(os.TempDir(), "goe.db"), sqlite.NewConfig(
+		sqlite.Config{
+			//Logger: slog.New(slog.NewJSONHandler(os.Stdout, nil)),
+			ConnectionHook: func(conn sqlite.ExecQuerierContext, dsn string) error {
+				conn.ExecContext(context.Background(), "PRAGMA foreign_keys = OFF;", nil)
+				return nil
+			},
 		},
-	}))
+	)))
 	if err != nil {
 		return nil, err
 	}
