@@ -344,6 +344,9 @@ func TestUpdate(t *testing.T) {
 
 				var aselect *Animal
 				aselect, err = goe.Find(db.Animal).ByID(Animal{Id: a.Id})
+				if err != nil {
+					t.Fatalf("Expected find, got error: %v", err)
+				}
 
 				if aselect.HabitatId == nil || *aselect.HabitatId != h.Id {
 					t.Errorf("Expected a update on id habitat, got : %v", aselect.HabitatId)
