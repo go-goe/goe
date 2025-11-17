@@ -2,7 +2,6 @@ package goe
 
 import (
 	"context"
-	"errors"
 	"iter"
 	"math"
 	"reflect"
@@ -17,19 +16,15 @@ import (
 	"github.com/go-goe/goe/query/where"
 )
 
-var ErrNotFound = errors.New("goe: not found any element on result set")
-
 type stateSelect[T any] struct {
-	conn      Connection
+	conn      model.Connection
 	builder   builder
 	tableArgs []any
 	ctx       context.Context
-	table     any
 }
 
 type find[T any] struct {
-	errNotFound error
-	sSelect     stateSelect[T]
+	sSelect stateSelect[T]
 }
 
 // Find returns a matched record,
@@ -57,7 +52,7 @@ func Find[T any](table *T) find[T] {
 //
 // See [Find] for examples
 func FindContext[T any](ctx context.Context, table *T) find[T] {
-	return find[T]{sSelect: SelectContext[T](ctx, table), errNotFound: ErrNotFound}
+	return find[T]{sSelect: SelectContext[T](ctx, table)}
 }
 
 // OnTransaction sets a transaction on the query.
@@ -81,14 +76,8 @@ func FindContext[T any](ctx context.Context, table *T) find[T] {
 //	if err != nil {
 //		// handler error
 //	}
-func (f find[T]) OnTransaction(tx Transaction) find[T] {
+func (f find[T]) OnTransaction(tx model.Transaction) find[T] {
 	f.sSelect.conn = tx
-	return f
-}
-
-// Replace the ErrNotFound with err
-func (f find[T]) OnErrNotFound(err error) find[T] {
-	f.errNotFound = err
 	return f
 }
 
@@ -112,7 +101,7 @@ func (f find[T]) ByID(value T) (*T, error) {
 		return &row, nil
 	}
 
-	return nil, f.errNotFound
+	return nil, ErrNotFound
 }
 
 // Finds the record by non-zero values,
@@ -125,7 +114,7 @@ func (f find[T]) ByValue(value T) (*T, error) {
 		value:     value})
 
 	if skip {
-		return nil, f.errNotFound
+		return nil, ErrNotFound
 	}
 
 	f.sSelect = f.sSelect.Where(operations(pks, valuesPks))
@@ -137,7 +126,7 @@ func (f find[T]) ByValue(value T) (*T, error) {
 		return &row, nil
 	}
 
-	return nil, f.errNotFound
+	return nil, ErrNotFound
 }
 
 // Select retrieves rows from tables.
@@ -158,7 +147,7 @@ func (f find[T]) ByValue(value T) (*T, error) {
 //			User    string     // output row
 //			Role    *string    // output row
 //			EndTime *time.Time // output row
-//		}](&struct {
+//		}](struct {
 //			User    *string     // table column
 //			Role    *string     // table column
 //			EndTime **time.Time // table column
@@ -190,7 +179,6 @@ func SelectContext[T any](ctx context.Context, table any) stateSelect[T] {
 	var state stateSelect[T] = createSelectState[T](ctx)
 	argsSelect := getArgsSelect(addrMap.mapField, table)
 
-	state.table = argsSelect.table
 	state.builder.fieldsSelect = argsSelect.fields
 	state.tableArgs = argsSelect.tableArgs
 	return state
@@ -237,27 +225,59 @@ func (s stateSelect[T]) Skip(i int) stateSelect[T] {
 	return s
 }
 
-// OrderByAsc makes a ordained by arg ascending query
-func (s stateSelect[T]) OrderByAsc(arg any) stateSelect[T] {
-	field := getArg(arg, addrMap.mapField, nil)
-	s.builder.query.OrderBy = &model.OrderBy{Attribute: model.Attribute{Name: field.getAttributeName(), Table: field.table()}}
+// OrderByAsc makes a ordained by args ascending query
+func (s stateSelect[T]) OrderByAsc(args ...any) stateSelect[T] {
+	for _, arg := range args {
+		if a, ok := getAttribute(arg, addrMap.mapField); ok {
+			s.builder.query.OrderBy = append(s.builder.query.OrderBy, model.OrderBy{Attribute: a})
+		}
+	}
 	return s
 }
 
-// OrderByDesc makes a ordained by arg descending query
-func (s stateSelect[T]) OrderByDesc(arg any) stateSelect[T] {
-	field := getArg(arg, addrMap.mapField, nil)
-	s.builder.query.OrderBy = &model.OrderBy{
-		Attribute: model.Attribute{Name: field.getAttributeName(), Table: field.table()},
-		Desc:      true}
+// OrderByDesc makes a ordained by args descending query
+func (s stateSelect[T]) OrderByDesc(args ...any) stateSelect[T] {
+	for _, arg := range args {
+		if a, ok := getAttribute(arg, addrMap.mapField); ok {
+			s.builder.query.OrderBy = append(s.builder.query.OrderBy, model.OrderBy{Attribute: a, Desc: true})
+		}
+	}
+	return s
+}
+
+// GroupBy makes a group by args
+func (s stateSelect[T]) GroupBy(args ...any) stateSelect[T] {
+	s.builder.query.GroupBy = make([]model.GroupBy, len(args))
+	for i := range args {
+		if a, ok := getAttribute(args[i], addrMap.mapField); ok {
+			s.builder.query.GroupBy[i].Attribute = a
+		}
+	}
 	return s
 }
 
 // Joins receives [model.Joins] as joins from join sub package
+//
+// Deprecated: Use Join, LeftJoin or RightJoin instead.
 func (s stateSelect[T]) Joins(joins ...model.Joins) stateSelect[T] {
 	for _, j := range joins {
 		s.builder.buildSelectJoins(j.Join(), getArgsJoin(addrMap.mapField, j.FirstArg(), j.SecondArg()))
 	}
+	return s
+}
+
+func (s stateSelect[T]) Join(left, right any) stateSelect[T] {
+	s.builder.buildSelectJoins(enum.Join, getArgsJoin(addrMap.mapField, left, right))
+	return s
+}
+
+func (s stateSelect[T]) LeftJoin(left, right any) stateSelect[T] {
+	s.builder.buildSelectJoins(enum.LeftJoin, getArgsJoin(addrMap.mapField, left, right))
+	return s
+}
+
+func (s stateSelect[T]) RightJoin(left, right any) stateSelect[T] {
+	s.builder.buildSelectJoins(enum.RightJoin, getArgsJoin(addrMap.mapField, left, right))
 	return s
 }
 
@@ -309,10 +329,10 @@ func (s stateSelect[T]) AsPagination(page, size int) (*Pagination[T], error) {
 	}
 
 	var err error
-	stateCount := Select[struct{ query.Count }](&struct {
+	stateCount := Select[struct{ query.Count }](struct {
 		*query.Count
 	}{
-		Count: aggregate.Count(s.table),
+		Count: aggregate.Count(s.tableArgs[0]),
 	})
 
 	// copy joins
@@ -399,7 +419,7 @@ func (s stateSelect[T]) AsPagination(page, size int) (*Pagination[T], error) {
 //	if err != nil {
 //		// handler error
 //	}
-func (s stateSelect[T]) OnTransaction(tx Transaction) stateSelect[T] {
+func (s stateSelect[T]) OnTransaction(tx model.Transaction) stateSelect[T] {
 	s.conn = tx
 	return s
 }
@@ -534,85 +554,79 @@ func equalsOrLike(f any, a any) model.Operation {
 
 type argsSelect struct {
 	fields    []fieldSelect
-	table     any
 	tableArgs []any
 }
 
 func getArgsSelect(addrMap map[uintptr]field, arg any) argsSelect {
-	fields := make([]fieldSelect, 0)
 
-	if reflect.ValueOf(arg).Kind() != reflect.Pointer {
-		panic("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
+	valueOf := reflect.ValueOf(arg)
+
+	if valueOf.Kind() == reflect.Pointer {
+		return getArgsPtr(valueOf.Elem(), addrMap)
 	}
-
-	valueOf := reflect.ValueOf(arg).Elem()
 
 	if valueOf.Kind() != reflect.Struct {
-		panic("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
+		panic("goe: invalid argument. try sending a pointer to a database mapped argument")
 	}
 	args := make([]any, 0, valueOf.NumField())
+	fields := make([]fieldSelect, 0, valueOf.NumField())
+	var f field
+	var fieldOf reflect.Value
+	for i := 0; i < valueOf.NumField(); i++ {
+		fieldOf = valueOf.Field(i)
+		f = addrMap[uintptr(fieldOf.UnsafePointer())]
+		if f != nil {
+			args = append(args, fieldOf.Interface())
+			fields = append(fields, f)
+			continue
+		}
+
+		if a, ok := fieldOf.Elem().Interface().(model.Attributer); ok {
+			f = addrMap[uintptr(reflect.ValueOf(a.GetField()).UnsafePointer())]
+			if f != nil {
+				if a.Attribute(model.Body{}).AggregateType != 0 {
+					fields = append(fields, createAggregate(f, fieldOf.Elem().Interface()))
+					continue
+				}
+				fields = append(fields, createFunction(f, fieldOf.Elem().Interface()))
+			}
+		}
+	}
+
+	if len(fields) == 0 {
+		panic("goe: invalid argument. try sending a pointer to a database mapped argument")
+	}
+
+	return argsSelect{fields: fields, tableArgs: args}
+}
+
+func getArgsPtr(valueOf reflect.Value, addrMap map[uintptr]field) argsSelect {
+	if valueOf.Kind() != reflect.Struct {
+		panic("goe: invalid argument. try sending a pointer to a database mapped argument")
+	}
+
+	args := make([]any, 0, valueOf.NumField())
+	fields := make([]fieldSelect, 0, valueOf.NumField())
+	var f field
 	var fieldOf reflect.Value
 	for i := 0; i < valueOf.NumField(); i++ {
 		fieldOf = valueOf.Field(i)
 		if fieldOf.Kind() == reflect.Slice && fieldOf.Type().Elem().Kind() == reflect.Struct {
 			continue
 		}
-		addr := uintptr(fieldOf.Addr().UnsafePointer())
-		if addrMap[addr] != nil {
+
+		f = addrMap[uintptr(fieldOf.Addr().UnsafePointer())]
+		if f != nil {
 			args = append(args, fieldOf.Addr().Interface())
-			fields = append(fields, addrMap[addr])
+			fields = append(fields, f)
 			continue
 		}
-		//get args from anonymous struct
-		return getArgsSelectAno(addrMap, valueOf)
-	}
-
-	if len(fields) == 0 {
-		panic("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
-	}
-
-	return argsSelect{fields: fields, table: arg, tableArgs: args}
-}
-
-func getArgsSelectAno(addrMap map[uintptr]field, valueOf reflect.Value) argsSelect {
-	fields := make([]fieldSelect, 0, valueOf.NumField())
-	args := make([]any, 0, valueOf.NumField())
-	var fieldOf reflect.Value
-	var table any = valueOf.Field(0).Elem().Addr().Interface()
-	for i := 0; i < valueOf.NumField(); i++ {
-		if valueOf.Field(i).Kind() != reflect.Pointer {
-			//TODO: update to get value from one column query
-			panic("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
-		}
-		fieldOf = valueOf.Field(i).Elem()
-		addr := uintptr(fieldOf.Addr().UnsafePointer())
-		if addrMap[addr] != nil {
-			args = append(args, fieldOf.Addr().Interface())
-			fields = append(fields, addrMap[addr])
-			continue
-		}
-
-		if fieldOf.Kind() == reflect.Struct {
-			// check if is aggregate
-			addr = uintptr(fieldOf.Field(0).Elem().UnsafePointer())
-			if addrMap[addr] != nil {
-				fields = append(fields, createAggregate(addrMap[addr], fieldOf.Interface()))
-				continue
-			}
-			// check if is function
-			addr := uintptr(fieldOf.Field(0).UnsafePointer())
-			if addrMap[addr] != nil {
-				fields = append(fields, createFunction(addrMap[addr], fieldOf.Interface()))
-				continue
-			}
-
-		}
-		panic("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
 	}
 	if len(fields) == 0 {
-		panic("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
+		panic("goe: invalid argument. try sending a pointer to a database mapped argument")
 	}
-	return argsSelect{fields: fields, table: table, tableArgs: args}
+
+	return argsSelect{fields: fields, tableArgs: args}
 }
 
 func createFunction(field field, a any) fieldSelect {
@@ -646,12 +660,15 @@ func createAggregate(field field, a any) fieldSelect {
 func getArgsJoin(addrMap map[uintptr]field, args ...any) []field {
 	fields := make([]field, 2)
 	var ptr uintptr
+	var valueOf reflect.Value
+	var f field
 	for i := range args {
-		if reflect.ValueOf(args[i]).Kind() == reflect.Ptr {
-			valueOf := reflect.ValueOf(args[i]).Elem()
-			ptr = uintptr(valueOf.Addr().UnsafePointer())
-			if addrMap[ptr] != nil {
-				fields[i] = addrMap[ptr]
+		valueOf = reflect.ValueOf(args[i])
+		if valueOf.Kind() == reflect.Pointer {
+			ptr = uintptr(valueOf.UnsafePointer())
+			f = addrMap[ptr]
+			if f != nil {
+				fields[i] = f
 			}
 			continue
 		}
@@ -711,6 +728,30 @@ func getAnyArg(value reflect.Value, addrMap map[uintptr]field) field {
 		return addrMap[addr]
 	}
 	return nil
+}
+
+func getAttribute(arg any, addrMap map[uintptr]field) (model.Attribute, bool) {
+	v := reflect.ValueOf(arg)
+	if v.Kind() != reflect.Pointer {
+		panic("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
+	}
+
+	f := addrMap[uintptr(v.UnsafePointer())]
+	if f != nil {
+		return model.Attribute{Table: f.table(), Name: f.getAttributeName()}, true
+	}
+
+	if a, ok := v.Elem().Interface().(model.Attributer); ok {
+		f = addrMap[uintptr(reflect.ValueOf(a.GetField()).UnsafePointer())]
+		if f != nil {
+			return a.Attribute(model.Body{
+				Table: f.table(),
+				Name:  f.getAttributeName(),
+			}), true
+		}
+	}
+
+	return model.Attribute{}, false
 }
 
 func helperWhere(builder *builder, addrMap map[uintptr]field, br model.Operation) {

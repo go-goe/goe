@@ -6,92 +6,11 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/go-goe/goe/model"
 	"github.com/go-goe/goe/utils"
 )
 
-type Migrator struct {
-	Tables  map[string]*TableMigrate
-	Schemas []string
-	Error   error
-}
-
-type TableMigrate struct {
-	Name         string
-	EscapingName string
-	Schema       *string
-	Migrated     bool
-	PrimaryKeys  []PrimaryKeyMigrate
-	Attributes   []AttributeMigrate
-	ManyToOnes   []ManyToOneMigrate
-	OneToOnes    []OneToOneMigrate
-	Indexes      []IndexMigrate
-}
-
-// Returns the table and the schema.
-func (t TableMigrate) EscapingTableName() string {
-	if t.Schema != nil {
-		return *t.Schema + "." + t.EscapingName
-	}
-	return t.EscapingName
-}
-
-type IndexMigrate struct {
-	Name         string
-	EscapingName string
-	Unique       bool
-	Attributes   []AttributeMigrate
-}
-
-type PrimaryKeyMigrate struct {
-	AutoIncrement bool
-	Name          string
-	EscapingName  string
-	DataType      string
-}
-
-type AttributeMigrate struct {
-	Nullable     bool
-	Name         string
-	EscapingName string
-	DataType     string
-	Default      string
-}
-
-type OneToOneMigrate struct {
-	AttributeMigrate
-	TargetTable          string
-	TargetColumn         string
-	EscapingTargetTable  string
-	EscapingTargetColumn string
-	TargetSchema         *string
-}
-
-// Returns the target table and the schema.
-func (o OneToOneMigrate) EscapingTargetTableName() string {
-	if o.TargetSchema != nil {
-		return *o.TargetSchema + "." + o.EscapingTargetTable
-	}
-	return o.EscapingTargetTable
-}
-
-type ManyToOneMigrate struct {
-	AttributeMigrate
-	TargetTable          string
-	TargetColumn         string
-	EscapingTargetTable  string
-	EscapingTargetColumn string
-	TargetSchema         *string
-}
-
-// Returns the target table and the schema.
-func (m ManyToOneMigrate) EscapingTargetTableName() string {
-	if m.TargetSchema != nil {
-		return *m.TargetSchema + "." + m.EscapingTargetTable
-	}
-	return m.EscapingTargetTable
-}
-
-func migrateFrom(db any, driver Driver) *Migrator {
+func migrateFrom(db any, driver model.Driver) *model.Migrator {
 	valueOf := reflect.ValueOf(db).Elem()
 
 	schemasMap := make(map[string]*string)
@@ -104,8 +23,8 @@ func migrateFrom(db any, driver Driver) *Migrator {
 		}
 	}
 
-	migrator := new(Migrator)
-	migrator.Tables = make(map[string]*TableMigrate)
+	migrator := new(model.Migrator)
+	migrator.Tables = make(map[string]*model.TableMigrate)
 	for i := range valueOf.NumField() - 1 {
 		if strings.Contains(valueOf.Type().Field(i).Tag.Get("goe"), "schema") || strings.HasSuffix(valueOf.Field(i).Elem().Type().Name(), "Schema") {
 			schema := driver.KeywordHandler(utils.ColumnNamePattern(valueOf.Field(i).Elem().Type().Name()))
@@ -128,13 +47,13 @@ func migrateFrom(db any, driver Driver) *Migrator {
 	return migrator
 }
 
-func typeField(tables reflect.Value, valueOf reflect.Value, migrator *Migrator, driver Driver, schema *string, schemasMap map[string]*string) error {
+func typeField(tables reflect.Value, valueOf reflect.Value, migrator *model.Migrator, driver model.Driver, schema *string, schemasMap map[string]*string) error {
 	valueOf = valueOf.Elem()
 	pks, fieldNames, err := migratePk(valueOf.Type(), driver)
 	if err != nil {
 		return err
 	}
-	table := new(TableMigrate)
+	table := new(model.TableMigrate)
 
 	table.Name = utils.TableNamePattern(valueOf.Type().Name())
 	table.Schema = schema
@@ -240,7 +159,7 @@ func createManyToOneMigrate(b body, typeOf reflect.Type) any {
 		return nil
 	}
 
-	mto := new(ManyToOneMigrate)
+	mto := new(model.ManyToOneMigrate)
 
 	mto.TargetTable = utils.TableNamePattern(typeOf.Name())
 	mto.TargetColumn = utils.ColumnNamePattern(b.prefixName)
@@ -251,6 +170,7 @@ func createManyToOneMigrate(b body, typeOf reflect.Type) any {
 	mto.Name = utils.ColumnNamePattern(b.fieldName)
 	mto.EscapingName = b.driver.KeywordHandler(mto.Name)
 	mto.Nullable = b.nullable
+	mto.Default = getTagValue(b.migrate.field.Tag.Get("goe"), "default:")
 	return mto
 }
 
@@ -267,7 +187,7 @@ func createOneToOneMigrate(b body, typeOf reflect.Type) any {
 		return nil
 	}
 
-	mto := new(OneToOneMigrate)
+	mto := new(model.OneToOneMigrate)
 
 	mto.TargetTable = utils.TableNamePattern(typeOf.Name())
 	mto.TargetColumn = utils.ColumnNamePattern(b.prefixName)
@@ -281,31 +201,23 @@ func createOneToOneMigrate(b body, typeOf reflect.Type) any {
 	return mto
 }
 
-func migratePk(typeOf reflect.Type, driver Driver) ([]*PrimaryKeyMigrate, []string, error) {
-	var pks []*PrimaryKeyMigrate
-	var fieldsNames []string
-
-	id, valid := getId(typeOf)
-	if valid {
-		pks = make([]*PrimaryKeyMigrate, 1)
-		fieldsNames = make([]string, 1)
-		pks[0] = createMigratePk(id.Name, isAutoIncrement(id), getTagType(id), driver)
-		fieldsNames[0] = id.Name
-		return pks, fieldsNames, nil
-	}
-
-	fields := fieldsByTags("pk", typeOf)
+func migratePk(typeOf reflect.Type, driver model.Driver) ([]*model.PrimaryKeyMigrate, []string, error) {
+	fields := getPks(typeOf)
 	if len(fields) == 0 {
 		return nil, nil, fmt.Errorf("goe: struct %q don't have a primary key setted", typeOf.Name())
 	}
 
-	pks = make([]*PrimaryKeyMigrate, len(fields))
-	fieldsNames = make([]string, len(fields))
+	pks := make([]*model.PrimaryKeyMigrate, len(fields))
+	fieldsNames := make([]string, len(fields))
 	for i := range fields {
-		pks[i] = createMigratePk(fields[i].Name, isAutoIncrement(fields[i]), getTagType(fields[i]), driver)
+		pks[i] = createMigratePk(fields[i].Name, isAutoIncrement(fields[i]), getTagType(fields[i]), getTagValue(fields[i].Tag.Get("goe"), "default:"), driver)
 		fieldsNames[i] = fields[i].Name
 	}
 	return pks, fieldsNames, nil
+}
+
+func isAutoIncrement(id reflect.StructField) bool {
+	return strings.Contains(id.Type.Kind().String(), "int")
 }
 
 func migrateAtt(b body) error {
@@ -326,18 +238,18 @@ func migrateAtt(b body) error {
 			if indexName == "" {
 				indexName = b.migrate.table.Name + "_idx_" + strings.ToLower(b.migrate.field.Name)
 			}
-			in := IndexMigrate{
+			in := model.IndexMigrate{
 				Name:         b.migrate.table.Name + "_" + indexName,
 				EscapingName: b.driver.KeywordHandler(b.migrate.table.Name + "_" + indexName),
 				Unique:       strings.Contains(index, "unique"),
-				Attributes:   []AttributeMigrate{*at},
+				Attributes:   []model.AttributeMigrate{*at},
 			}
 
 			var i int
-			if i = slices.IndexFunc(b.migrate.table.Indexes, func(i IndexMigrate) bool {
+			if i = slices.IndexFunc(b.migrate.table.Indexes, func(i model.IndexMigrate) bool {
 				return i.Name == in.Name && i.Unique == in.Unique
 			}); i == -1 {
-				if c := slices.IndexFunc(b.migrate.table.Indexes, func(i IndexMigrate) bool {
+				if c := slices.IndexFunc(b.migrate.table.Indexes, func(i model.IndexMigrate) bool {
 					return i.Name == in.Name && i.Unique != in.Unique
 				}); c != -1 {
 					return fmt.Errorf(`goe: struct "%v" have two or more indexes with same name but different uniqueness "%v"`, b.migrate.table.Name, in.Name)
@@ -352,21 +264,21 @@ func migrateAtt(b body) error {
 
 	tagValue := b.migrate.field.Tag.Get("goe")
 	if tagValueExist(tagValue, "unique") {
-		in := IndexMigrate{
+		in := model.IndexMigrate{
 			Name:         b.migrate.table.Name + "_idx_" + strings.ToLower(b.migrate.field.Name),
 			EscapingName: b.driver.KeywordHandler(b.migrate.table.Name + "_idx_" + strings.ToLower(b.migrate.field.Name)),
 			Unique:       true,
-			Attributes:   []AttributeMigrate{*at},
+			Attributes:   []model.AttributeMigrate{*at},
 		}
 		b.migrate.table.Indexes = append(b.migrate.table.Indexes, in)
 	}
 
 	if tagValueExist(tagValue, "index") {
-		in := IndexMigrate{
+		in := model.IndexMigrate{
 			Name:         b.migrate.table.Name + "_idx_" + strings.ToLower(b.migrate.field.Name),
 			EscapingName: b.driver.KeywordHandler(b.migrate.table.Name + "_idx_" + strings.ToLower(b.migrate.field.Name)),
 			Unique:       false,
-			Attributes:   []AttributeMigrate{*at},
+			Attributes:   []model.AttributeMigrate{*at},
 		}
 		b.migrate.table.Indexes = append(b.migrate.table.Indexes, in)
 	}
@@ -418,16 +330,20 @@ func getIndexValue(valueTag string, tag string) string {
 	return ""
 }
 
-func createMigratePk(attributeName string, autoIncrement bool, dataType string, driver Driver) *PrimaryKeyMigrate {
-	return &PrimaryKeyMigrate{
-		Name:          utils.ColumnNamePattern(attributeName),
-		EscapingName:  driver.KeywordHandler(utils.ColumnNamePattern(attributeName)),
-		DataType:      dataType,
-		AutoIncrement: autoIncrement}
+func createMigratePk(attributeName string, autoIncrement bool, dataType, defaultTag string, driver model.Driver) *model.PrimaryKeyMigrate {
+	return &model.PrimaryKeyMigrate{
+		AttributeMigrate: model.AttributeMigrate{
+			Name:         utils.ColumnNamePattern(attributeName),
+			EscapingName: driver.KeywordHandler(utils.ColumnNamePattern(attributeName)),
+			DataType:     dataType,
+			Default:      defaultTag,
+		},
+		AutoIncrement: autoIncrement,
+	}
 }
 
-func createMigrateAtt(attributeName string, dataType string, nullable bool, defaultValue string, driver Driver) *AttributeMigrate {
-	return &AttributeMigrate{
+func createMigrateAtt(attributeName string, dataType string, nullable bool, defaultValue string, driver model.Driver) *model.AttributeMigrate {
+	return &model.AttributeMigrate{
 		Name:         utils.ColumnNamePattern(attributeName),
 		EscapingName: driver.KeywordHandler(utils.ColumnNamePattern(attributeName)),
 		DataType:     dataType,
@@ -442,13 +358,13 @@ func helperAttributeMigrate(b body) error {
 		b.stringInfos = stringInfos{prefixName: prefix, tableName: table, fieldName: b.migrate.field.Name}
 		if mto := isManyToOne(b, createManyToOneMigrate, createOneToOneMigrate); mto != nil {
 			switch v := mto.(type) {
-			case *ManyToOneMigrate:
+			case *model.ManyToOneMigrate:
 				if v == nil {
 					return migrateAtt(b)
 				}
 				v.DataType = getTagType(b.migrate.field)
 				b.migrate.table.ManyToOnes = append(b.migrate.table.ManyToOnes, *v)
-			case *OneToOneMigrate:
+			case *model.OneToOneMigrate:
 				if v == nil {
 					if slices.Contains(b.migrate.fieldNames, b.migrate.field.Name) {
 						return nil

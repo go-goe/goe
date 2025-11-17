@@ -6,16 +6,20 @@ import (
 	"reflect"
 
 	"github.com/go-goe/goe/enum"
+	"github.com/go-goe/goe/model"
 )
 
 type stateInsert[T any] struct {
-	conn    Connection
+	conn    model.Connection
 	table   *T
 	builder builder
 	ctx     context.Context
 }
 
 // Insert inserts a new record into the given table.
+//
+// Insert can return [ErrUniqueValue, ErrForeignKey and ErrBadRequest];
+// use ErrBadRequest as a generic error for any user interaction.
 //
 // Insert uses [context.Background] internally;
 // to specify the context, use [InsertContext].
@@ -60,7 +64,7 @@ func InsertContext[T any](ctx context.Context, table *T) stateInsert[T] {
 //	if err != nil {
 //		// handler error
 //	}
-func (s stateInsert[T]) OnTransaction(tx Transaction) stateInsert[T] {
+func (s stateInsert[T]) OnTransaction(tx model.Transaction) stateInsert[T] {
 	s.conn = tx
 	return s
 }
@@ -80,7 +84,7 @@ func (s stateInsert[T]) One(value *T) error {
 		s.conn = driver.NewConnection()
 	}
 
-	if s.builder.query.ReturningId != nil {
+	if s.builder.query.ReturningID != nil {
 		return handlerValuesReturning(s.ctx, s.conn, s.builder.query, valueOf, pkFieldId, driver.GetDatabaseConfig())
 	}
 	return handlerValues(s.ctx, s.conn, s.builder.query, driver.GetDatabaseConfig())

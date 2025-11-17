@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"reflect"
 	"sync"
-	"time"
 
 	"github.com/go-goe/goe/enum"
 	"github.com/go-goe/goe/model"
@@ -37,7 +36,7 @@ func (am *goeMap) delete(key uintptr) {
 var addrMap *goeMap
 
 type DB struct {
-	driver Driver
+	driver model.Driver
 }
 
 // Return the database stats as [sql.DBStats].
@@ -50,9 +49,9 @@ func (db *DB) Name() string {
 	return db.driver.Name()
 }
 
-func (db *DB) RawQueryContext(ctx context.Context, rawSql string, args ...any) (Rows, error) {
+func (db *DB) RawQueryContext(ctx context.Context, rawSql string, args ...any) (model.Rows, error) {
 	query := model.Query{Type: enum.RawQuery, RawSql: rawSql, Arguments: args}
-	var rows Rows
+	var rows model.Rows
 	rows, query.Header.Err = wrapperQuery(ctx, db.driver.NewConnection(), &query)
 	if query.Header.Err != nil {
 		return nil, db.driver.GetDatabaseConfig().ErrorQueryHandler(ctx, query)
@@ -78,11 +77,11 @@ func (db *DB) RawExecContext(ctx context.Context, rawSql string, args ...any) er
 //
 // NewTransaction uses [context.Background] internally;
 // to specify the context, use [goe.NewTransactionContext]
-func (db *DB) NewTransaction() (Transaction, error) {
+func (db *DB) NewTransaction() (model.Transaction, error) {
 	return db.NewTransactionContext(context.Background(), sql.LevelSerializable)
 }
 
-func (db *DB) NewTransactionContext(ctx context.Context, isolation sql.IsolationLevel) (Transaction, error) {
+func (db *DB) NewTransactionContext(ctx context.Context, isolation sql.IsolationLevel) (model.Transaction, error) {
 	t, err := db.driver.NewTransaction(ctx, &sql.TxOptions{Isolation: isolation})
 	if err != nil {
 		return nil, db.driver.GetDatabaseConfig().ErrorHandler(ctx, err)
@@ -108,59 +107,6 @@ func Close(dbTarget any) error {
 	}
 
 	return nil
-}
-
-// Database config used by all GOE drivers
-type DatabaseConfig struct {
-	Logger           Logger
-	IncludeArguments bool          // include all arguments used on query
-	QueryThreshold   time.Duration // query threshold to warning on slow queries
-	databaseName     string
-}
-
-func (c DatabaseConfig) ErrorHandler(ctx context.Context, err error) error {
-	if c.Logger != nil {
-		c.Logger.ErrorContext(ctx, "error", "database", c.databaseName, "err", err)
-	}
-	return err
-}
-
-func (c DatabaseConfig) ErrorQueryHandler(ctx context.Context, query model.Query) error {
-	if c.Logger == nil {
-		return query.Header.Err
-	}
-	logs := make([]any, 0)
-	logs = append(logs, "database", c.databaseName)
-	logs = append(logs, "sql", query.RawSql)
-	if c.IncludeArguments {
-		logs = append(logs, "arguments", query.Arguments)
-	}
-	logs = append(logs, "err", query.Header.Err)
-
-	c.Logger.ErrorContext(ctx, "error", logs...)
-	return query.Header.Err
-}
-
-func (c DatabaseConfig) InfoHandler(ctx context.Context, query model.Query) {
-	if c.Logger == nil {
-		return
-	}
-	qr := query.Header.QueryDuration + query.Header.ModelBuild
-
-	logs := make([]any, 0)
-	logs = append(logs, "database", c.databaseName)
-	logs = append(logs, "query_duration", qr.String())
-	logs = append(logs, "sql", query.RawSql)
-	if c.IncludeArguments {
-		logs = append(logs, "arguments", query.Arguments)
-	}
-
-	if c.QueryThreshold != 0 && qr > c.QueryThreshold {
-		c.Logger.WarnContext(ctx, "query_threshold", logs...)
-		return
-	}
-
-	c.Logger.InfoContext(ctx, "query_runned", logs...)
 }
 
 func getDatabase(dbTarget any) *DB {

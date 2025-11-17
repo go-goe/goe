@@ -126,8 +126,7 @@ func TestDelete(t *testing.T) {
 					t.Fatalf("Expected a select, got error: %v", err)
 				}
 
-				var tx goe.Transaction
-				tx, err = db.NewTransaction()
+				tx, err := db.NewTransaction()
 				if err != nil {
 					t.Fatalf("Expected tx, got error: %v", err)
 				}
@@ -207,9 +206,7 @@ func TestDelete(t *testing.T) {
 					t.Fatalf("Expected a insert, got error: %v", err)
 				}
 
-				var tx goe.Transaction
-
-				tx, err = db.NewTransaction()
+				tx, err := db.NewTransaction()
 				if err != nil {
 					t.Fatalf("Expected tx, got error: %v", err)
 				}

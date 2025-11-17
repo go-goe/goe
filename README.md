@@ -76,7 +76,8 @@ Check out the [Benchmarks](#benchmarks) section for a overview on GOE performanc
 	- [Filter (Non-Zero Dynamic Where)](#filter-non-zero-dynamic-where)
 	- [Match (Non-Zero Dynamic Where)](#match-non-zero-dynamic-where)
 	- [Join](#join)
-	- [OrderBy](#orderby)
+	- [Order By](#order-by)
+	- [Group By](#group-by)
 	- [Pagination](#pagination)
 	- [Aggregates](#aggregates)
 	- [Functions](#functions)
@@ -118,7 +119,7 @@ type Database struct {
 }
 
 dns := "user=postgres password=postgres host=localhost port=5432 database=postgres"
-db, err := goe.Open[Database](postgres.Open(dns, postgres.Config{}))
+db, err := goe.Open[Database](postgres.Open(dns, postgres.NewConfig(postgres.Config{})))
 ```
 
 ### SQLite
@@ -137,8 +138,11 @@ type Database struct {
 	*goe.DB
 }
 
-db, err := goe.Open[Database](sqlite.Open("goe.db", sqlite.Config{}))
+db, err := goe.Open[Database](sqlite.Open("goe.db", sqlite.NewConfig(sqlite.Config{})))
 ```
+
+Checkout the exclusive features of sqlite on [goe-sqlite](https://github.com/go-goe/sqlite)
+
 ## Quick Start
 ```go
 package main
@@ -162,7 +166,7 @@ type Database struct {
 }
 
 func main() {
-	db, err := goe.Open[Database](sqlite.Open("goe.db", sqlite.Config{}))
+	db, err := goe.Open[Database](sqlite.Open("goe.db", sqlite.NewConfig(sqlite.Config{})))
 	if err != nil {
 		panic(err)
 	}
@@ -200,6 +204,29 @@ func main() {
 	fmt.Println(animals)
 }
 ```
+
+To run the quick start follow this steps:
+
+1. Init the go.mod file
+	```bash
+	go mod init quickstart
+	```
+
+2. Get the necessary packages:
+	```bash
+	go mod tidy
+	```
+
+3. Run the example:
+	```bash
+	go run main.go
+	```
+
+4. If everything was ok, you should see a output like this:
+	```
+	[{1 Cat 🐈} {2 Dog 🐕} {3 Rat 🐀} {4 Pig 🐖} {5 Whale 🐋} {6 Fish 🐟} {7 Bird 🐦}]
+	```
+
 ## Database
 ```go
 type Database struct {
@@ -676,13 +703,10 @@ cat, err = goe.Find(db.Animal).ByValue(Animal{Name: "Cat"})
 > [!TIP]
 > Use **goe.FindContext** for specify a context.
 
-> [!TIP]
-> Use **OnErrNotFound** to replace ErrNotFound with a new error.
-
 [Back to Contents](#content)
 ### List
 
-List has support for [OrderBy](#orderby), [Pagination](#pagination) and [Joins](#select-join).
+List has support for [OrderBy](#orderby), [Pagination](#pagination) and [Join](#join).
 
 ```go
 // list all animals
@@ -723,7 +747,7 @@ for row, err := range goe.Select[struct {
 		User    string     // output row
 		Role    *string    // output row
 		EndTime *time.Time // output row
-	}](&struct {
+	}](struct {
 		User    *string     // table column
 		Role    *string     // table column
 		EndTime **time.Time // table column
@@ -732,10 +756,8 @@ for row, err := range goe.Select[struct {
 		Role:    &db.Role.Name,
 		EndTime: &db.UserRole.EndDate,
 }).
-	Joins(
-		join.LeftJoin[int](&db.User.ID, &db.UserRole.UserID),
-		join.LeftJoin[int](&db.UserRole.RoleID, &db.Role.ID),
-	).
+	Join(&db.User.ID, &db.UserRole.UserID).
+	Join(&db.UserRole.RoleID, &db.Role.ID).
 	OrderByAsc(&db.User.ID).Rows() {
 
 	if err != nil {
@@ -799,10 +821,9 @@ It's possible to use a query inside a `where.In`
 
 ```go
 // use AsQuery() for get a result as a query
-querySelect := goe.Select[any](&struct{ Name *string }{Name: &db.Animal.Name}).
-					Joins(
-						join.Join[int](&db.Animal.ID, &db.AnimalFood.IDAnimal),
-						join.Join[uuid.UUID](&db.AnimalFood.IDFood, &db.Food.ID)).
+querySelect := goe.Select[any](struct{ Name *string }{Name: &db.Animal.Name}).
+					Join(&db.Animal.ID, &db.AnimalFood.IDAnimal).
+					Join(&db.AnimalFood.IDFood, &db.Food.ID).
 					Where(
 						where.In(&db.Food.Name, []string{foods[0].Name, foods[1].Name})).
 					AsQuery()
@@ -877,7 +898,7 @@ It's possible to use Match on Select
 result, err := goe.Select[struct {
 	AnimalName string
 	FoodName   string
-}](&struct {
+}](struct {
 	AnimalName *string
 	FoodName   *string
 }{
@@ -886,10 +907,9 @@ result, err := goe.Select[struct {
 }).Match(struct {
 	AnimalName string
 	FoodName   string
-}{FoodName: "a"}).Joins(
-	join.Join[int](&db.Animal.Id, &db.AnimalFood.AnimalId),
-	join.Join[uuid.UUID](&db.AnimalFood.FoodId, &db.Food.Id),
-).AsSlice()
+}{FoodName: "a"}).
+	Join(&db.Animal.Id, &db.AnimalFood.AnimalId).
+	Join(&db.AnimalFood.FoodId, &db.Food.Id).AsSlice()
 
 if err != nil {
 	//handler error
@@ -907,10 +927,9 @@ On join, goe uses a sub-package join, on join package you have all the goe avail
 For the join operations, you need to specify the type, this make the joins operations more safe. So if you change a type from a field, the compiler will throw a error.
 ```go
 animals, err = goe.List(db.Animal).
-			   Joins(
-					join.Join[int](&db.Animal.ID, &db.AnimalFood.IDAnimal),
-					join.Join[uuid.UUID](&db.Food.ID, &db.AnimalFood.IDFood),
-			   ).AsSlice()
+				Join(&db.Animal.ID, &db.AnimalFood.IDAnimal).
+				Join(&db.Food.ID, &db.AnimalFood.IDFood).
+			   AsSlice()
 
 if err != nil {
 	//handler error
@@ -920,7 +939,7 @@ if err != nil {
 Same as where, you can use a if to only make a join if the condition match.
 
 [Back to Contents](#content)
-### OrderBy
+### Order By
 For OrderBy you need to pass a reference to a mapped database field.
 
 It's possible to OrderBy desc and asc. List and Select has support for OrderBy queries.
@@ -935,6 +954,30 @@ if err != nil {
 #### Select
 ```go
 animals, err = goe.List(db.Animal).OrderByAsc(&db.Animal.ID).AsSlice()
+
+if err != nil {
+	//handler error
+}
+```
+
+### Group By
+For GroupBy you need to pass a reference to a mapped database field.
+
+It's possible to GroupBy by a aggregate.
+#### Select
+```go
+habitatCount, err := goe.Select[struct {
+	Name string
+	query.Count
+}](struct {
+	Name         *string
+	HabitatCount *query.Count
+}{
+	Name:         &db.Habitat.Name,
+	HabitatCount: aggregate.Count(&db.Animal.Id),
+}).Join(&db.Animal.HabitatId, &db.Habitat.Id).
+	OrderByDesc(aggregate.Count(&db.Animal.Id)).
+	GroupBy(&db.Habitat.Name).AsSlice()
 
 if err != nil {
 	//handler error
@@ -977,7 +1020,7 @@ On select fields, goe uses query sub-package for declaring a aggregate field on 
 ```go
 result, err := goe.Select[struct {
 					Count query.Count
-				}](&struct{ 
+				}](struct{ 
 					Count *query.Count 
 				}{
 					Count: aggregate.Count(&db.Animal.ID),
@@ -999,7 +1042,7 @@ On select fields, goe uses query sub-package for declaring a function result fie
 ```go
 for row, err := range goe.Select[struct {
 					UpperName query.Function[string]
-				}](&struct {
+				}](struct {
 					UpperName *query.Function[string]
 				}{
 					UpperName: function.ToUpper(&db.Animal.Name),

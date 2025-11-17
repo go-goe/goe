@@ -1,3 +1,7 @@
+// Deprecated: This package will be removed in next version. use Select built in Join, LeftJoin and RightJoin.
+//
+//	Example:
+//	goe.List(db.Food).Join(&db.Food.ID, &db.Animal.FoodID)
 package join
 
 import (

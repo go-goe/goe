@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/go-goe/goe/model"
 	"github.com/go-goe/goe/utils"
 )
 
@@ -20,8 +21,9 @@ func init() {
 // # Example
 //
 //	goe.Open[Database](postgres.Open("user=postgres password=postgres host=localhost port=5432 database=postgres", postgres.Config{}))
-func Open[T any](driver Driver) (*T, error) {
-	driver.GetDatabaseConfig().databaseName = driver.Name()
+func Open[T any](driver model.Driver) (*T, error) {
+	driver.GetDatabaseConfig().Init(driver.Name(), driver.ErrorTranslator())
+
 	err := driver.Init()
 	if err != nil {
 		return nil, driver.GetDatabaseConfig().ErrorHandler(context.TODO(), err)
@@ -53,12 +55,13 @@ func Open[T any](driver Driver) (*T, error) {
 			}
 		}
 	}
-
+	var schemas []string
 	tableId := 0
 	// init Fields
 	for f := range dbId {
 		if strings.Contains(valueOf.Type().Field(f).Tag.Get("goe"), "schema") || strings.HasSuffix(valueOf.Field(f).Elem().Type().Name(), "Schema") {
 			schema := driver.KeywordHandler(utils.ColumnNamePattern(valueOf.Field(f).Elem().Type().Name()))
+			schemas = append(schemas, schema)
 			for i := range valueOf.Field(f).Elem().NumField() {
 				tableId += i + 1
 				err = initField(&schema, valueOf, valueOf.Field(f).Elem().Field(i).Elem(), dbTarget, tableId, driver)
@@ -74,7 +77,12 @@ func Open[T any](driver Driver) (*T, error) {
 			return nil, err
 		}
 	}
-
+	driver.GetDatabaseConfig().SetSchemas(schemas)
+	if ic := driver.GetDatabaseConfig().InitCallback(); ic != nil {
+		if err = ic(); err != nil {
+			return nil, err
+		}
+	}
 	dbTarget.driver = driver
 	return db, nil
 }
@@ -90,7 +98,7 @@ type infosMap struct {
 // data used for migrate
 type infosMigrate struct {
 	field      reflect.StructField
-	table      *TableMigrate
+	table      *model.TableMigrate
 	fieldNames []string
 }
 
@@ -109,7 +117,7 @@ type body struct {
 	migrate     *infosMigrate // used on migrate
 	schemasMap  map[string]*string
 	fieldId     int
-	driver      Driver
+	driver      model.Driver
 	nullable    bool
 	schema      *string
 	stringInfos
@@ -125,7 +133,7 @@ func skipPrimaryKey[T comparable](slice []T, value T, tables reflect.Value, fiel
 	return false
 }
 
-func initField(schema *string, tables reflect.Value, valueOf reflect.Value, db *DB, tableId int, driver Driver) error {
+func initField(schema *string, tables reflect.Value, valueOf reflect.Value, db *DB, tableId int, driver model.Driver) error {
 	pks, fieldIds, err := getPk(db, schema, valueOf.Type(), tableId, driver)
 	if err != nil {
 		return err
@@ -249,7 +257,7 @@ func getPks(typeOf reflect.Type) []reflect.StructField {
 	return pks
 }
 
-func getPk(db *DB, schema *string, typeOf reflect.Type, tableId int, driver Driver) ([]pk, []int, error) {
+func getPk(db *DB, schema *string, typeOf reflect.Type, tableId int, driver model.Driver) ([]pk, []int, error) {
 	var pks []pk
 	var fieldIds []int
 	var fieldId int
@@ -263,7 +271,7 @@ func getPk(db *DB, schema *string, typeOf reflect.Type, tableId int, driver Driv
 	fieldIds = make([]int, len(fields))
 	for i := range fields {
 		fieldId = getFieldId(typeOf, fields[i].Name)
-		pks[i] = createPk(db, schema, typeOf.Name(), fields[i].Name, isAutoIncrement(fields[i]), tableId, fieldId, driver)
+		pks[i] = createPk(db, schema, typeOf.Name(), fields[i].Name, isReturningId(fields[i]), tableId, fieldId, driver)
 		fieldIds[i] = fieldId
 	}
 
@@ -279,8 +287,8 @@ func getFieldId(typeOf reflect.Type, fieldName string) int {
 	return 0
 }
 
-func isAutoIncrement(id reflect.StructField) bool {
-	return strings.Contains(id.Type.Kind().String(), "int")
+func isReturningId(id reflect.StructField) bool {
+	return strings.Contains(id.Type.Kind().String(), "int") || getTagValue(id.Tag.Get("goe"), "default:") != ""
 }
 
 func isManyToOne(b body, createMany func(b body, typeOf reflect.Type) any, createOne func(b body, typeOf reflect.Type) any) any {

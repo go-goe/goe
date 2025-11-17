@@ -52,7 +52,10 @@ func TestInsert(t *testing.T) {
 					t.Fatalf("Expected a insert, got error: %v", err)
 				}
 
-				fs, _ := goe.Find(db.Flag).ByID(Flag{Id: f.Id})
+				fs, err := goe.Find(db.Flag).ByID(Flag{Id: f.Id})
+				if err != nil {
+					t.Fatalf("Expected a find, got error: %v", err)
+				}
 
 				if fs.Id != f.Id {
 					t.Errorf("Expected %v, got : %v", f.Id, fs.Id)
@@ -160,9 +163,8 @@ func TestInsert(t *testing.T) {
 			testCase: func(t *testing.T) {
 				a := &Animal{Name: "Cat"}
 
-				var tx goe.Transaction
 				// defult level of isolation is sql.LevelSerializable
-				tx, err = db.NewTransaction()
+				tx, err := db.NewTransaction()
 				if err != nil {
 					t.Fatalf("Expected a tx, got error: %v", err)
 				}
@@ -207,9 +209,8 @@ func TestInsert(t *testing.T) {
 			testCase: func(t *testing.T) {
 				a := &Animal{Name: "Cat"}
 
-				var tx goe.Transaction
 				// defult level of isolation is sql.LevelSerializable
-				tx, err = db.NewTransaction()
+				tx, err := db.NewTransaction()
 				if err != nil {
 					t.Fatalf("Expected a tx, got error: %v", err)
 				}
@@ -233,7 +234,7 @@ func TestInsert(t *testing.T) {
 				// get record after rollback will result in a goe.ErrNotFound
 				_, err = goe.Find(db.Animal).ByID(Animal{Id: a.Id})
 				if !errors.Is(err, goe.ErrNotFound) {
-					t.Fatalf("Expected a Id value, got : %v", a.Id)
+					t.Fatalf("Expected a goe.ErrNotFound, got : %v", err)
 				}
 			},
 		},
@@ -302,6 +303,90 @@ func TestInsert(t *testing.T) {
 				err = goe.InsertContext(ctx, db.Animal).One(&a)
 				if !errors.Is(err, context.DeadlineExceeded) {
 					t.Errorf("Expected context.DeadlineExceeded, got : %v", err)
+				}
+			},
+		},
+		{
+			desc: "Insert_ErrUniqueValue",
+			testCase: func(t *testing.T) {
+				err = goe.Remove(db.User).ByValue(User{Email: "email@email.com"})
+				if err != nil {
+					t.Fatalf("Expected a remove, got error: %v", err)
+				}
+
+				u := User{
+					Name:  "User_Zero",
+					Email: "email@email.com",
+				}
+				err = goe.Insert(db.User).One(&u)
+				if err != nil {
+					t.Fatalf("Expected a insert, got error: %v", err)
+				}
+
+				err = goe.Insert(db.User).One(&u)
+				if !errors.Is(err, goe.ErrUniqueValue) {
+					t.Fatalf("Expected goe.ErrUniqueValue, got error: %v", err)
+				}
+
+				if !errors.Is(err, goe.ErrBadRequest) {
+					t.Fatalf("Expected goe.ErrBadRequest, got error: %v", err)
+				}
+			},
+		},
+		{
+			desc: "Insert_ErrUniqueValue_PrimaryKey",
+			testCase: func(t *testing.T) {
+				f := Food{
+					Id:   uuid.New(),
+					Name: "Bread",
+				}
+				err = goe.Insert(db.Food).One(&f)
+				if err != nil {
+					t.Fatalf("Expected a insert, got error: %v", err)
+				}
+
+				err = goe.Insert(db.Food).One(&f)
+				if !errors.Is(err, goe.ErrUniqueValue) {
+					t.Fatalf("Expected goe.ErrUniqueValue, got error: %v", err)
+				}
+
+				if !errors.Is(err, goe.ErrBadRequest) {
+					t.Fatalf("Expected goe.ErrBadRequest, got error: %v", err)
+				}
+			},
+		},
+		{
+			desc: "Insert_ErrForeignKey",
+			testCase: func(t *testing.T) {
+				if db.Name() == "SQLite" {
+					db.RawExecContext(context.Background(), "PRAGMA foreign_keys = ON;")
+					defer db.RawExecContext(context.Background(), "PRAGMA foreign_keys = OFF;")
+				}
+				err = goe.Insert(db.UserRole).One(&UserRole{})
+				if !errors.Is(err, goe.ErrForeignKey) {
+					t.Fatalf("Expected goe.ErrForeignKey, got error: %v", err)
+				}
+
+				if !errors.Is(err, goe.ErrBadRequest) {
+					t.Fatalf("Expected goe.ErrBadRequest, got error: %v", err)
+				}
+			},
+		},
+		{
+			desc: "Insert_Pk_Default",
+			testCase: func(t *testing.T) {
+				err = goe.Delete(db.Default).All()
+				if err != nil {
+					t.Fatalf("Expected a delete, got error: %v", err)
+				}
+				d := Default{Name: "Default"}
+				err = goe.Insert(db.Default).One(&d)
+				if err != nil {
+					t.Fatalf("Expected a insert, got error: %v", err)
+				}
+
+				if d.ID != "Default" {
+					t.Fatalf("Expected a Default, got error: %v", err)
 				}
 			},
 		},

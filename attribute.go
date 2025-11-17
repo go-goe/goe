@@ -63,6 +63,7 @@ func createOneToOne(b body, typeOf reflect.Type) any {
 }
 
 type manyToOne struct {
+	isDefault bool
 	attributeStrings
 }
 
@@ -103,7 +104,7 @@ func createManyToOne(b body, typeOf reflect.Type) any {
 	if count == 0 {
 		return nil
 	}
-
+	mto.isDefault = getTagValue(b.valueOf.Type().Field(b.fieldId).Tag.Get("goe"), "default:") != ""
 	mto.attributeStrings = createAttributeStrings(
 		b.mapp.db,
 		b.schema,
@@ -125,7 +126,7 @@ type attributeStrings struct {
 	fieldId       int
 }
 
-func createAttributeStrings(db *DB, schema *string, table string, attributeName string, tableId, fieldId int, Driver Driver) attributeStrings {
+func createAttributeStrings(db *DB, schema *string, table string, attributeName string, tableId, fieldId int, Driver model.Driver) attributeStrings {
 	return attributeStrings{
 		db:            db,
 		tableName:     table,
@@ -165,7 +166,7 @@ func (p pk) getAttributeName() string {
 	return p.attributeName
 }
 
-func createPk(db *DB, schema *string, table string, attributeName string, autoIncrement bool, tableId, fieldId int, Driver Driver) pk {
+func createPk(db *DB, schema *string, table string, attributeName string, autoIncrement bool, tableId, fieldId int, Driver model.Driver) pk {
 	table = Driver.KeywordHandler(utils.TableNamePattern(table))
 	return pk{
 		attributeStrings: createAttributeStrings(db, schema, table, attributeName, tableId, fieldId, Driver),
@@ -201,7 +202,7 @@ func (a att) getAttributeName() string {
 	return a.attributeName
 }
 
-func createAtt(db *DB, attributeName string, schema *string, table string, tableId, fieldId int, isDefault bool, d Driver) att {
+func createAtt(db *DB, attributeName string, schema *string, table string, tableId, fieldId int, isDefault bool, d model.Driver) att {
 	return att{
 		isDefault:        isDefault,
 		attributeStrings: createAttributeStrings(db, schema, table, attributeName, tableId, fieldId, d)}
@@ -241,7 +242,7 @@ func (p pk) buildAttributeInsert(b *builder) {
 		b.query.Attributes = append(b.query.Attributes, model.Attribute{Name: p.getAttributeName()})
 		return
 	}
-	b.query.ReturningId = &model.Attribute{Name: p.getAttributeName()}
+	b.query.ReturningID = &model.Attribute{Name: p.getAttributeName()}
 	b.pkFieldId = p.fieldId
 }
 
@@ -285,7 +286,7 @@ func (a att) getDefault() bool {
 }
 
 func (m manyToOne) getDefault() bool {
-	return false
+	return m.isDefault
 }
 
 func (o oneToOne) getDefault() bool {

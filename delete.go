@@ -9,7 +9,7 @@ import (
 )
 
 type stateDelete struct {
-	conn    Connection
+	conn    model.Connection
 	builder builder
 	ctx     context.Context
 }
@@ -60,7 +60,7 @@ func RemoveContext[T any](ctx context.Context, table *T) remove[T] {
 //	if err != nil {
 //		// handler error
 //	}
-func (r remove[T]) OnTransaction(tx Transaction) remove[T] {
+func (r remove[T]) OnTransaction(tx model.Transaction) remove[T] {
 	r.delete.conn = tx
 	return r
 }
@@ -77,6 +77,20 @@ func (r remove[T]) ByID(value T) error {
 	}
 
 	return r.delete.Where(operations(pks, valuesPks))
+}
+
+// Removes the record by non-zero values
+func (r remove[T]) ByValue(value T) error {
+	args, valuesArgs, skip := getNonZeroFields(getArgs{
+		addrMap:   addrMap.mapField,
+		tableArgs: getRemoveTableArgs(r.table),
+		value:     value})
+
+	if skip {
+		return nil
+	}
+
+	return r.delete.Where(operations(args, valuesArgs))
 }
 
 // Delete remove records in the given table
@@ -122,7 +136,7 @@ func DeleteContext[T any](ctx context.Context, table *T) stateDelete {
 //	if err != nil {
 //		// handler error
 //	}
-func (s stateDelete) OnTransaction(tx Transaction) stateDelete {
+func (s stateDelete) OnTransaction(tx model.Transaction) stateDelete {
 	s.conn = tx
 	return s
 }

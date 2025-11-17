@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/go-goe/goe"
-	"github.com/go-goe/goe/query/join"
 	"github.com/go-goe/goe/query/update"
 	"github.com/go-goe/goe/query/where"
 	"github.com/google/uuid"
@@ -286,9 +285,8 @@ func TestUpdate(t *testing.T) {
 		{
 			desc: "Update_Animal_Tx_Commit",
 			testCase: func(t *testing.T) {
-				var tx goe.Transaction
 
-				tx, err = db.NewTransaction()
+				tx, err := db.NewTransaction()
 				if err != nil {
 					t.Fatalf("Expected tx, got error: %v", err)
 				}
@@ -346,6 +344,9 @@ func TestUpdate(t *testing.T) {
 
 				var aselect *Animal
 				aselect, err = goe.Find(db.Animal).ByID(Animal{Id: a.Id})
+				if err != nil {
+					t.Fatalf("Expected find, got error: %v", err)
+				}
 
 				if aselect.HabitatId == nil || *aselect.HabitatId != h.Id {
 					t.Errorf("Expected a update on id habitat, got : %v", aselect.HabitatId)
@@ -358,9 +359,8 @@ func TestUpdate(t *testing.T) {
 		{
 			desc: "Update_PersonJobs_Tx_Rollback",
 			testCase: func(t *testing.T) {
-				var tx goe.Transaction
 
-				tx, err = db.NewTransaction()
+				tx, err := db.NewTransaction()
 				if err != nil {
 					t.Fatalf("Expected tx, got error: %v", err)
 				}
@@ -405,17 +405,15 @@ func TestUpdate(t *testing.T) {
 				for row, err := range goe.Select[struct {
 					JobTitle string
 					Person   string
-				}](&struct {
+				}](struct {
 					JobTitle *string
 					Person   *string
 				}{
 					JobTitle: &db.JobTitle.Name,
 					Person:   &db.Person.Name,
 				}).OnTransaction(tx).
-					Joins(
-						join.Join[int](&db.Person.Id, &db.PersonJobTitle.PersonId),
-						join.Join[int](&db.JobTitle.Id, &db.PersonJobTitle.JobTitleId),
-					).
+					Join(&db.Person.Id, &db.PersonJobTitle.PersonId).
+					Join(&db.JobTitle.Id, &db.PersonJobTitle.JobTitleId).
 					Where(where.Equals(&db.JobTitle.Id, jobs[0].Id)).Rows() {
 
 					if err != nil {
@@ -444,17 +442,15 @@ func TestUpdate(t *testing.T) {
 				for row, err := range goe.Select[struct {
 					JobTitle string
 					Person   string
-				}](&struct {
+				}](struct {
 					JobTitle *string
 					Person   *string
 				}{
 					JobTitle: &db.JobTitle.Name,
 					Person:   &db.Person.Name,
 				}).OnTransaction(tx).
-					Joins(
-						join.Join[int](&db.Person.Id, &db.PersonJobTitle.PersonId),
-						join.Join[int](&db.JobTitle.Id, &db.PersonJobTitle.JobTitleId),
-					).
+					Join(&db.Person.Id, &db.PersonJobTitle.PersonId).
+					Join(&db.JobTitle.Id, &db.PersonJobTitle.JobTitleId).
 					Where(where.Equals(&db.JobTitle.Id, jobs[0].Id)).Rows() {
 
 					if err != nil {
@@ -476,17 +472,15 @@ func TestUpdate(t *testing.T) {
 				for row, err := range goe.Select[struct {
 					JobTitle string
 					Person   string
-				}](&struct {
+				}](struct {
 					JobTitle *string
 					Person   *string
 				}{
 					JobTitle: &db.JobTitle.Name,
 					Person:   &db.Person.Name,
 				}).
-					Joins(
-						join.Join[int](&db.Person.Id, &db.PersonJobTitle.PersonId),
-						join.Join[int](&db.JobTitle.Id, &db.PersonJobTitle.JobTitleId),
-					).
+					Join(&db.Person.Id, &db.PersonJobTitle.PersonId).
+					Join(&db.JobTitle.Id, &db.PersonJobTitle.JobTitleId).
 					Where(where.Equals(&db.JobTitle.Id, jobs[0].Id)).Rows() {
 
 					if err != nil {
@@ -539,17 +533,15 @@ func TestUpdate(t *testing.T) {
 				for row, err := range goe.Select[struct {
 					JobTitle string
 					Person   string
-				}](&struct {
+				}](struct {
 					JobTitle *string
 					Person   *string
 				}{
 					JobTitle: &db.JobTitle.Name,
 					Person:   &db.Person.Name,
 				}).
-					Joins(
-						join.Join[int](&db.Person.Id, &db.PersonJobTitle.PersonId),
-						join.Join[int](&db.JobTitle.Id, &db.PersonJobTitle.JobTitleId),
-					).
+					Join(&db.Person.Id, &db.PersonJobTitle.PersonId).
+					Join(&db.JobTitle.Id, &db.PersonJobTitle.JobTitleId).
 					Where(where.Equals(&db.JobTitle.Id, jobs[0].Id)).Rows() {
 
 					if err != nil {
@@ -572,17 +564,15 @@ func TestUpdate(t *testing.T) {
 				for row, err := range goe.Select[struct {
 					JobTitle string
 					Person   string
-				}](&struct {
+				}](struct {
 					JobTitle *string
 					Person   *string
 				}{
 					JobTitle: &db.JobTitle.Name,
 					Person:   &db.Person.Name,
 				}).
-					Joins(
-						join.Join[int](&db.Person.Id, &db.PersonJobTitle.PersonId),
-						join.Join[int](&db.JobTitle.Id, &db.PersonJobTitle.JobTitleId),
-					).
+					Join(&db.Person.Id, &db.PersonJobTitle.PersonId).
+					Join(&db.JobTitle.Id, &db.PersonJobTitle.JobTitleId).
 					Where(where.Equals(&db.JobTitle.Id, jobs[0].Id)).Rows() {
 
 					if err != nil {
