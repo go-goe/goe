@@ -103,3 +103,37 @@ func wrapperExec(ctx context.Context, conn model.Connection, query *model.Query)
 	defer func() { query.Header.QueryDuration = time.Since(queryStart) }()
 	return conn.ExecContext(ctx, query)
 }
+
+func handlerResultv2[T any](ctx context.Context, conn model.Connection, query model.Query, numFields int, dbConfig *model.DatabaseConfig, dest []any, entity *T) iter.Seq2[T, error] {
+	var rows model.Rows
+	rows, query.Header.Err = wrapperQuery(ctx, conn, &query)
+
+	if query.Header.Err != nil {
+		return func(yield func(T, error) bool) {
+			yield(*new(T), dbConfig.ErrorQueryHandler(ctx, query))
+		}
+	}
+	dbConfig.InfoHandler(ctx, query)
+
+	// dest := make([]any, numFields)
+	// value := reflect.ValueOf(&entity).Elem()
+	// for i := range dest {
+	// 	dest[i] = value.Field(i).Addr().Interface()
+	// }
+
+	return func(yield func(T, error) bool) {
+		defer rows.Close()
+
+		for rows.Next() {
+			query.Header.Err = rows.Scan(dest...)
+			if query.Header.Err != nil {
+				//TODO: add infos about row
+				yield(*new(T), dbConfig.ErrorQueryHandler(ctx, query))
+				return
+			}
+			if !yield(*entity, nil) {
+				return
+			}
+		}
+	}
+}

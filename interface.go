@@ -13,6 +13,8 @@ type field interface {
 	getDefault() bool
 	getAttributeName() string
 	buildAttributeInsert(*builder)
+	getSchemaID() int
+	getEntityID() int
 }
 
 type fieldDb interface {

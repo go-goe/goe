@@ -16,6 +16,8 @@ func init() {
 	addrMap = &goeMap{mapField: make(map[uintptr]field)}
 }
 
+var isSchema map[int]bool
+
 // Open opens a database connection
 //
 // # Example
@@ -57,25 +59,34 @@ func Open[T any](driver model.Driver) (*T, error) {
 	}
 	var schemas []string
 	tableId := 0
+	entityID := 0
+	schemaID := 0
+	isSchema = make(map[int]bool)
 	// init Fields
 	for f := range dbId {
 		if strings.Contains(valueOf.Type().Field(f).Tag.Get("goe"), "schema") || strings.HasSuffix(valueOf.Field(f).Elem().Type().Name(), "Schema") {
 			schema := driver.KeywordHandler(utils.ColumnNamePattern(valueOf.Field(f).Elem().Type().Name()))
 			schemas = append(schemas, schema)
+			entityID = 0
 			for i := range valueOf.Field(f).Elem().NumField() {
 				tableId += i + 1
-				err = initField(&schema, valueOf, valueOf.Field(f).Elem().Field(i).Elem(), dbTarget, tableId, driver)
+				err = initField(&schema, valueOf, valueOf.Field(f).Elem().Field(i).Elem(), dbTarget, tableId, driver, entityID, schemaID)
 				if err != nil {
 					return nil, err
 				}
+				entityID++
 			}
+			isSchema[schemaID] = true
+			schemaID++
 			continue
 		}
 		tableId++
-		err = initField(nil, valueOf, valueOf.Field(f).Elem(), dbTarget, tableId, driver)
+		entityID = f
+		err = initField(nil, valueOf, valueOf.Field(f).Elem(), dbTarget, tableId, driver, entityID, schemaID)
 		if err != nil {
 			return nil, err
 		}
+		schemaID++
 	}
 	driver.GetDatabaseConfig().SetSchemas(schemas)
 	if ic := driver.GetDatabaseConfig().InitCallback(); ic != nil {
@@ -109,17 +120,18 @@ type stringInfos struct {
 }
 
 type body struct {
-	tables      reflect.Value // database value of
-	valueOf     reflect.Value // struct value of
-	typeOf      reflect.Type  // struct type of
-	fieldTypeOf reflect.Type
-	mapp        *infosMap     // used on map
-	migrate     *infosMigrate // used on migrate
-	schemasMap  map[string]*string
-	fieldId     int
-	driver      model.Driver
-	nullable    bool
-	schema      *string
+	tables             reflect.Value // database value of
+	valueOf            reflect.Value // struct value of
+	typeOf             reflect.Type  // struct type of
+	fieldTypeOf        reflect.Type
+	mapp               *infosMap     // used on map
+	migrate            *infosMigrate // used on migrate
+	schemasMap         map[string]*string
+	fieldId            int
+	driver             model.Driver
+	nullable           bool
+	schema             *string
+	entityID, schemaID int
 	stringInfos
 }
 
@@ -133,8 +145,8 @@ func skipPrimaryKey[T comparable](slice []T, value T, tables reflect.Value, fiel
 	return false
 }
 
-func initField(schema *string, tables reflect.Value, valueOf reflect.Value, db *DB, tableId int, driver model.Driver) error {
-	pks, fieldIds, err := getPk(db, schema, valueOf.Type(), tableId, driver)
+func initField(schema *string, tables reflect.Value, valueOf reflect.Value, db *DB, tableId int, driver model.Driver, entityID, schemaID int) error {
+	pks, fieldIds, err := getPk(db, schema, valueOf.Type(), tableId, driver, entityID, schemaID)
 	if err != nil {
 		return err
 	}
@@ -155,6 +167,8 @@ func initField(schema *string, tables reflect.Value, valueOf reflect.Value, db *
 				tables:      tables,
 				fieldId:     fieldId,
 				schema:      schema,
+				entityID:    entityID,
+				schemaID:    schemaID,
 				mapp: &infosMap{
 					pks:     pks,
 					db:      db,
@@ -173,6 +187,8 @@ func initField(schema *string, tables reflect.Value, valueOf reflect.Value, db *
 				fieldTypeOf: valueOf.Field(fieldId).Type(),
 				valueOf:     valueOf,
 				schema:      schema,
+				entityID:    entityID,
+				schemaID:    schemaID,
 				mapp: &infosMap{
 					pks:     pks,
 					db:      db,
@@ -189,6 +205,8 @@ func initField(schema *string, tables reflect.Value, valueOf reflect.Value, db *
 				valueOf:  valueOf,
 				typeOf:   valueOf.Type(),
 				schema:   schema,
+				entityID: entityID,
+				schemaID: schemaID,
 				mapp: &infosMap{
 					pks:     pks,
 					db:      db,
@@ -198,12 +216,14 @@ func initField(schema *string, tables reflect.Value, valueOf reflect.Value, db *
 			})
 		default:
 			helperAttribute(body{
-				fieldId: fieldId,
-				driver:  driver,
-				tables:  tables,
-				valueOf: valueOf,
-				typeOf:  valueOf.Type(),
-				schema:  schema,
+				fieldId:  fieldId,
+				driver:   driver,
+				tables:   tables,
+				valueOf:  valueOf,
+				typeOf:   valueOf.Type(),
+				schema:   schema,
+				entityID: entityID,
+				schemaID: schemaID,
 				mapp: &infosMap{
 					pks:     pks,
 					db:      db,
@@ -241,6 +261,8 @@ func newAttr(b body) error {
 		b.fieldId,
 		getTagValue(b.valueOf.Type().Field(b.fieldId).Tag.Get("goe"), "default:") != "",
 		b.driver,
+		b.entityID,
+		b.schemaID,
 	)
 	addrMap.set(b.mapp.addr, at)
 	return nil
@@ -257,7 +279,7 @@ func getPks(typeOf reflect.Type) []reflect.StructField {
 	return pks
 }
 
-func getPk(db *DB, schema *string, typeOf reflect.Type, tableId int, driver model.Driver) ([]pk, []int, error) {
+func getPk(db *DB, schema *string, typeOf reflect.Type, tableId int, driver model.Driver, entityID, schemaID int) ([]pk, []int, error) {
 	var pks []pk
 	var fieldIds []int
 	var fieldId int
@@ -271,7 +293,8 @@ func getPk(db *DB, schema *string, typeOf reflect.Type, tableId int, driver mode
 	fieldIds = make([]int, len(fields))
 	for i := range fields {
 		fieldId = getFieldId(typeOf, fields[i].Name)
-		pks[i] = createPk(db, schema, typeOf.Name(), fields[i].Name, isReturningId(fields[i]), tableId, fieldId, driver)
+		pks[i] = createPk(db, schema, typeOf.Name(), fields[i].Name, isReturningId(fields[i]), tableId, fieldId, driver, entityID,
+			schemaID)
 		fieldIds[i] = fieldId
 	}
 

@@ -58,6 +58,8 @@ func createOneToOne(b body, typeOf reflect.Type) any {
 		b.mapp.tableId,
 		b.fieldId,
 		b.driver,
+		b.entityID,
+		b.schemaID,
 	)
 	return mto
 }
@@ -113,26 +115,31 @@ func createManyToOne(b body, typeOf reflect.Type) any {
 		b.mapp.tableId,
 		b.fieldId,
 		b.driver,
+		b.entityID,
+		b.schemaID,
 	)
 	return mto
 }
 
 type attributeStrings struct {
-	db            *DB
-	schemaName    *string
-	tableId       int
-	tableName     string
-	attributeName string
-	fieldId       int
+	db                 *DB
+	schemaName         *string
+	tableId            int
+	tableName          string
+	attributeName      string
+	fieldId            int
+	entityID, schemaID int
 }
 
-func createAttributeStrings(db *DB, schema *string, table string, attributeName string, tableId, fieldId int, Driver model.Driver) attributeStrings {
+func createAttributeStrings(db *DB, schema *string, table string, attributeName string, tableId, fieldId int, Driver model.Driver, entityID, schemaID int) attributeStrings {
 	return attributeStrings{
 		db:            db,
 		tableName:     table,
 		tableId:       tableId,
 		fieldId:       fieldId,
 		schemaName:    schema,
+		entityID:      entityID,
+		schemaID:      schemaID,
 		attributeName: Driver.KeywordHandler(utils.ColumnNamePattern(attributeName)),
 	}
 }
@@ -166,10 +173,10 @@ func (p pk) getAttributeName() string {
 	return p.attributeName
 }
 
-func createPk(db *DB, schema *string, table string, attributeName string, autoIncrement bool, tableId, fieldId int, Driver model.Driver) pk {
+func createPk(db *DB, schema *string, table string, attributeName string, autoIncrement bool, tableId, fieldId int, Driver model.Driver, entityID, schemaID int) pk {
 	table = Driver.KeywordHandler(utils.TableNamePattern(table))
 	return pk{
-		attributeStrings: createAttributeStrings(db, schema, table, attributeName, tableId, fieldId, Driver),
+		attributeStrings: createAttributeStrings(db, schema, table, attributeName, tableId, fieldId, Driver, entityID, schemaID),
 		autoIncrement:    autoIncrement}
 }
 
@@ -202,10 +209,10 @@ func (a att) getAttributeName() string {
 	return a.attributeName
 }
 
-func createAtt(db *DB, attributeName string, schema *string, table string, tableId, fieldId int, isDefault bool, d model.Driver) att {
+func createAtt(db *DB, attributeName string, schema *string, table string, tableId, fieldId int, isDefault bool, d model.Driver, entityID, schemaID int) att {
 	return att{
 		isDefault:        isDefault,
-		attributeStrings: createAttributeStrings(db, schema, table, attributeName, tableId, fieldId, d)}
+		attributeStrings: createAttributeStrings(db, schema, table, attributeName, tableId, fieldId, d, entityID, schemaID)}
 }
 
 func (p pk) buildAttributeSelect(atts []model.Attribute, i int) {
@@ -355,4 +362,36 @@ func (f functionResult) getTableId() int {
 
 func (f functionResult) getDb() *DB {
 	return f.db
+}
+
+func (p pk) getSchemaID() int {
+	return p.schemaID
+}
+
+func (a att) getSchemaID() int {
+	return a.schemaID
+}
+
+func (m manyToOne) getSchemaID() int {
+	return m.schemaID
+}
+
+func (o oneToOne) getSchemaID() int {
+	return o.schemaID
+}
+
+func (p pk) getEntityID() int {
+	return p.entityID
+}
+
+func (a att) getEntityID() int {
+	return a.entityID
+}
+
+func (m manyToOne) getEntityID() int {
+	return m.entityID
+}
+
+func (o oneToOne) getEntityID() int {
+	return o.entityID
 }

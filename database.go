@@ -3,6 +3,7 @@ package goe
 import (
 	"context"
 	"database/sql"
+	"iter"
 	"reflect"
 	"sync"
 
@@ -112,4 +113,45 @@ func Close(dbTarget any) error {
 func getDatabase(dbTarget any) *DB {
 	valueOf := reflect.ValueOf(dbTarget).Elem()
 	return valueOf.Field(valueOf.NumField() - 1).Interface().(*DB)
+}
+
+type EntityDB[T any] struct {
+}
+
+func Selectv2[T any](arg any) iter.Seq2[T, error] {
+	argsSelect := getArgsSelect(addrMap.mapField, arg)
+
+	var s stateSelect[T] = createSelectState[T](context.Background())
+	s.builder.fieldsSelect = argsSelect.fields
+	s.tableArgs = argsSelect.tableArgs
+
+	s.builder.buildSqlSelect()
+
+	var entity T
+	// if query.Header.Err != nil {
+	// 	return func(yield func(T, error) bool) {
+	// 		yield(entity, dbConfig.ErrorQueryHandler(ctx, query))
+	// 	}
+	// }
+	// dbConfig.InfoHandler(ctx, query)
+
+	dest := make([]any, len(argsSelect.fields))
+	value := reflect.ValueOf(&entity).Elem()
+	for i := range dest {
+		f := (argsSelect.fields[i]).(field)
+		// if isSchema[f.getSchemaID()] {
+
+		// }
+		if value.Field(f.getEntityID()).IsNil() {
+			value.Field(f.getEntityID()).Set(reflect.New(value.Field(f.getEntityID()).Type().Elem()))
+		}
+		dest[i] = value.Field(f.getEntityID()).Elem().Field(f.getFieldId()).Addr().Interface()
+	}
+
+	driver := s.builder.fieldsSelect[0].getDb().driver
+	if s.conn == nil {
+		s.conn = driver.NewConnection()
+	}
+
+	return handlerResultv2[T](s.ctx, s.conn, s.builder.query, len(s.builder.fieldsSelect), driver.GetDatabaseConfig(), dest, &entity)
 }
