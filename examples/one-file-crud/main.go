@@ -13,9 +13,11 @@ import (
 )
 
 type Animal struct {
-	ID    int    `json:"id"`
-	Name  string `json:"name"`
-	Emoji string `json:"emoji"`
+	ID      int    `json:"id"`
+	Name    string `json:"name"`
+	Habitat string `json:"habitat"`
+	Food    string `json:"food"`
+	Emoji   string `json:"emoji"`
 }
 
 type Database struct {
@@ -24,19 +26,18 @@ type Database struct {
 }
 
 type RequestAnimal struct {
-	Name  string `json:"name" validate:"required"`
-	Emoji string `json:"emoji" validate:"required"`
+	Name    string `json:"name" validate:"required"`
+	Emoji   string `json:"emoji" validate:"required"`
+	Habitat string `json:"habitat" validate:"required"`
+	Food    string `json:"food" validate:"required"`
 }
 
 func main() {
-
 	var db *Database
 	var err error
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 
-	if db, err = goe.Open[Database](sqlite.Open("one-file-crud.db", sqlite.Config{DatabaseConfig: goe.DatabaseConfig{
-		Logger: logger,
-	}})); err != nil {
+	if db, err = goe.Open[Database](sqlite.Open("one-file-crud.db", sqlite.NewConfig(sqlite.Config{Logger: logger}))); err != nil {
 		log.Fatal(err)
 	}
 	slog.SetDefault(logger)
@@ -50,16 +51,22 @@ func main() {
 	}, option.Path("id", "animal id", param.Integer()))
 
 	fuego.Get(s, "/animals", func(c fuego.ContextNoBody) (*goe.Pagination[Animal], error) {
-		return goe.List(db.Animal).OrderByAsc(&db.Animal.ID).Match(Animal{Name: c.QueryParam("name")}).
+		return goe.List(db.Animal).OrderByAsc(&db.Animal.ID).Match(Animal{
+			Name:    c.QueryParam("name"),
+			Food:    c.QueryParam("food"),
+			Habitat: c.QueryParam("habitat"),
+		}).
 			AsPagination(c.QueryParamInt("page"), c.QueryParamInt("size"))
-	}, option.QueryInt("page", "current page"), option.QueryInt("size", "page size"), option.Query("name", "animal name"))
+	}, option.QueryInt("page", "current page"), option.QueryInt("size", "page size"),
+		option.Query("name", "animal name"), option.Query("habitat", "animal habitat"), option.Query("food", "animal food"))
 
 	fuego.Post(s, "/animals", func(c fuego.ContextWithBody[RequestAnimal]) (any, error) {
 		request, err := c.Body()
 		if err != nil {
 			return nil, fuego.BadRequestError{}
 		}
-		return nil, goe.Insert(db.Animal).One(&Animal{Name: request.Name, Emoji: request.Emoji})
+		return nil, goe.Insert(db.Animal).One(&Animal{
+			Name: request.Name, Emoji: request.Emoji, Habitat: request.Habitat, Food: request.Food})
 	})
 
 	fuego.Put(s, "/animals/{id}", func(c fuego.ContextWithBody[RequestAnimal]) (any, error) {
@@ -67,7 +74,8 @@ func main() {
 		if err != nil {
 			return nil, fuego.BadRequestError{}
 		}
-		return nil, goe.Save(db.Animal).ByID(Animal{ID: c.PathParamInt("id"), Name: request.Name, Emoji: request.Emoji})
+		return nil, goe.Save(db.Animal).ByID(Animal{ID: c.PathParamInt("id"),
+			Name: request.Name, Emoji: request.Emoji, Habitat: request.Habitat, Food: request.Food})
 	}, option.Path("id", "animal id", param.Integer()))
 
 	fuego.Delete(s, "/animals/{id}", func(c fuego.ContextNoBody) (any, error) {
