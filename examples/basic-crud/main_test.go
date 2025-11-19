@@ -16,12 +16,9 @@ import (
 )
 
 func TestApi(t *testing.T) {
-	db, err := data.NewDatabase("crud-basic_test.db")
+	db, err := data.NewMemoryDatabase()
 	assert.Nil(t, err)
-	defer func() {
-		goe.Close(db)
-		os.Remove("crud-basic_test.db")
-	}()
+	defer goe.Close(db)
 
 	starter := frameworks[os.Getenv("PK")]
 	if !assert.NotNil(t, starter) {
