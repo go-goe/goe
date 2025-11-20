@@ -570,12 +570,11 @@ type Logger interface {
 
 The logger is defined on database opening
 ```go
-db, err := goe.Open[Database](sqlite.Open("goe.db", sqlite.Config{
-		DatabaseConfig: goe.DatabaseConfig{
-			Logger:           slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo})),
-			IncludeArguments: true,
-			QueryThreshold:   time.Second},
-	}))
+	db, err := goe.Open[Database](sqlite.Open("goe.db", sqlite.NewConfig(
+		sqlite.Config{
+			Logger: slog.New(slog.NewJSONHandler(os.Stdout, nil)),
+		},
+	)))
 ```
 
 > [!TIP]
