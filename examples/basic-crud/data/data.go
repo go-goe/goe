@@ -17,7 +17,20 @@ type Database struct {
 }
 
 func NewDatabase(uri string) (*Database, error) {
-	db, err := goe.Open[Database](sqlite.Open(uri, sqlite.Config{}))
+	db, err := goe.Open[Database](sqlite.Open(uri, sqlite.NewConfig(sqlite.Config{})))
+	if err != nil {
+		return nil, err
+	}
+
+	err = goe.Migrate(db).AutoMigrate()
+	if err != nil {
+		return nil, err
+	}
+	return db, nil
+}
+
+func NewMemoryDatabase() (*Database, error) {
+	db, err := goe.Open[Database](sqlite.OpenInMemory(sqlite.NewConfig(sqlite.Config{})))
 	if err != nil {
 		return nil, err
 	}
