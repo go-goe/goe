@@ -1,6 +1,8 @@
 package goe
 
 import (
+	"context"
+
 	"github.com/go-goe/goe/model"
 )
 
@@ -27,4 +29,18 @@ type fieldSelect interface {
 	table() string
 	schema() *string
 	getTableId() int
+}
+
+type wherer[T any] interface {
+	Equals(T) wherer[T]
+	finalizer[T]
+}
+
+type finalizer[T any] interface {
+	Delete() error
+	DeleteContext(context.Context) error
+	List() ([]T, error)
+	ListContext(context.Context) ([]T, error)
+	Update(T, ...any) error
+	UpdateContext(context.Context, T, ...any) error
 }

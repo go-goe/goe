@@ -16,8 +16,6 @@ func init() {
 	addrMap = &goeMap{mapField: make(map[uintptr]field)}
 }
 
-var isSchema map[int]bool
-
 // Open opens a database connection
 //
 // # Example
@@ -47,7 +45,7 @@ func Open[T any](driver model.Driver) (*T, error) {
 
 	// set value for Fields
 	for i := range dbId {
-		if valueOf.Field(i).IsNil() {
+		if valueOf.Field(i).Kind() == reflect.Pointer && valueOf.Field(i).IsNil() {
 			valueOf.Field(i).Set(reflect.New(valueOf.Field(i).Type().Elem()))
 			if strings.Contains(valueOf.Type().Field(i).Tag.Get("goe"), "schema") || strings.HasSuffix(valueOf.Field(i).Elem().Type().Name(), "Schema") {
 				for f := range valueOf.Field(i).Elem().NumField() {
@@ -61,9 +59,14 @@ func Open[T any](driver model.Driver) (*T, error) {
 	tableId := 0
 	entityID := 0
 	schemaID := 0
-	isSchema = make(map[int]bool)
+	var edb EntityDB[T]
+	edb.isSchema = make(map[int]bool)
 	// init Fields
 	for f := range dbId {
+		if valueOf.Type().Field(f).Name == "EntityDB" {
+			valueOf.Field(f).Set(reflect.ValueOf(edb))
+			continue
+		}
 		if strings.Contains(valueOf.Type().Field(f).Tag.Get("goe"), "schema") || strings.HasSuffix(valueOf.Field(f).Elem().Type().Name(), "Schema") {
 			schema := driver.KeywordHandler(utils.ColumnNamePattern(valueOf.Field(f).Elem().Type().Name()))
 			schemas = append(schemas, schema)
@@ -76,7 +79,7 @@ func Open[T any](driver model.Driver) (*T, error) {
 				}
 				entityID++
 			}
-			isSchema[schemaID] = true
+			edb.isSchema[schemaID] = true
 			schemaID++
 			continue
 		}
@@ -88,6 +91,7 @@ func Open[T any](driver model.Driver) (*T, error) {
 		}
 		schemaID++
 	}
+
 	driver.GetDatabaseConfig().SetSchemas(schemas)
 	if ic := driver.GetDatabaseConfig().InitCallback(); ic != nil {
 		if err = ic(); err != nil {
@@ -181,6 +185,9 @@ func initField(schema *string, tables reflect.Value, valueOf reflect.Value, db *
 				return err
 			}
 		case reflect.Struct:
+			if field.Name == "Entity" {
+				continue
+			}
 			handlerStruct(body{
 				fieldId:     fieldId,
 				driver:      driver,

@@ -15,6 +15,9 @@ func migrateFrom(db any, driver model.Driver) *model.Migrator {
 
 	schemasMap := make(map[string]*string)
 	for i := range valueOf.NumField() - 1 {
+		if valueOf.Type().Field(i).Name == "EntityDB" {
+			continue
+		}
 		if strings.Contains(valueOf.Type().Field(i).Tag.Get("goe"), "schema") || strings.HasSuffix(valueOf.Field(i).Elem().Type().Name(), "Schema") {
 			schema := driver.KeywordHandler(utils.ColumnNamePattern(valueOf.Field(i).Elem().Type().Name()))
 			for f := range valueOf.Field(i).Elem().NumField() {
@@ -26,6 +29,9 @@ func migrateFrom(db any, driver model.Driver) *model.Migrator {
 	migrator := new(model.Migrator)
 	migrator.Tables = make(map[string]*model.TableMigrate)
 	for i := range valueOf.NumField() - 1 {
+		if valueOf.Type().Field(i).Name == "EntityDB" {
+			continue
+		}
 		if strings.Contains(valueOf.Type().Field(i).Tag.Get("goe"), "schema") || strings.HasSuffix(valueOf.Field(i).Elem().Type().Name(), "Schema") {
 			schema := driver.KeywordHandler(utils.ColumnNamePattern(valueOf.Field(i).Elem().Type().Name()))
 			migrator.Schemas = append(migrator.Schemas, schema)
@@ -84,6 +90,9 @@ func typeField(tables reflect.Value, valueOf reflect.Value, migrator *model.Migr
 				return err
 			}
 		case reflect.Struct:
+			if field.Name == "Entity" {
+				continue
+			}
 			err = handlerStruct(body{
 				fieldId:     fieldId,
 				driver:      driver,
