@@ -44,6 +44,12 @@ type Transaction interface {
 	Connection
 	Commit() error
 	Rollback() error
+	SavePoint() (SavePoint, error)
+}
+
+type SavePoint interface {
+	Commit() error
+	Rollback() error
 }
 
 type Rows interface {

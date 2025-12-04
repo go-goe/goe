@@ -70,13 +70,11 @@ func (db *DB) RawExecContext(ctx context.Context, rawSql string, args ...any) er
 	return nil
 }
 
-// NewTransaction creates a new Transaction using the specified database target.
+// NewTransaction creates a new Transaction on the database.
 // It sets the isolation level to sql.LevelSerializable by default.
-// The dbTarget parameter should be a valid database connection or instance.
-// If successful, it returns the created Transaction; otherwise, it returns an error.
 //
 // NewTransaction uses [context.Background] internally;
-// to specify the context, use [goe.NewTransactionContext]
+// to specify the context and the isolation level, use [NewTransactionContext]
 func (db *DB) NewTransaction() (model.Transaction, error) {
 	return db.NewTransactionContext(context.Background(), sql.LevelSerializable)
 }
@@ -87,6 +85,27 @@ func (db *DB) NewTransactionContext(ctx context.Context, isolation sql.Isolation
 		return nil, db.driver.GetDatabaseConfig().ErrorHandler(ctx, err)
 	}
 	return t, nil
+}
+
+func (db *DB) BeginTransaction(txFunc func(Transaction) error) error {
+	return db.BeginTransactionContext(context.Background(), sql.LevelSerializable, txFunc)
+}
+
+func (db *DB) BeginTransactionContext(ctx context.Context, isolation sql.IsolationLevel, txFunc func(Transaction) error) (err error) {
+	var t model.Transaction
+	if t, err = db.NewTransactionContext(ctx, isolation); err != nil {
+		return
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			t.Rollback()
+		}
+	}()
+	if err = txFunc(Transaction{t}); err != nil {
+		t.Rollback()
+		return
+	}
+	return t.Commit()
 }
 
 // Closes the database connection.
