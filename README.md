@@ -92,7 +92,9 @@ Check out the [Benchmarks](#benchmarks) section for a overview on GOE performanc
 	- [Delete Batch](#delete-batch)
 - [Transaction](#transaction)
 	- [Begin Transaction](#begin-transaction)
-	- [Commit and Rollback](#commit-and-rollback)
+	- [Manual Transaction](#manual-transaction)
+		- [Commit and Rollback](#commit-and-rollback)
+		- [Save Point](#save-point)
 	- [Isolation](#isolation)
 - [Benchmarks](#benchmarks)
 
@@ -1217,26 +1219,95 @@ Check out the [Where](#where) section for more information about where operation
 ## Transaction
 
 ### Begin Transaction
+
+```go
+	err = db.BeginTransaction(func(tx goe.Transaction) error {
+		cat := Animal{
+			Name: "Cat",
+		}
+		if err = goe.Insert(db.Animal).OnTransaction(tx).One(&cat); err != nil {
+			return err // try a rollback
+		}
+
+		dog := Animal{
+			Name: "Dog",
+		}
+		if err = goe.Insert(db.Animal).OnTransaction(tx).One(&dog); err != nil {
+			return err // try a rollback
+		}
+		return nil // try a commit
+	})
+
+	if err != nil {
+		//begin transaction error...
+	}
+```
+
+Nested Transaction
+
+```go
+err = db.BeginTransaction(func(tx goe.Transaction) error {
+	cat := Animal{
+		Name: "Cat",
+	}
+	if err = goe.Insert(db.Animal).OnTransaction(tx).One(&cat); err != nil {
+		return err // try a rollback
+	}
+
+	tx.BeginTransaction(func(tx2 goe.Transaction) error {
+		meat := Food{
+			Name: "meat",
+		}
+		if err := goe.Insert(db.Food).OnTransaction(tx2).One(&meat); err != nil {
+			return err // try a rollback in nested transaction
+		}
+		return nil // try a commit in nested transaction
+	})
+
+	dog := Animal{
+		Name: "Dog",
+	}
+	if err = goe.Insert(db.Animal).OnTransaction(tx).One(&dog); err != nil {
+		return err // try a rollback
+	}
+	return nil // try a commit
+})
+
+if err != nil {
+	//begin transaction error...
+}
+```
+
+You need to call the `OnTransaction()` function to setup a transaction for [Select](#select), [Insert](#insert), [Update](#update) and [Delete](#delete).
+
+> [!TIP]
+> Use **goe.BeginTransactionContext** for specify a context
+
+[Back to Contents](#content)
+
+### Manual Transaction
 Setup the transaction with the database function `db.NewTransaction()`
 ```go
 tx, err = db.NewTransaction()
 if err != nil {
 	// handler error
 }
-defer tx.Rollback()
+
+defer func() {
+	if r := recover(); r != nil {
+		tx.Rollback()
+	}
+}()
 ```
 
-You can use the `OnTransaction()` function to setup a transaction for [Select](#select), [Insert](#insert), [Update](#update) and [Delete](#delete).
-
-> [!TIP]
-> Ensure to call `defer tx.Rollback()`; this will make the Rollback happens if something go wrong
+You need to call the `OnTransaction()` function to setup a transaction for [Select](#select), [Insert](#insert), [Update](#update) and [Delete](#delete).
 
 > [!TIP]
 > Use **goe.NewTransactionContext** for specify a context
 
 [Back to Contents](#content)
 
-### Commit and Rollback
+#### Commit and Rollback
 
 To Commit a Transaction just call `tx.Commit()`
 ```go
@@ -1258,11 +1329,29 @@ if err != nil {
 
 [Back to Contents](#content)
 
+#### Save Point
+
+```go
+sv, err := tx.SavePoint()
+if err != nil {
+	// handler the error
+}
+defer func() {
+	if r := recover(); r != nil {
+		sv.Rollback() // rollback save point
+	}
+}()
+
+...
+
+sv.Commit() // commit save point
+```
+
 ### Isolation
 
-The isolation is used for control the flow and security of  multiple transactions. On goe you can use the [sql.IsolationLevel](https://pkg.go.dev/database/sql#IsolationLevel).
+The isolation is used for control the flow and security of  multiple transactions. On GOE you can use the [sql.IsolationLevel](https://pkg.go.dev/database/sql#IsolationLevel).
 
-By default if you call `db.NewTransaction()` it's use the Serializable isolation.
+By default if you call `db.BeginTransaction` or `db.NewTransaction` it's use the Serializable isolation.
 
 [Back to Contents](#content)
 

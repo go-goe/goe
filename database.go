@@ -87,10 +87,61 @@ func (db *DB) NewTransactionContext(ctx context.Context, isolation sql.Isolation
 	return t, nil
 }
 
+// Begin a Transaction with the Serializable level, any panic or error will trigger a rollback.
+//
+// BeginTransaction uses [context.Background] internally;
+// to specify the context and the isolation level, use [BeginTransactionContext]
+//
+// # Example
+//
+//	err = db.BeginTransaction(func(tx goe.Transaction) error {
+//		cat := Animal{
+//			Name: "Cat",
+//		}
+//		if err = goe.Insert(db.Animal).OnTransaction(tx).One(&cat); err != nil {
+//			return err // try a rollback
+//		}
+//
+//		dog := Animal{
+//			Name: "Dog",
+//		}
+//		if err = goe.Insert(db.Animal).OnTransaction(tx).One(&dog); err != nil {
+//			return err // try a rollback
+//		}
+//		return nil // try a commit
+//	})
+//
+//	if err != nil {
+//		//begin transaction error...
+//	}
 func (db *DB) BeginTransaction(txFunc func(Transaction) error) error {
 	return db.BeginTransactionContext(context.Background(), sql.LevelSerializable, txFunc)
 }
 
+// Begin a Transaction, any panic or error will trigger a rollback.
+//
+// # Example
+//
+//	err = db.BeginTransactionContext(context.Background(), sql.LevelSerializable, func(tx goe.Transaction) error {
+//		cat := Animal{
+//			Name: "Cat",
+//		}
+//		if err = goe.Insert(db.Animal).OnTransaction(tx).One(&cat); err != nil {
+//			return err // try a rollback
+//		}
+//
+//		dog := Animal{
+//			Name: "Dog",
+//		}
+//		if err = goe.Insert(db.Animal).OnTransaction(tx).One(&dog); err != nil {
+//			return err // try a rollback
+//		}
+//		return nil // try a commit
+//	})
+//
+//	if err != nil {
+//		//begin transaction error...
+//	}
 func (db *DB) BeginTransactionContext(ctx context.Context, isolation sql.IsolationLevel, txFunc func(Transaction) error) (err error) {
 	var t model.Transaction
 	if t, err = db.NewTransactionContext(ctx, isolation); err != nil {

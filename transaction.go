@@ -8,6 +8,7 @@ type Transaction struct {
 	model.Transaction
 }
 
+// This will make a pseudo nested transaction using save point.
 func (t Transaction) BeginTransaction(txFunc func(Transaction) error) (err error) {
 	var sv model.SavePoint
 	if sv, err = t.SavePoint(); err != nil {
