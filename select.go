@@ -77,7 +77,7 @@ func FindContext[T any](ctx context.Context, table *T) find[T] {
 //		// handler error
 //	}
 func (f find[T]) OnTransaction(tx model.Transaction) find[T] {
-	f.sSelect.conn = tx
+	f.sSelect = f.sSelect.OnTransaction(tx)
 	return f
 }
 
@@ -420,6 +420,7 @@ func (s stateSelect[T]) AsPagination(page, size int) (*Pagination[T], error) {
 //		// handler error
 //	}
 func (s stateSelect[T]) OnTransaction(tx model.Transaction) stateSelect[T] {
+	s.builder.query.ForUpdate = true
 	s.conn = tx
 	return s
 }

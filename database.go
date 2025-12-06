@@ -70,13 +70,12 @@ func (db *DB) RawExecContext(ctx context.Context, rawSql string, args ...any) er
 	return nil
 }
 
-// NewTransaction creates a new Transaction on the database.
-// It sets the isolation level to sql.LevelSerializable by default.
+// NewTransaction creates a new Transaction on the database using the default level.
 //
 // NewTransaction uses [context.Background] internally;
 // to specify the context and the isolation level, use [NewTransactionContext]
 func (db *DB) NewTransaction() (model.Transaction, error) {
-	return db.NewTransactionContext(context.Background(), sql.LevelSerializable)
+	return db.NewTransactionContext(context.Background(), sql.LevelDefault)
 }
 
 func (db *DB) NewTransactionContext(ctx context.Context, isolation sql.IsolationLevel) (model.Transaction, error) {
@@ -87,7 +86,7 @@ func (db *DB) NewTransactionContext(ctx context.Context, isolation sql.Isolation
 	return t, nil
 }
 
-// Begin a Transaction with the Serializable level, any panic or error will trigger a rollback.
+// Begin a Transaction with the database default level, any panic or error will trigger a rollback.
 //
 // BeginTransaction uses [context.Background] internally;
 // to specify the context and the isolation level, use [BeginTransactionContext]
@@ -115,7 +114,7 @@ func (db *DB) NewTransactionContext(ctx context.Context, isolation sql.Isolation
 //		//begin transaction error...
 //	}
 func (db *DB) BeginTransaction(txFunc func(Transaction) error) error {
-	return db.BeginTransactionContext(context.Background(), sql.LevelSerializable, txFunc)
+	return db.BeginTransactionContext(context.Background(), sql.LevelDefault, txFunc)
 }
 
 // Begin a Transaction, any panic or error will trigger a rollback.
