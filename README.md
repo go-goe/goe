@@ -95,7 +95,6 @@ Check out the [Benchmarks](#benchmarks) section for a overview on GOE performanc
 	- [Manual Transaction](#manual-transaction)
 		- [Commit and Rollback](#commit-and-rollback)
 		- [Save Point](#save-point)
-	- [Isolation](#isolation)
 - [Benchmarks](#benchmarks)
 
 ## Install
@@ -1280,6 +1279,9 @@ if err != nil {
 
 You need to call the `OnTransaction()` function to setup a transaction for [Select](#select), [Insert](#insert), [Update](#update) and [Delete](#delete).
 
+> [!NOTE]
+> Any select inside a transaction will be "FOR UPDATE".
+
 > [!TIP]
 > Use **goe.BeginTransactionContext** for specify a context
 
@@ -1301,6 +1303,9 @@ defer func() {
 ```
 
 You need to call the `OnTransaction()` function to setup a transaction for [Select](#select), [Insert](#insert), [Update](#update) and [Delete](#delete).
+
+> [!NOTE]
+> Any select inside a transaction will be "FOR UPDATE".
 
 > [!TIP]
 > Use **goe.NewTransactionContext** for specify a context
@@ -1346,14 +1351,6 @@ defer func() {
 
 sv.Commit() // commit save point
 ```
-
-### Isolation
-
-The isolation is used for control the flow and security of  multiple transactions. On GOE you can use the [sql.IsolationLevel](https://pkg.go.dev/database/sql#IsolationLevel).
-
-By default if you call `db.BeginTransaction` or `db.NewTransaction` it's use the Serializable isolation.
-
-[Back to Contents](#content)
 
 ## Benchmarks
 
