@@ -142,6 +142,7 @@ type IndexMigrate struct {
 	Name         string
 	EscapingName string
 	Unique       bool
+	Func         string
 	Attributes   []AttributeMigrate
 }
 

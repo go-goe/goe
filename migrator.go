@@ -242,17 +242,18 @@ func migrateAtt(b body) error {
 				Name:         b.migrate.table.Name + "_" + indexName,
 				EscapingName: b.driver.KeywordHandler(b.migrate.table.Name + "_" + indexName),
 				Unique:       strings.Contains(index, "unique"),
+				Func:         strings.ToLower(getIndexValue(index, "f:")),
 				Attributes:   []model.AttributeMigrate{*at},
 			}
 
 			var i int
 			if i = slices.IndexFunc(b.migrate.table.Indexes, func(i model.IndexMigrate) bool {
-				return i.Name == in.Name && i.Unique == in.Unique
+				return i.Name == in.Name && i.Unique == in.Unique && i.Func == in.Func
 			}); i == -1 {
 				if c := slices.IndexFunc(b.migrate.table.Indexes, func(i model.IndexMigrate) bool {
-					return i.Name == in.Name && i.Unique != in.Unique
+					return i.Name == in.Name && (i.Unique != in.Unique || i.Func == in.Func)
 				}); c != -1 {
-					return fmt.Errorf(`goe: struct "%v" have two or more indexes with same name but different uniqueness "%v"`, b.migrate.table.Name, in.Name)
+					return fmt.Errorf(`goe: struct "%v" have two or more indexes with same name but different uniqueness/function "%v"`, b.migrate.table.Name, in.Name)
 				}
 
 				b.migrate.table.Indexes = append(b.migrate.table.Indexes, in)
