@@ -251,7 +251,7 @@ func migrateAtt(b body) error {
 				return i.Name == in.Name && i.Unique == in.Unique && i.Func == in.Func
 			}); i == -1 {
 				if c := slices.IndexFunc(b.migrate.table.Indexes, func(i model.IndexMigrate) bool {
-					return i.Name == in.Name && (i.Unique != in.Unique || i.Func == in.Func)
+					return i.Name == in.Name && (i.Unique != in.Unique || i.Func != in.Func)
 				}); c != -1 {
 					return fmt.Errorf(`goe: struct "%v" have two or more indexes with same name but different uniqueness/function "%v"`, b.migrate.table.Name, in.Name)
 				}
