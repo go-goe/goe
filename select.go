@@ -147,15 +147,7 @@ func (f find[T]) ByValue(value T) (*T, error) {
 //			User    string     // output row
 //			Role    *string    // output row
 //			EndTime *time.Time // output row
-//		}](struct {
-//			User    *string     // table column
-//			Role    *string     // table column
-//			EndTime **time.Time // table column
-//		}{
-//			User:    &db.User.Name,
-//			Role:    &db.Role.Name,
-//			EndTime: &db.UserRole.EndDate,
-//		}).
+//		}](&db.User.Name, &db.Role.Name, &db.UserRole.EndDate).
 //		Joins(
 //			join.LeftJoin[int](&db.User.ID, &db.UserRole.UserID),
 //			join.LeftJoin[int](&db.UserRole.RoleID, &db.Role.ID),

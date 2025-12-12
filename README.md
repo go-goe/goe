@@ -747,15 +747,7 @@ for row, err := range goe.Select[struct {
 		User    string     // output row
 		Role    *string    // output row
 		EndTime *time.Time // output row
-	}](struct {
-		User    *string     // table column
-		Role    *string     // table column
-		EndTime **time.Time // table column
-}{
-		User:    &db.User.Name,
-		Role:    &db.Role.Name,
-		EndTime: &db.UserRole.EndDate,
-}).
+	}](&db.User.Name, &db.Role.Name, &db.UserRole.EndDate).
 	Join(&db.User.ID, &db.UserRole.UserID).
 	Join(&db.UserRole.RoleID, &db.Role.ID).
 	OrderByAsc(&db.User.ID).Rows() {
@@ -821,7 +813,7 @@ It's possible to use a query inside a `where.In`
 
 ```go
 // use AsQuery() for get a result as a query
-querySelect := goe.Select[any](struct{ Name *string }{Name: &db.Animal.Name}).
+querySelect := goe.Select[any](&db.Animal.Name).
 					Join(&db.Animal.ID, &db.AnimalFood.IDAnimal).
 					Join(&db.AnimalFood.IDFood, &db.Food.ID).
 					Where(
@@ -898,13 +890,7 @@ It's possible to use Match on Select
 result, err := goe.Select[struct {
 	AnimalName string
 	FoodName   string
-}](struct {
-	AnimalName *string
-	FoodName   *string
-}{
-	AnimalName: &db.Animal.Name,
-	FoodName:   &db.Food.Name,
-}).Match(struct {
+}](&db.Animal.Name, &db.Food.Name).Match(struct {
 	AnimalName string
 	FoodName   string
 }{FoodName: "a"}).
@@ -967,15 +953,9 @@ It's possible to GroupBy by a aggregate.
 #### Select
 ```go
 habitatCount, err := goe.Select[struct {
-	Name string
-	query.Count
-}](struct {
-	Name         *string
-	HabitatCount *query.Count
-}{
-	Name:         &db.Habitat.Name,
-	HabitatCount: aggregate.Count(&db.Animal.Id),
-}).Join(&db.Animal.HabitatId, &db.Habitat.Id).
+	Name  string
+	Count int64
+}](&db.Habitat.Name, aggregate.Count(&db.Animal.Id)).Join(&db.Animal.HabitatId, &db.Habitat.Id).
 	OrderByDesc(aggregate.Count(&db.Animal.Id)).
 	GroupBy(&db.Habitat.Name).AsSlice()
 
@@ -1019,12 +999,8 @@ On select fields, goe uses query sub-package for declaring a aggregate field on 
 
 ```go
 result, err := goe.Select[struct {
-					Count query.Count
-				}](struct{ 
-					Count *query.Count 
-				}{
-					Count: aggregate.Count(&db.Animal.ID),
-				}).AsSlice()
+					Count int64
+				}](aggregate.Count(&db.Animal.ID)).AsSlice()
 
 if err != nil {
 	// handler error
@@ -1041,12 +1017,8 @@ For functions goe uses a sub-package function, on function package you have all 
 On select fields, goe uses query sub-package for declaring a function result field on struct.
 ```go
 for row, err := range goe.Select[struct {
-					UpperName query.Function[string]
-				}](struct {
-					UpperName *query.Function[string]
-				}{
-					UpperName: function.ToUpper(&db.Animal.Name),
-				}).Rows() {
+					UpperName string
+				}](function.ToUpper(&db.Animal.Name)).Rows() {
 					if err != nil {
 						//handler error
 					}
