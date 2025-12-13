@@ -17,10 +17,10 @@ import (
 )
 
 type stateSelect[T any] struct {
-	conn      model.Connection
-	builder   builder
-	tableArgs []any
-	ctx       context.Context
+	conn    model.Connection
+	builder builder
+	ctx     context.Context
+	argsSelect
 }
 
 type find[T any] struct {
@@ -52,7 +52,7 @@ func Find[T any](table *T) find[T] {
 //
 // See [Find] for examples
 func FindContext[T any](ctx context.Context, table *T) find[T] {
-	return find[T]{sSelect: SelectContext[T](ctx, table)}
+	return find[T]{sSelect: ListContext(ctx, table)}
 }
 
 // OnTransaction sets a transaction on the query.
@@ -168,11 +168,7 @@ func Select[T any](args ...any) stateSelect[T] {
 //
 // See [Select] for examples
 func SelectContext[T any](ctx context.Context, args ...any) stateSelect[T] {
-	var state stateSelect[T] = createSelectState[T](ctx)
-	argsSelect := getArgsSelect(addrMap.mapField, args...)
-
-	state.builder.fieldsSelect = argsSelect.fields
-	state.tableArgs = argsSelect.tableArgs
+	var state stateSelect[T] = createSelectState[T](ctx, getArgsSelect, args...)
 	return state
 }
 
@@ -425,8 +421,10 @@ func (s stateSelect[T]) Rows() iter.Seq2[T, error] {
 	return handlerResult[T](s.ctx, s.conn, s.builder.query, len(s.builder.fieldsSelect), driver.GetDatabaseConfig())
 }
 
-func createSelectState[T any](ctx context.Context) stateSelect[T] {
-	return stateSelect[T]{builder: createBuilder(enum.SelectQuery), ctx: ctx}
+func createSelectState[T any](ctx context.Context, getArgs func(args ...any) argsSelect, args ...any) stateSelect[T] {
+	s := stateSelect[T]{builder: createBuilder(enum.SelectQuery), argsSelect: getArgs(args...), ctx: ctx}
+	s.builder.fieldsSelect = s.fields
+	return s
 }
 
 // List is a wrapper over [Select] for more simple queries using filters, pagination and ordering.
@@ -450,7 +448,7 @@ func List[T any](table *T) stateSelect[T] {
 //
 // See [List] for examples.
 func ListContext[T any](ctx context.Context, table *T) stateSelect[T] {
-	return SelectContext[T](ctx, table)
+	return createSelectState[T](ctx, getArgsList, table)
 }
 
 type getArgs struct {
@@ -740,17 +738,9 @@ func helperFilter(builder *builder, addrMap map[uintptr]field, br model.Operatio
 	return false
 }
 
-func getArgsSelect(addrMap map[uintptr]field, args ...any) argsSelect {
-
+func getArgsSelect(args ...any) argsSelect {
+	addrMap := addrMap.mapField
 	fields := make([]fieldSelect, 0, len(args))
-	if len(args) == 1 {
-		fieldOf := reflect.ValueOf(args[0]).Elem()
-		if fieldOf.Kind() == reflect.Struct {
-			for i := 1; i < fieldOf.NumField(); i++ {
-				args = append(args, fieldOf.Field(i).Addr().Interface())
-			}
-		}
-	}
 
 	for _, arg := range args {
 		fieldOf := reflect.ValueOf(arg)
@@ -776,4 +766,28 @@ func getArgsSelect(addrMap map[uintptr]field, args ...any) argsSelect {
 	}
 
 	return argsSelect{fields: fields, tableArgs: args}
+}
+
+func getArgsList(args ...any) argsSelect {
+	addrMap := addrMap.mapField
+	fields := make([]fieldSelect, 0, len(args))
+	tableArgs := make([]any, 0, len(args))
+
+	for _, arg := range args {
+		structOf := reflect.ValueOf(arg).Elem()
+		var fieldOf reflect.Value
+		for i := 0; i < structOf.NumField(); i++ {
+			fieldOf = structOf.Field(i)
+			if f := addrMap[uintptr(fieldOf.Addr().UnsafePointer())]; f != nil {
+				fields = append(fields, f)
+				tableArgs = append(tableArgs, fieldOf.Addr().Interface())
+			}
+		}
+	}
+
+	if len(fields) == 0 {
+		panic("goe: invalid argument. try sending a pointer to a database mapped argument")
+	}
+
+	return argsSelect{fields: fields, tableArgs: tableArgs}
 }
