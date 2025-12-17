@@ -61,6 +61,7 @@ Check out the [Benchmarks](#benchmarks) section for a overview on GOE performanc
 		- [Create Index](#create-index)
 		- [Unique Index](#unique-index)
 		- [Two Columns Index](#two-columns-index)
+		- [Function Index](#function-index)
 	- [Schemas](#schemas)
 	- [Logging](#logging)
 	- [Open](#open)
@@ -513,6 +514,21 @@ type User struct {
 Just as creating a [Two Column Index](#two-columns-index) but added the "unique" value inside the index function.
 
 [Back to Contents](#content)
+
+#### Function Index
+```go
+type User struct {
+	Id        int
+	Name      string `goe:"index(n:idx_name_lower f:lower)"`
+	Email     string `goe:"unique"`
+	UserRoles []UserRole
+}
+```
+
+Use the `f:` parameter to pass a function in the index tag.
+
+[Back to Contents](#content)
+
 
 ## Schemas
 
