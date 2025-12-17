@@ -85,7 +85,7 @@ func TestUpdate(t *testing.T) {
 				}
 
 				var fselect *Flag
-				fselect, err = goe.Find(db.Flag).ByID(Flag{Id: f.Id})
+				fselect, err = goe.Find(db.Flag).ByValue(Flag{Id: f.Id})
 				if err != nil {
 					t.Fatalf("Expected a select, got error: %v", err)
 				}
@@ -159,13 +159,13 @@ func TestUpdate(t *testing.T) {
 					NullString: sql.NullString{String: "String Value", Valid: true},
 					Price:      price,
 				}
-				err = goe.Save(db.Flag).ByID(ff)
+				err = goe.Save(db.Flag).One(ff)
 				if err != nil {
 					t.Fatalf("Expected a update, got error: %v", err)
 				}
 
 				var fselect *Flag
-				fselect, err = goe.Find(db.Flag).ByID(Flag{Id: f.Id})
+				fselect, err = goe.Find(db.Flag).ByValue(Flag{Id: f.Id})
 				if err != nil {
 					t.Fatalf("Expected a select, got error: %v", err)
 				}
@@ -210,7 +210,7 @@ func TestUpdate(t *testing.T) {
 						defer wg.Done()
 						au := Animal{Id: a.Id}
 						au.Name = "Update Cat"
-						goe.Save(db.Animal).ByID(au)
+						goe.Save(db.Animal).One(au)
 					}()
 				}
 				wg.Wait()
@@ -247,13 +247,13 @@ func TestUpdate(t *testing.T) {
 
 				a.HabitatId = &h.Id
 				a.Name = "Update Cat"
-				err = goe.Save(db.Animal).ByID(a)
+				err = goe.Save(db.Animal).One(a)
 				if err != nil {
 					t.Fatalf("Expected a update, got error: %v", err)
 				}
 
 				var aselect *Animal
-				aselect, err = goe.Find(db.Animal).ByID(Animal{Id: a.Id})
+				aselect, err = goe.Find(db.Animal).ByValue(Animal{Id: a.Id})
 				if err != nil {
 					t.Fatalf("Expected a select, got error: %v", err)
 				}
@@ -272,7 +272,7 @@ func TestUpdate(t *testing.T) {
 					t.Fatalf("Expected a update, got error: %v", err)
 				}
 
-				aselect, err = goe.Find(db.Animal).ByID(Animal{Id: a.Id})
+				aselect, err = goe.Find(db.Animal).ByValue(Animal{Id: a.Id})
 				if err != nil {
 					t.Fatalf("Expected a select, got error: %v", err)
 				}
@@ -320,14 +320,14 @@ func TestUpdate(t *testing.T) {
 					t.Fatalf("Expected a insert animal, got error: %v", err)
 				}
 
-				if _, err = goe.Find(db.Animal).OnTransaction(tx).ByID(as); err != nil {
+				if _, err = goe.Find(db.Animal).OnTransaction(tx).ByValue(as); err != nil {
 					t.Fatalf("Expected a find animal, got error: %v", err)
 				}
 				err = sv.Rollback()
 				if err != nil {
 					t.Fatalf("Expected Rollback SavePoint, got error: %v", err)
 				}
-				if _, err = goe.Find(db.Animal).OnTransaction(tx).ByID(as); !errors.Is(err, goe.ErrNotFound) {
+				if _, err = goe.Find(db.Animal).OnTransaction(tx).ByValue(as); !errors.Is(err, goe.ErrNotFound) {
 					t.Fatalf("Expected a goe.ErrNotFound, got: %v", err)
 				}
 
@@ -351,13 +351,13 @@ func TestUpdate(t *testing.T) {
 
 				a.HabitatId = &h.Id
 				a.Name = "Update Cat"
-				err = goe.Save(db.Animal).OnTransaction(tx).ByID(a)
+				err = goe.Save(db.Animal).OnTransaction(tx).One(a)
 				if err != nil {
 					t.Fatalf("Expected a update, got error: %v", err)
 				}
 
 				// get record before commit or not using tx, will result in a goe.ErrNotFound
-				_, err = goe.Find(db.Animal).ByID(Animal{Id: a.Id})
+				_, err = goe.Find(db.Animal).ByValue(Animal{Id: a.Id})
 				if !errors.Is(err, goe.ErrNotFound) {
 					t.Fatalf("Expected a goe.ErrNotFound, got error: %v", err)
 				}
@@ -368,7 +368,7 @@ func TestUpdate(t *testing.T) {
 				}
 
 				var aselect *Animal
-				aselect, err = goe.Find(db.Animal).ByID(Animal{Id: a.Id})
+				aselect, err = goe.Find(db.Animal).ByValue(Animal{Id: a.Id})
 				if err != nil {
 					t.Fatalf("Expected find, got error: %v", err)
 				}
@@ -430,13 +430,7 @@ func TestUpdate(t *testing.T) {
 				for row, err := range goe.Select[struct {
 					JobTitle string
 					Person   string
-				}](struct {
-					JobTitle *string
-					Person   *string
-				}{
-					JobTitle: &db.JobTitle.Name,
-					Person:   &db.Person.Name,
-				}).OnTransaction(tx).
+				}](&db.JobTitle.Name, &db.Person.Name).OnTransaction(tx).
 					Join(&db.Person.Id, &db.PersonJobTitle.PersonId).
 					Join(&db.JobTitle.Id, &db.PersonJobTitle.JobTitleId).
 					Where(where.Equals(&db.JobTitle.Id, jobs[0].Id)).Rows() {
@@ -467,13 +461,7 @@ func TestUpdate(t *testing.T) {
 				for row, err := range goe.Select[struct {
 					JobTitle string
 					Person   string
-				}](struct {
-					JobTitle *string
-					Person   *string
-				}{
-					JobTitle: &db.JobTitle.Name,
-					Person:   &db.Person.Name,
-				}).OnTransaction(tx).
+				}](&db.JobTitle.Name, &db.Person.Name).OnTransaction(tx).
 					Join(&db.Person.Id, &db.PersonJobTitle.PersonId).
 					Join(&db.JobTitle.Id, &db.PersonJobTitle.JobTitleId).
 					Where(where.Equals(&db.JobTitle.Id, jobs[0].Id)).Rows() {
@@ -497,13 +485,7 @@ func TestUpdate(t *testing.T) {
 				for row, err := range goe.Select[struct {
 					JobTitle string
 					Person   string
-				}](struct {
-					JobTitle *string
-					Person   *string
-				}{
-					JobTitle: &db.JobTitle.Name,
-					Person:   &db.Person.Name,
-				}).
+				}](&db.JobTitle.Name, &db.Person.Name).
 					Join(&db.Person.Id, &db.PersonJobTitle.PersonId).
 					Join(&db.JobTitle.Id, &db.PersonJobTitle.JobTitleId).
 					Where(where.Equals(&db.JobTitle.Id, jobs[0].Id)).Rows() {
@@ -544,14 +526,14 @@ func TestUpdate(t *testing.T) {
 						if err = goe.Insert(db.Animal).OnTransaction(tx2).One(&as); err != nil {
 							t.Fatalf("Expected a insert animal, got error: %v", err)
 						}
-						if _, err = goe.Find(db.Animal).OnTransaction(tx2).ByID(as); err != nil {
+						if _, err = goe.Find(db.Animal).OnTransaction(tx2).ByValue(as); err != nil {
 							t.Fatalf("Expected a find animal, got error: %v", err)
 						}
 						// retrurns empty error to force rollback
 						return errors.New("")
 					})
 					// check if rollback from tx2 was made
-					if _, err = goe.Find(db.Animal).OnTransaction(tx).ByID(as); !errors.Is(err, goe.ErrNotFound) {
+					if _, err = goe.Find(db.Animal).OnTransaction(tx).ByValue(as); !errors.Is(err, goe.ErrNotFound) {
 						t.Fatalf("Expected a goe.ErrNotFound, got: %v", err)
 					}
 
@@ -559,13 +541,13 @@ func TestUpdate(t *testing.T) {
 						if err = goe.Insert(db.Animal).OnTransaction(tx3).One(&as); err != nil {
 							t.Fatalf("Expected a insert animal, got error: %v", err)
 						}
-						if _, err = goe.Find(db.Animal).OnTransaction(tx3).ByID(as); err != nil {
+						if _, err = goe.Find(db.Animal).OnTransaction(tx3).ByValue(as); err != nil {
 							t.Fatalf("Expected a find animal, got error: %v", err)
 						}
 						return nil
 					})
 
-					if _, err = goe.Find(db.Animal).OnTransaction(tx).ByID(as); err != nil {
+					if _, err = goe.Find(db.Animal).OnTransaction(tx).ByValue(as); err != nil {
 						t.Fatalf("Expected a find, got: %v", err)
 					}
 
@@ -582,13 +564,13 @@ func TestUpdate(t *testing.T) {
 
 					a.HabitatId = &h.Id
 					a.Name = "Update Cat"
-					err = goe.Save(db.Animal).OnTransaction(tx).ByID(a)
+					err = goe.Save(db.Animal).OnTransaction(tx).One(a)
 					if err != nil {
 						t.Fatalf("Expected a update, got error: %v", err)
 					}
 
 					// get record before commit or not using tx, will result in a goe.ErrNotFound
-					_, err = goe.Find(db.Animal).ByID(Animal{Id: a.Id})
+					_, err = goe.Find(db.Animal).ByValue(Animal{Id: a.Id})
 					if !errors.Is(err, goe.ErrNotFound) {
 						t.Fatalf("Expected a goe.ErrNotFound, got error: %v", err)
 					}
@@ -601,7 +583,7 @@ func TestUpdate(t *testing.T) {
 				}
 
 				var aselect *Animal
-				aselect, err = goe.Find(db.Animal).ByID(Animal{Id: a.Id})
+				aselect, err = goe.Find(db.Animal).ByValue(Animal{Id: a.Id})
 				if err != nil {
 					t.Fatalf("Expected find, got error: %v", err)
 				}
@@ -653,13 +635,7 @@ func TestUpdate(t *testing.T) {
 				for row, err := range goe.Select[struct {
 					JobTitle string
 					Person   string
-				}](struct {
-					JobTitle *string
-					Person   *string
-				}{
-					JobTitle: &db.JobTitle.Name,
-					Person:   &db.Person.Name,
-				}).
+				}](&db.JobTitle.Name, &db.Person.Name).
 					Join(&db.Person.Id, &db.PersonJobTitle.PersonId).
 					Join(&db.JobTitle.Id, &db.PersonJobTitle.JobTitleId).
 					Where(where.Equals(&db.JobTitle.Id, jobs[0].Id)).Rows() {
@@ -684,13 +660,7 @@ func TestUpdate(t *testing.T) {
 				for row, err := range goe.Select[struct {
 					JobTitle string
 					Person   string
-				}](struct {
-					JobTitle *string
-					Person   *string
-				}{
-					JobTitle: &db.JobTitle.Name,
-					Person:   &db.Person.Name,
-				}).
+				}](&db.JobTitle.Name, &db.Person.Name).
 					Join(&db.Person.Id, &db.PersonJobTitle.PersonId).
 					Join(&db.JobTitle.Id, &db.PersonJobTitle.JobTitleId).
 					Where(where.Equals(&db.JobTitle.Id, jobs[0].Id)).Rows() {
