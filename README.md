@@ -691,10 +691,10 @@ go.mod
 Find is used when you want to return a single result.
 ```go
 // one primary key
-animal, err = goe.Find(db.Animal).ByID(Animal{ID: 2})
+animal, err = goe.Find(db.Animal).ByValue(Animal{ID: 2})
 
 // two primary keys
-animalFood, err = goe.Find(db.AnimalFood).ByID(AnimalFood{IDAnimal: 3, IDFood: 2})
+animalFood, err = goe.Find(db.AnimalFood).ByValue(AnimalFood{IDAnimal: 3, IDFood: 2})
 
 // find record by value, if have more than one it will returns the first
 cat, err = goe.Find(db.Animal).ByValue(Animal{Name: "Cat"})
@@ -1104,7 +1104,7 @@ a := Animal{ID: 2}
 a.Name = "Update Cat"
 
 // update animal of id 2
-err = goe.Save(db.Animal).ByID(a)
+err = goe.Save(db.Animal).One(a)
 
 if err != nil {
 	//handler error
@@ -1146,7 +1146,7 @@ Check out the [Where](#where) section for more information about where operation
 Remove is used for remove only one record by primary key
 ```go
 // remove animal of id 2
-err = goe.Remove(db.Animal).ByID(Animal{ID: 2})
+err = goe.Remove(db.Animal).ByValue(Animal{ID: 2})
 
 if err != nil {
 	//handler error
