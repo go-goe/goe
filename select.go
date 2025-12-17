@@ -36,10 +36,10 @@ type find[T any] struct {
 // # Example
 //
 //	// one primary key
-//	animal, err = goe.Find(db.Animal).ByID(Animal{ID: 2})
+//	animal, err = goe.Find(db.Animal).ByValue(Animal{ID: 2})
 //
 //	// two primary keys
-//	animalFood, err = goe.Find(db.AnimalFood).ByID(AnimalFood{AnimalID: 3, FoodID: 2})
+//	animalFood, err = goe.Find(db.AnimalFood).ByValue(AnimalFood{AnimalID: 3, FoodID: 2})
 //
 //	// find record by value, if have more than one it will returns the first
 //	cat, err = goe.Find(db.Animal).ByValue(Animal{Name: "Cat"})
@@ -79,29 +79,6 @@ func FindContext[T any](ctx context.Context, table *T) find[T] {
 func (f find[T]) OnTransaction(tx model.Transaction) find[T] {
 	f.sSelect = f.sSelect.OnTransaction(tx)
 	return f
-}
-
-// Finds the record by values on IDs
-func (f find[T]) ByID(value T) (*T, error) {
-	pks, valuesPks, err := getArgsPks(getArgs{
-		addrMap:   addrMap.mapField,
-		tableArgs: f.sSelect.tableArgs,
-		value:     value})
-
-	if err != nil {
-		return nil, err
-	}
-
-	f.sSelect = f.sSelect.Where(operations(pks, valuesPks))
-
-	for row, err := range f.sSelect.Rows() {
-		if err != nil {
-			return nil, err
-		}
-		return &row, nil
-	}
-
-	return nil, ErrNotFound
 }
 
 // Finds the record by non-zero values,
@@ -455,29 +432,6 @@ type getArgs struct {
 	addrMap   map[uintptr]field
 	value     any
 	tableArgs []any
-}
-
-func getArgsPks(a getArgs) ([]any, []any, error) {
-	args, values := getPrimaryArgs(a)
-
-	if len(args) == 0 {
-		return nil, nil, ErrNotFound
-	}
-	return args, values, nil
-}
-
-func getPrimaryArgs(a getArgs) ([]any, []any) {
-	valueOf := reflect.ValueOf(a.value)
-
-	args, values := make([]any, 0, valueOf.NumField()), make([]any, 0, valueOf.NumField())
-	for i := 0; i < valueOf.NumField(); i++ {
-		if !valueOf.Field(i).IsZero() {
-			args = append(args, a.tableArgs[i])
-			values = append(values, valueOf.Field(i).Interface())
-		}
-	}
-
-	return args, values
 }
 
 func getNonZeroFields(a getArgs) ([]any, []any, bool) {
