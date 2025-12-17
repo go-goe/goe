@@ -10,7 +10,6 @@ import (
 
 	"github.com/go-goe/goe/enum"
 	"github.com/go-goe/goe/model"
-	"github.com/go-goe/goe/query"
 	"github.com/go-goe/goe/query/aggregate"
 	"github.com/go-goe/goe/query/function"
 	"github.com/go-goe/goe/query/where"
@@ -556,9 +555,9 @@ func getArgFunction(arg any, addrMap map[uintptr]field, operation *model.Operati
 		panic("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
 	}
 
-	if function, ok := value.Elem().Interface().(query.Function[string]); ok {
-		operation.Function = function.Type
-		return getArg(function.Field, addrMap, nil)
+	if function, ok := value.Elem().Interface().(model.Attributer); ok {
+		operation.Function = function.Attribute(model.Body{}).FunctionType
+		return getArg(function.GetField(), addrMap, nil)
 	}
 	return getArg(arg, addrMap, nil)
 }

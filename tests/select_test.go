@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/go-goe/goe"
-	"github.com/go-goe/goe/query"
 	"github.com/go-goe/goe/query/aggregate"
 	"github.com/go-goe/goe/query/function"
 	"github.com/go-goe/goe/query/join"
@@ -306,13 +305,13 @@ func TestSelect(t *testing.T) {
 			testCase: func(t *testing.T) {
 				for row, err := range goe.Select[struct {
 					Name      string
-					UpperName query.Function[string]
+					UpperName string
 				}](&db.Animal.Name, function.ToUpper(&db.Animal.Name)).Rows() {
 					if err != nil {
 						t.Fatalf("Expected select, got error: %v", err)
 					}
-					if strings.ToUpper(row.Name) != row.UpperName.Value {
-						t.Fatalf("Expected %v, got: %v", strings.ToUpper(row.Name), row.UpperName.Value)
+					if strings.ToUpper(row.Name) != row.UpperName {
+						t.Fatalf("Expected %v, got: %v", strings.ToUpper(row.Name), row.UpperName)
 					}
 				}
 			},
@@ -322,13 +321,13 @@ func TestSelect(t *testing.T) {
 			testCase: func(t *testing.T) {
 				for row, err := range goe.Select[struct {
 					Name      string
-					LowerName query.Function[string]
+					LowerName string
 				}](&db.Animal.Name, function.ToLower(&db.Animal.Name)).Rows() {
 					if err != nil {
 						t.Fatalf("Expected select, got error: %v", err)
 					}
-					if strings.ToLower(row.Name) != row.LowerName.Value {
-						t.Fatalf("Expected %v, got: %v", strings.ToLower(row.Name), row.LowerName.Value)
+					if strings.ToLower(row.Name) != row.LowerName {
+						t.Fatalf("Expected %v, got: %v", strings.ToLower(row.Name), row.LowerName)
 					}
 				}
 			},

@@ -1009,9 +1009,7 @@ if err != nil {
 
 [Back to Contents](#content)
 ### Aggregates
-For aggregates goe uses a sub-package aggregate, on aggregate package you have all the goe available aggregates. 
-
-On select fields, goe uses query sub-package for declaring a aggregate field on struct.
+For aggregates goe uses a sub-package aggregate, on aggregate package you have all the goe available aggregates.
 
 ```go
 result, err := goe.Select[struct {
@@ -1030,7 +1028,6 @@ result[0].Count.Value
 ### Functions
 For functions goe uses a sub-package function, on function package you have all the goe available functions. 
 
-On select fields, goe uses query sub-package for declaring a function result field on struct.
 ```go
 for row, err := range goe.Select[struct {
 					UpperName string
