@@ -61,11 +61,12 @@ type Query struct {
 	Attributes []Attribute
 	Tables     []Table
 
-	Joins   []Join    //Select
-	Limit   int       //Select
-	Offset  int       //Select
-	OrderBy []OrderBy //Select
-	GroupBy []GroupBy //Select
+	Joins     []Join    //Select
+	Limit     int       //Select
+	Offset    int       //Select
+	OrderBy   []OrderBy //Select
+	GroupBy   []GroupBy //Select
+	ForUpdate bool      //Select
 
 	WhereOperations []Where //Select, Update and Delete
 	WhereIndex      int     //Start of where position arguments $1, $2...
@@ -141,6 +142,7 @@ type IndexMigrate struct {
 	Name         string
 	EscapingName string
 	Unique       bool
+	Func         string
 	Attributes   []AttributeMigrate
 }
 

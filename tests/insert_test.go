@@ -52,7 +52,7 @@ func TestInsert(t *testing.T) {
 					t.Fatalf("Expected a insert, got error: %v", err)
 				}
 
-				fs, err := goe.Find(db.Flag).ByID(Flag{Id: f.Id})
+				fs, err := goe.Find(db.Flag).ByValue(Flag{Id: f.Id})
 				if err != nil {
 					t.Fatalf("Expected a find, got error: %v", err)
 				}
@@ -181,14 +181,14 @@ func TestInsert(t *testing.T) {
 				}
 
 				// get record before commit or not using tx, will result in a goe.ErrNotFound
-				_, err = goe.Find(db.Animal).ByID(Animal{Id: a.Id})
+				_, err = goe.Find(db.Animal).ByValue(Animal{Id: a.Id})
 				if !errors.Is(err, goe.ErrNotFound) {
 					tx.Rollback()
 					t.Fatalf("Expected a Id value, got : %v", a.Id)
 				}
 
 				// get using same tx
-				_, err = goe.Find(db.Animal).OnTransaction(tx).ByID(Animal{Id: a.Id})
+				_, err = goe.Find(db.Animal).OnTransaction(tx).ByValue(Animal{Id: a.Id})
 				if err != nil {
 					t.Fatalf("Expected Find, got : %v", err)
 				}
@@ -198,7 +198,7 @@ func TestInsert(t *testing.T) {
 					t.Fatalf("Expected Commit Tx, got : %v", err)
 				}
 
-				_, err = goe.Find(db.Animal).ByID(Animal{Id: a.Id})
+				_, err = goe.Find(db.Animal).ByValue(Animal{Id: a.Id})
 				if err != nil {
 					t.Fatalf("Expected Find, got : %v", err)
 				}
@@ -232,7 +232,7 @@ func TestInsert(t *testing.T) {
 				}
 
 				// get record after rollback will result in a goe.ErrNotFound
-				_, err = goe.Find(db.Animal).ByID(Animal{Id: a.Id})
+				_, err = goe.Find(db.Animal).ByValue(Animal{Id: a.Id})
 				if !errors.Is(err, goe.ErrNotFound) {
 					t.Fatalf("Expected a goe.ErrNotFound, got : %v", err)
 				}

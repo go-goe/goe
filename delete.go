@@ -28,7 +28,7 @@ type remove[T any] struct {
 // # Examples
 //
 //	// remove animal of id 2
-//	err = goe.Remove(db.Animal).ByID(Animal{Id: 2})
+//	err = goe.Remove(db.Animal).ByValue(Animal{Id: 2})
 func Remove[T any](table *T) remove[T] {
 	return RemoveContext(context.Background(), table)
 }
@@ -51,7 +51,7 @@ func RemoveContext[T any](ctx context.Context, table *T) remove[T] {
 //	}
 //	defer tx.Rollback()
 //
-//	err = err = goe.Remove(db.Animal).OnTransaction(tx).ByID(Animal{ID: 2})
+//	err = err = goe.Remove(db.Animal).OnTransaction(tx).ByValue(Animal{ID: 2})
 //	if err != nil {
 //		// handler error
 //	}
@@ -63,20 +63,6 @@ func RemoveContext[T any](ctx context.Context, table *T) remove[T] {
 func (r remove[T]) OnTransaction(tx model.Transaction) remove[T] {
 	r.delete.conn = tx
 	return r
-}
-
-func (r remove[T]) ByID(value T) error {
-	pks, valuesPks, skip := getArgsRemove(getArgs{
-		addrMap:   addrMap.mapField,
-		tableArgs: getRemoveTableArgs(r.table),
-		value:     value})
-
-	// skip queries on empty models
-	if skip {
-		return nil
-	}
-
-	return r.delete.Where(operations(pks, valuesPks))
 }
 
 // Removes the record by non-zero values
@@ -162,15 +148,6 @@ func (s stateDelete) Where(o model.Operation) error {
 
 func createDeleteState(ctx context.Context) stateDelete {
 	return stateDelete{builder: createBuilder(enum.DeleteQuery), ctx: ctx}
-}
-
-func getArgsRemove(a getArgs) ([]any, []any, bool) {
-	args, values := getPrimaryArgs(a)
-
-	if len(args) == 0 {
-		return nil, nil, true
-	}
-	return args, values, false
 }
 
 func getArgDelete(arg any, addrMap map[uintptr]field) field {

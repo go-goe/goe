@@ -64,7 +64,7 @@ type Status struct {
 
 type User struct {
 	Id        int
-	Name      string
+	Name      string `goe:"index(n:idx_name_lower f:lower)"`
 	Email     string `goe:"unique"`
 	UserRoles []UserRole
 }

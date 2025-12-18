@@ -20,7 +20,7 @@ func (vo valueOperation) GetValue() any {
 
 // # Example
 //
-//	// delete Food with Id fc1865b4-6f2d-4cc6-b766-49c2634bf5c4
+//	// match Food with Id fc1865b4-6f2d-4cc6-b766-49c2634bf5c4
 //	Where(where.Equals(&db.Food.Id, "fc1865b4-6f2d-4cc6-b766-49c2634bf5c4"))
 //
 //	// generate: WHERE "animals"."idhabitat" IS NULL
@@ -35,7 +35,7 @@ func Equals[T any, A *T | **T](a A, v T) model.Operation {
 
 // # Example
 //
-//	// get all foods that name are not Cookie
+//	// match all foods that name are not Cookie
 //	Where(where.NotEquals(&db.Food.Name, "Cookie"))
 //
 //	// generate: WHERE "animals"."idhabitat" IS NOT NULL

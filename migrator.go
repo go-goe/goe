@@ -171,6 +171,9 @@ func createManyToOneMigrate(b body, typeOf reflect.Type) any {
 	mto.EscapingName = b.driver.KeywordHandler(mto.Name)
 	mto.Nullable = b.nullable
 	mto.Default = getTagValue(b.migrate.field.Tag.Get("goe"), "default:")
+	if err := checkIndex(b, mto.AttributeMigrate, true); err != nil {
+		panic(err)
+	}
 	return mto
 }
 
@@ -198,6 +201,9 @@ func createOneToOneMigrate(b body, typeOf reflect.Type) any {
 	mto.Name = utils.ColumnNamePattern(b.fieldName)
 	mto.EscapingName = b.driver.KeywordHandler(mto.Name)
 	mto.Nullable = b.nullable
+	if err := checkIndex(b, mto.AttributeMigrate, true); err != nil {
+		panic(err)
+	}
 	return mto
 }
 
@@ -228,61 +234,9 @@ func migrateAtt(b body) error {
 		getTagValue(b.migrate.field.Tag.Get("goe"), "default:"),
 		b.driver,
 	)
-	b.migrate.table.Attributes = append(b.migrate.table.Attributes, *at)
+	b.migrate.table.Attributes = append(b.migrate.table.Attributes, at)
 
-	indexFunc := getIndex(b.migrate.field)
-	if indexFunc != "" {
-		for _, index := range strings.Split(indexFunc, ",") {
-			indexName := getIndexValue(index, "n:")
-
-			if indexName == "" {
-				indexName = b.migrate.table.Name + "_idx_" + strings.ToLower(b.migrate.field.Name)
-			}
-			in := model.IndexMigrate{
-				Name:         b.migrate.table.Name + "_" + indexName,
-				EscapingName: b.driver.KeywordHandler(b.migrate.table.Name + "_" + indexName),
-				Unique:       strings.Contains(index, "unique"),
-				Attributes:   []model.AttributeMigrate{*at},
-			}
-
-			var i int
-			if i = slices.IndexFunc(b.migrate.table.Indexes, func(i model.IndexMigrate) bool {
-				return i.Name == in.Name && i.Unique == in.Unique
-			}); i == -1 {
-				if c := slices.IndexFunc(b.migrate.table.Indexes, func(i model.IndexMigrate) bool {
-					return i.Name == in.Name && i.Unique != in.Unique
-				}); c != -1 {
-					return fmt.Errorf(`goe: struct "%v" have two or more indexes with same name but different uniqueness "%v"`, b.migrate.table.Name, in.Name)
-				}
-
-				b.migrate.table.Indexes = append(b.migrate.table.Indexes, in)
-				continue
-			}
-			b.migrate.table.Indexes[i].Attributes = append(b.migrate.table.Indexes[i].Attributes, *at)
-		}
-	}
-
-	tagValue := b.migrate.field.Tag.Get("goe")
-	if tagValueExist(tagValue, "unique") {
-		in := model.IndexMigrate{
-			Name:         b.migrate.table.Name + "_idx_" + strings.ToLower(b.migrate.field.Name),
-			EscapingName: b.driver.KeywordHandler(b.migrate.table.Name + "_idx_" + strings.ToLower(b.migrate.field.Name)),
-			Unique:       true,
-			Attributes:   []model.AttributeMigrate{*at},
-		}
-		b.migrate.table.Indexes = append(b.migrate.table.Indexes, in)
-	}
-
-	if tagValueExist(tagValue, "index") {
-		in := model.IndexMigrate{
-			Name:         b.migrate.table.Name + "_idx_" + strings.ToLower(b.migrate.field.Name),
-			EscapingName: b.driver.KeywordHandler(b.migrate.table.Name + "_idx_" + strings.ToLower(b.migrate.field.Name)),
-			Unique:       false,
-			Attributes:   []model.AttributeMigrate{*at},
-		}
-		b.migrate.table.Indexes = append(b.migrate.table.Indexes, in)
-	}
-	return nil
+	return checkIndex(b, at, false)
 }
 
 func getTagType(field reflect.StructField) string {
@@ -342,8 +296,8 @@ func createMigratePk(attributeName string, autoIncrement bool, dataType, default
 	}
 }
 
-func createMigrateAtt(attributeName string, dataType string, nullable bool, defaultValue string, driver model.Driver) *model.AttributeMigrate {
-	return &model.AttributeMigrate{
+func createMigrateAtt(attributeName string, dataType string, nullable bool, defaultValue string, driver model.Driver) model.AttributeMigrate {
+	return model.AttributeMigrate{
 		Name:         utils.ColumnNamePattern(attributeName),
 		EscapingName: driver.KeywordHandler(utils.ColumnNamePattern(attributeName)),
 		DataType:     dataType,
@@ -378,4 +332,61 @@ func helperAttributeMigrate(b body) error {
 		}
 	}
 	return migrateAtt(b)
+}
+
+func checkIndex(b body, at model.AttributeMigrate, skipUnique bool) error {
+	indexFunc := getIndex(b.migrate.field)
+	if indexFunc != "" {
+		for _, index := range strings.Split(indexFunc, ",") {
+			indexName := getIndexValue(index, "n:")
+
+			if indexName == "" {
+				indexName = b.migrate.table.Name + "_idx_" + strings.ToLower(b.migrate.field.Name)
+			}
+			in := model.IndexMigrate{
+				Name:         b.migrate.table.Name + "_" + indexName,
+				EscapingName: b.driver.KeywordHandler(b.migrate.table.Name + "_" + indexName),
+				Unique:       strings.Contains(index, "unique"),
+				Func:         strings.ToLower(getIndexValue(index, "f:")),
+				Attributes:   []model.AttributeMigrate{at},
+			}
+
+			var i int
+			if i = slices.IndexFunc(b.migrate.table.Indexes, func(i model.IndexMigrate) bool {
+				return i.Name == in.Name && i.Unique == in.Unique && i.Func == in.Func
+			}); i == -1 {
+				if c := slices.IndexFunc(b.migrate.table.Indexes, func(i model.IndexMigrate) bool {
+					return i.Name == in.Name && (i.Unique != in.Unique || i.Func != in.Func)
+				}); c != -1 {
+					return fmt.Errorf(`goe: struct "%v" have two or more indexes with same name but different uniqueness/function "%v"`, b.migrate.table.Name, in.Name)
+				}
+
+				b.migrate.table.Indexes = append(b.migrate.table.Indexes, in)
+				continue
+			}
+			b.migrate.table.Indexes[i].Attributes = append(b.migrate.table.Indexes[i].Attributes, at)
+		}
+	}
+
+	tagValue := b.migrate.field.Tag.Get("goe")
+	if !skipUnique && tagValueExist(tagValue, "unique") {
+		in := model.IndexMigrate{
+			Name:         b.migrate.table.Name + "_idx_" + strings.ToLower(b.migrate.field.Name),
+			EscapingName: b.driver.KeywordHandler(b.migrate.table.Name + "_idx_" + strings.ToLower(b.migrate.field.Name)),
+			Unique:       true,
+			Attributes:   []model.AttributeMigrate{at},
+		}
+		b.migrate.table.Indexes = append(b.migrate.table.Indexes, in)
+	}
+
+	if tagValueExist(tagValue, "index") {
+		in := model.IndexMigrate{
+			Name:         b.migrate.table.Name + "_idx_" + strings.ToLower(b.migrate.field.Name),
+			EscapingName: b.driver.KeywordHandler(b.migrate.table.Name + "_idx_" + strings.ToLower(b.migrate.field.Name)),
+			Unique:       false,
+			Attributes:   []model.AttributeMigrate{at},
+		}
+		b.migrate.table.Indexes = append(b.migrate.table.Indexes, in)
+	}
+	return nil
 }

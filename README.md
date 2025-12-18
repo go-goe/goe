@@ -61,6 +61,7 @@ Check out the [Benchmarks](#benchmarks) section for a overview on GOE performanc
 		- [Create Index](#create-index)
 		- [Unique Index](#unique-index)
 		- [Two Columns Index](#two-columns-index)
+		- [Function Index](#function-index)
 	- [Schemas](#schemas)
 	- [Logging](#logging)
 	- [Open](#open)
@@ -92,8 +93,9 @@ Check out the [Benchmarks](#benchmarks) section for a overview on GOE performanc
 	- [Delete Batch](#delete-batch)
 - [Transaction](#transaction)
 	- [Begin Transaction](#begin-transaction)
-	- [Commit and Rollback](#commit-and-rollback)
-	- [Isolation](#isolation)
+	- [Manual Transaction](#manual-transaction)
+		- [Commit and Rollback](#commit-and-rollback)
+		- [Save Point](#save-point)
 - [Benchmarks](#benchmarks)
 
 ## Install
@@ -513,6 +515,21 @@ Just as creating a [Two Column Index](#two-columns-index) but added the "unique"
 
 [Back to Contents](#content)
 
+#### Function Index
+```go
+type User struct {
+	Id        int
+	Name      string `goe:"index(n:idx_name_lower f:lower)"`
+	Email     string `goe:"unique"`
+	UserRoles []UserRole
+}
+```
+
+Use the `f:` parameter to pass a function in the index tag.
+
+[Back to Contents](#content)
+
+
 ## Schemas
 
 On GOE it's possible to create schemas by the database struct, all schemas should have the suffix `Schema`
@@ -690,10 +707,10 @@ go.mod
 Find is used when you want to return a single result.
 ```go
 // one primary key
-animal, err = goe.Find(db.Animal).ByID(Animal{ID: 2})
+animal, err = goe.Find(db.Animal).ByValue(Animal{ID: 2})
 
 // two primary keys
-animalFood, err = goe.Find(db.AnimalFood).ByID(AnimalFood{IDAnimal: 3, IDFood: 2})
+animalFood, err = goe.Find(db.AnimalFood).ByValue(AnimalFood{IDAnimal: 3, IDFood: 2})
 
 // find record by value, if have more than one it will returns the first
 cat, err = goe.Find(db.Animal).ByValue(Animal{Name: "Cat"})
@@ -746,15 +763,7 @@ for row, err := range goe.Select[struct {
 		User    string     // output row
 		Role    *string    // output row
 		EndTime *time.Time // output row
-	}](struct {
-		User    *string     // table column
-		Role    *string     // table column
-		EndTime **time.Time // table column
-}{
-		User:    &db.User.Name,
-		Role:    &db.Role.Name,
-		EndTime: &db.UserRole.EndDate,
-}).
+	}](&db.User.Name, &db.Role.Name, &db.UserRole.EndDate).
 	Join(&db.User.ID, &db.UserRole.UserID).
 	Join(&db.UserRole.RoleID, &db.Role.ID).
 	OrderByAsc(&db.User.ID).Rows() {
@@ -820,7 +829,7 @@ It's possible to use a query inside a `where.In`
 
 ```go
 // use AsQuery() for get a result as a query
-querySelect := goe.Select[any](struct{ Name *string }{Name: &db.Animal.Name}).
+querySelect := goe.Select[any](&db.Animal.Name).
 					Join(&db.Animal.ID, &db.AnimalFood.IDAnimal).
 					Join(&db.AnimalFood.IDFood, &db.Food.ID).
 					Where(
@@ -897,13 +906,7 @@ It's possible to use Match on Select
 result, err := goe.Select[struct {
 	AnimalName string
 	FoodName   string
-}](struct {
-	AnimalName *string
-	FoodName   *string
-}{
-	AnimalName: &db.Animal.Name,
-	FoodName:   &db.Food.Name,
-}).Match(struct {
+}](&db.Animal.Name, &db.Food.Name).Match(struct {
 	AnimalName string
 	FoodName   string
 }{FoodName: "a"}).
@@ -966,15 +969,9 @@ It's possible to GroupBy by a aggregate.
 #### Select
 ```go
 habitatCount, err := goe.Select[struct {
-	Name string
-	query.Count
-}](struct {
-	Name         *string
-	HabitatCount *query.Count
-}{
-	Name:         &db.Habitat.Name,
-	HabitatCount: aggregate.Count(&db.Animal.Id),
-}).Join(&db.Animal.HabitatId, &db.Habitat.Id).
+	Name  string
+	Count int64
+}](&db.Habitat.Name, aggregate.Count(&db.Animal.Id)).Join(&db.Animal.HabitatId, &db.Habitat.Id).
 	OrderByDesc(aggregate.Count(&db.Animal.Id)).
 	GroupBy(&db.Habitat.Name).AsSlice()
 
@@ -1012,18 +1009,12 @@ if err != nil {
 
 [Back to Contents](#content)
 ### Aggregates
-For aggregates goe uses a sub-package aggregate, on aggregate package you have all the goe available aggregates. 
-
-On select fields, goe uses query sub-package for declaring a aggregate field on struct.
+For aggregates goe uses a sub-package aggregate, on aggregate package you have all the goe available aggregates.
 
 ```go
 result, err := goe.Select[struct {
-					Count query.Count
-				}](struct{ 
-					Count *query.Count 
-				}{
-					Count: aggregate.Count(&db.Animal.ID),
-				}).AsSlice()
+					Count int64
+				}](aggregate.Count(&db.Animal.ID)).AsSlice()
 
 if err != nil {
 	// handler error
@@ -1037,15 +1028,10 @@ result[0].Count.Value
 ### Functions
 For functions goe uses a sub-package function, on function package you have all the goe available functions. 
 
-On select fields, goe uses query sub-package for declaring a function result field on struct.
 ```go
 for row, err := range goe.Select[struct {
-					UpperName query.Function[string]
-				}](struct {
-					UpperName *query.Function[string]
-				}{
-					UpperName: function.ToUpper(&db.Animal.Name),
-				}).Rows() {
+					UpperName string
+				}](function.ToUpper(&db.Animal.Name)).Rows() {
 					if err != nil {
 						//handler error
 					}
@@ -1131,7 +1117,7 @@ a := Animal{ID: 2}
 a.Name = "Update Cat"
 
 // update animal of id 2
-err = goe.Save(db.Animal).ByID(a)
+err = goe.Save(db.Animal).One(a)
 
 if err != nil {
 	//handler error
@@ -1173,7 +1159,7 @@ Check out the [Where](#where) section for more information about where operation
 Remove is used for remove only one record by primary key
 ```go
 // remove animal of id 2
-err = goe.Remove(db.Animal).ByID(Animal{ID: 2})
+err = goe.Remove(db.Animal).ByValue(Animal{ID: 2})
 
 if err != nil {
 	//handler error
@@ -1217,26 +1203,101 @@ Check out the [Where](#where) section for more information about where operation
 ## Transaction
 
 ### Begin Transaction
+
+```go
+	err = db.BeginTransaction(func(tx goe.Transaction) error {
+		cat := Animal{
+			Name: "Cat",
+		}
+		if err = goe.Insert(db.Animal).OnTransaction(tx).One(&cat); err != nil {
+			return err // try a rollback
+		}
+
+		dog := Animal{
+			Name: "Dog",
+		}
+		if err = goe.Insert(db.Animal).OnTransaction(tx).One(&dog); err != nil {
+			return err // try a rollback
+		}
+		return nil // try a commit
+	})
+
+	if err != nil {
+		//begin transaction error...
+	}
+```
+
+Nested Transaction
+
+```go
+err = db.BeginTransaction(func(tx goe.Transaction) error {
+	cat := Animal{
+		Name: "Cat",
+	}
+	if err = goe.Insert(db.Animal).OnTransaction(tx).One(&cat); err != nil {
+		return err // try a rollback
+	}
+
+	tx.BeginTransaction(func(tx2 goe.Transaction) error {
+		meat := Food{
+			Name: "meat",
+		}
+		if err := goe.Insert(db.Food).OnTransaction(tx2).One(&meat); err != nil {
+			return err // try a rollback in nested transaction
+		}
+		return nil // try a commit in nested transaction
+	})
+
+	dog := Animal{
+		Name: "Dog",
+	}
+	if err = goe.Insert(db.Animal).OnTransaction(tx).One(&dog); err != nil {
+		return err // try a rollback
+	}
+	return nil // try a commit
+})
+
+if err != nil {
+	//begin transaction error...
+}
+```
+
+You need to call the `OnTransaction()` function to setup a transaction for [Select](#select), [Insert](#insert), [Update](#update) and [Delete](#delete).
+
+> [!NOTE]
+> Any select inside a transaction will be "FOR UPDATE".
+
+> [!TIP]
+> Use **goe.BeginTransactionContext** for specify a context
+
+[Back to Contents](#content)
+
+### Manual Transaction
 Setup the transaction with the database function `db.NewTransaction()`
 ```go
 tx, err = db.NewTransaction()
 if err != nil {
 	// handler error
 }
-defer tx.Rollback()
+
+defer func() {
+	if r := recover(); r != nil {
+		tx.Rollback()
+	}
+}()
 ```
 
-You can use the `OnTransaction()` function to setup a transaction for [Select](#select), [Insert](#insert), [Update](#update) and [Delete](#delete).
+You need to call the `OnTransaction()` function to setup a transaction for [Select](#select), [Insert](#insert), [Update](#update) and [Delete](#delete).
 
-> [!TIP]
-> Ensure to call `defer tx.Rollback()`; this will make the Rollback happens if something go wrong
+> [!NOTE]
+> Any select inside a transaction will be "FOR UPDATE".
 
 > [!TIP]
 > Use **goe.NewTransactionContext** for specify a context
 
 [Back to Contents](#content)
 
-### Commit and Rollback
+#### Commit and Rollback
 
 To Commit a Transaction just call `tx.Commit()`
 ```go
@@ -1258,13 +1319,23 @@ if err != nil {
 
 [Back to Contents](#content)
 
-### Isolation
+#### Save Point
 
-The isolation is used for control the flow and security of  multiple transactions. On goe you can use the [sql.IsolationLevel](https://pkg.go.dev/database/sql#IsolationLevel).
+```go
+sv, err := tx.SavePoint()
+if err != nil {
+	// handler the error
+}
+defer func() {
+	if r := recover(); r != nil {
+		sv.Rollback() // rollback save point
+	}
+}()
 
-By default if you call `db.NewTransaction()` it's use the Serializable isolation.
+...
 
-[Back to Contents](#content)
+sv.Commit() // commit save point
+```
 
 ## Benchmarks
 

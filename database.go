@@ -70,15 +70,12 @@ func (db *DB) RawExecContext(ctx context.Context, rawSql string, args ...any) er
 	return nil
 }
 
-// NewTransaction creates a new Transaction using the specified database target.
-// It sets the isolation level to sql.LevelSerializable by default.
-// The dbTarget parameter should be a valid database connection or instance.
-// If successful, it returns the created Transaction; otherwise, it returns an error.
+// NewTransaction creates a new Transaction on the database using the default level.
 //
 // NewTransaction uses [context.Background] internally;
-// to specify the context, use [goe.NewTransactionContext]
+// to specify the context and the isolation level, use [NewTransactionContext]
 func (db *DB) NewTransaction() (model.Transaction, error) {
-	return db.NewTransactionContext(context.Background(), sql.LevelSerializable)
+	return db.NewTransactionContext(context.Background(), sql.LevelDefault)
 }
 
 func (db *DB) NewTransactionContext(ctx context.Context, isolation sql.IsolationLevel) (model.Transaction, error) {
@@ -87,6 +84,78 @@ func (db *DB) NewTransactionContext(ctx context.Context, isolation sql.Isolation
 		return nil, db.driver.GetDatabaseConfig().ErrorHandler(ctx, err)
 	}
 	return t, nil
+}
+
+// Begin a Transaction with the database default level, any panic or error will trigger a rollback.
+//
+// BeginTransaction uses [context.Background] internally;
+// to specify the context and the isolation level, use [BeginTransactionContext]
+//
+// # Example
+//
+//	err = db.BeginTransaction(func(tx goe.Transaction) error {
+//		cat := Animal{
+//			Name: "Cat",
+//		}
+//		if err = goe.Insert(db.Animal).OnTransaction(tx).One(&cat); err != nil {
+//			return err // try a rollback
+//		}
+//
+//		dog := Animal{
+//			Name: "Dog",
+//		}
+//		if err = goe.Insert(db.Animal).OnTransaction(tx).One(&dog); err != nil {
+//			return err // try a rollback
+//		}
+//		return nil // try a commit
+//	})
+//
+//	if err != nil {
+//		//begin transaction error...
+//	}
+func (db *DB) BeginTransaction(txFunc func(Transaction) error) error {
+	return db.BeginTransactionContext(context.Background(), sql.LevelDefault, txFunc)
+}
+
+// Begin a Transaction, any panic or error will trigger a rollback.
+//
+// # Example
+//
+//	err = db.BeginTransactionContext(context.Background(), sql.LevelSerializable, func(tx goe.Transaction) error {
+//		cat := Animal{
+//			Name: "Cat",
+//		}
+//		if err = goe.Insert(db.Animal).OnTransaction(tx).One(&cat); err != nil {
+//			return err // try a rollback
+//		}
+//
+//		dog := Animal{
+//			Name: "Dog",
+//		}
+//		if err = goe.Insert(db.Animal).OnTransaction(tx).One(&dog); err != nil {
+//			return err // try a rollback
+//		}
+//		return nil // try a commit
+//	})
+//
+//	if err != nil {
+//		//begin transaction error...
+//	}
+func (db *DB) BeginTransactionContext(ctx context.Context, isolation sql.IsolationLevel, txFunc func(Transaction) error) (err error) {
+	var t model.Transaction
+	if t, err = db.NewTransactionContext(ctx, isolation); err != nil {
+		return
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			t.Rollback()
+		}
+	}()
+	if err = txFunc(Transaction{t}); err != nil {
+		t.Rollback()
+		return
+	}
+	return t.Commit()
 }
 
 // Closes the database connection.

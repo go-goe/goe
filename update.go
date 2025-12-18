@@ -26,7 +26,7 @@ type save[T any] struct {
 // # Examples
 //
 //	// updates animal name on record id 1
-//	err = goe.Save(db.Animal).ByID(Animal{ID: 1, Name: "Cat"})
+//	err = goe.Save(db.Animal).One(Animal{ID: 1, Name: "Cat"})
 func Save[T any](table *T) save[T] {
 	return SaveContext(context.Background(), table)
 }
@@ -50,7 +50,7 @@ func SaveContext[T any](ctx context.Context, table *T) save[T] {
 //	}
 //	defer tx.Rollback()
 //
-//	err = goe.Save(db.Animal).OnTransaction(tx).ByID(Animal{ID: 2})
+//	err = goe.Save(db.Animal).OnTransaction(tx).One(Animal{ID: 2})
 //	if err != nil {
 //		// handler error
 //	}
@@ -64,7 +64,7 @@ func (s save[T]) OnTransaction(tx model.Transaction) save[T] {
 	return s
 }
 
-func (s save[T]) ByID(v T) error {
+func (s save[T]) One(v T) error {
 	argsSave := getArgsSave(addrMap.mapField, s.table, v)
 	// skip queries on empty models
 	if argsSave.skip {
