@@ -12,7 +12,6 @@ import (
 	"github.com/go-goe/goe"
 	"github.com/go-goe/goe/query/aggregate"
 	"github.com/go-goe/goe/query/function"
-	"github.com/go-goe/goe/query/join"
 	"github.com/go-goe/goe/query/where"
 	"github.com/google/uuid"
 )
@@ -288,10 +287,8 @@ func TestSelect(t *testing.T) {
 					t.Errorf("Expected %v animals, got %v", len(animals), len(a))
 				}
 				a, err = goe.List(db.Animal).
-					Joins(
-						join.Join[int](&db.Animal.Id, &db.AnimalFood.AnimalId),
-						join.Join[uuid.UUID](&db.AnimalFood.FoodId, &db.Food.Id),
-					).AsSlice()
+					Join(&db.Animal.Id, &db.AnimalFood.AnimalId).
+					Join(&db.AnimalFood.FoodId, &db.Food.Id).AsSlice()
 				if err != nil {
 					t.Fatalf("Expected List, got error: %v", err)
 				}
@@ -402,7 +399,7 @@ func TestSelect(t *testing.T) {
 					Count      int
 					AnimalName string
 				}](aggregate.Count(&db.AnimalFood.FoodId), &db.Animal.Name).
-					Joins(join.LeftJoin[int](&db.Animal.Id, &db.AnimalFood.AnimalId)).GroupBy(&db.Animal.Name).AsSlice()
+					LeftJoin(&db.Animal.Id, &db.AnimalFood.AnimalId).GroupBy(&db.Animal.Name).AsSlice()
 
 				if err != nil {
 					t.Fatalf("Expected select, got error: %v", err)
@@ -419,7 +416,7 @@ func TestSelect(t *testing.T) {
 				habitatCount, err := goe.Select[struct {
 					Name  string
 					Count int
-				}](&db.Habitat.Name, aggregate.Count(&db.Animal.Id)).Joins(join.Join[uuid.UUID](&db.Animal.HabitatId, &db.Habitat.Id)).
+				}](&db.Habitat.Name, aggregate.Count(&db.Animal.Id)).Join(&db.Animal.HabitatId, &db.Habitat.Id).
 					OrderByDesc(aggregate.Count(&db.Animal.Id)).
 					GroupBy(&db.Habitat.Name).AsSlice()
 
@@ -620,9 +617,8 @@ func TestSelect(t *testing.T) {
 			desc: "Select_Where_In_Query",
 			testCase: func(t *testing.T) {
 				querySelect := goe.Select[any](&db.Animal.Name).
-					Joins(
-						join.Join[int](&db.Animal.Id, &db.AnimalFood.AnimalId),
-						join.Join[uuid.UUID](&db.AnimalFood.FoodId, &db.Food.Id)).
+					Join(&db.Animal.Id, &db.AnimalFood.AnimalId).
+					Join(&db.AnimalFood.FoodId, &db.Food.Id).
 					Where(
 						where.Or(where.Equals(&db.Animal.Name, "Cat"), where.In(&db.Food.Name, []string{foods[0].Name, foods[1].Name}))).
 					AsQuery()
@@ -673,9 +669,8 @@ func TestSelect(t *testing.T) {
 			desc: "Select_Where_NotIn_Query",
 			testCase: func(t *testing.T) {
 				querySelect := goe.Select[any](&db.Animal.Name).
-					Joins(
-						join.Join[int](&db.Animal.Id, &db.AnimalFood.AnimalId),
-						join.Join[uuid.UUID](&db.AnimalFood.FoodId, &db.Food.Id)).
+					Join(&db.Animal.Id, &db.AnimalFood.AnimalId).
+					Join(&db.AnimalFood.FoodId, &db.Food.Id).
 					Where(where.Or(
 						where.Equals(&db.Animal.Name, "Cat"),
 						where.NotIn(&db.Food.Name, []string{foods[0].Name, foods[1].Name}),
@@ -884,7 +879,7 @@ func TestSelect(t *testing.T) {
 			testCase: func(t *testing.T) {
 				var p *goe.Pagination[Animal]
 				p, err = goe.List(db.Animal).
-					Joins(join.Join[uuid.UUID](&db.Animal.HabitatId, &db.Habitat.Id)).
+					Join(&db.Animal.HabitatId, &db.Habitat.Id).
 					Where(where.Like(&db.Animal.Name, "%at")).
 					OrderByDesc(&db.Animal.Id).
 					AsPagination(1, 10)
@@ -928,7 +923,7 @@ func TestSelect(t *testing.T) {
 					Habitat   *string
 					HabitatId *uuid.UUID
 				}](&db.Animal.Name, &db.Habitat.Name, &db.Habitat.Id).
-					Joins(join.LeftJoin[uuid.UUID](&db.Animal.HabitatId, &db.Habitat.Id)).
+					LeftJoin(&db.Animal.HabitatId, &db.Habitat.Id).
 					OrderByAsc(&db.Animal.Id).
 					AsPagination(1, 10)
 				if err != nil {
@@ -1152,10 +1147,8 @@ func TestSelect(t *testing.T) {
 			desc: "Select_Join_Order_By_Asc",
 			testCase: func(t *testing.T) {
 				qr := goe.List(db.Animal).
-					Joins(
-						join.Join[int](&db.Animal.Id, &db.AnimalFood.AnimalId),
-						join.Join[uuid.UUID](&db.Food.Id, &db.AnimalFood.FoodId),
-					).
+					Join(&db.Animal.Id, &db.AnimalFood.AnimalId).
+					Join(&db.Food.Id, &db.AnimalFood.FoodId).
 					OrderByAsc(&db.Animal.Id).Rows()
 				a := runSelect(t, qr)
 				if a[0].Id > a[1].Id {
@@ -1167,10 +1160,8 @@ func TestSelect(t *testing.T) {
 			desc: "Select_Join_Order_By_Desc",
 			testCase: func(t *testing.T) {
 				qr := goe.List(db.Animal).
-					Joins(
-						join.Join[int](&db.Animal.Id, &db.AnimalFood.AnimalId),
-						join.Join[uuid.UUID](&db.Food.Id, &db.AnimalFood.FoodId),
-					).
+					Join(&db.Animal.Id, &db.AnimalFood.AnimalId).
+					Join(&db.Food.Id, &db.AnimalFood.FoodId).
 					OrderByDesc(&db.Animal.Id).Rows()
 				a := runSelect(t, qr)
 				if a[0].Id < a[1].Id {
@@ -1182,10 +1173,8 @@ func TestSelect(t *testing.T) {
 			desc: "Select_Join_Where_Order_By_Asc",
 			testCase: func(t *testing.T) {
 				qr := goe.List(db.Animal).
-					Joins(
-						join.Join[int](&db.Animal.Id, &db.AnimalFood.AnimalId),
-						join.Join[uuid.UUID](&db.Food.Id, &db.AnimalFood.FoodId),
-					).
+					Join(&db.Animal.Id, &db.AnimalFood.AnimalId).
+					Join(&db.Food.Id, &db.AnimalFood.FoodId).
 					Where(
 						where.Equals(&db.Food.Id, foods[0].Id),
 					).OrderByAsc(&db.Animal.Id).Rows()
@@ -1203,10 +1192,8 @@ func TestSelect(t *testing.T) {
 			desc: "Select_Join_Where_Order_By_Desc",
 			testCase: func(t *testing.T) {
 				qr := goe.List(db.Animal).
-					Joins(
-						join.Join[int](&db.Animal.Id, &db.AnimalFood.AnimalId),
-						join.Join[uuid.UUID](&db.Food.Id, &db.AnimalFood.FoodId),
-					).
+					Join(&db.Animal.Id, &db.AnimalFood.AnimalId).
+					Join(&db.Food.Id, &db.AnimalFood.FoodId).
 					Where(
 						where.Equals(&db.Food.Id, foods[0].Id),
 					).OrderByDesc(&db.Animal.Id).Rows()
@@ -1238,10 +1225,7 @@ func TestSelect(t *testing.T) {
 		{
 			desc: "Select_Join_One_To_One",
 			testCase: func(t *testing.T) {
-				qr := goe.List(db.Animal).
-					Joins(
-						join.Join[[]byte](&db.Animal.InfoId, &db.Info.Id),
-					).Rows()
+				qr := goe.List(db.Animal).Join(&db.Animal.InfoId, &db.Info.Id).Rows()
 				a := runSelect(t, qr)
 
 				if len(a) != 2 {
@@ -1421,7 +1405,7 @@ func TestSelect(t *testing.T) {
 					wg.Add(1)
 					go func() {
 						defer wg.Done()
-						selectQuery.Joins(join.Join[int](&db.AnimalFood.AnimalId, &db.Animal.Id)).AsSlice()
+						selectQuery.Join(&db.AnimalFood.AnimalId, &db.Animal.Id).AsSlice()
 						selectQuery.
 							Where(
 								where.And(
@@ -1481,10 +1465,9 @@ func TestSelect(t *testing.T) {
 				}](&db.Animal.Name, &db.Food.Name).Match(struct {
 					AnimalName string
 					FoodName   string
-				}{FoodName: "a"}).Joins(
-					join.Join[int](&db.Animal.Id, &db.AnimalFood.AnimalId),
-					join.Join[uuid.UUID](&db.AnimalFood.FoodId, &db.Food.Id),
-				).AsSlice()
+				}{FoodName: "a"}).
+					Join(&db.Animal.Id, &db.AnimalFood.AnimalId).
+					Join(&db.AnimalFood.FoodId, &db.Food.Id).AsSlice()
 
 				if err != nil {
 					t.Fatalf("Expected list, got: %v", err)
