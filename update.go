@@ -151,11 +151,12 @@ func (s stateUpdate[T]) OnTransaction(tx model.Transaction) stateUpdate[T] {
 
 // Update all records
 func (s stateUpdate[T]) All() error {
-	return s.Where(model.Operation{})
+	return s.Where(model.Where{})
 }
 
-// Where receives [model.Operation] as where operations from where sub package
-func (s stateUpdate[T]) Where(o model.Operation) error {
+// Where receives [model.Where] as where operations from where sub package
+func (s stateUpdate[T]) Where(o model.Where) error {
+	s.builder.buildSets()
 	helperWhere(&s.builder, addrMap.mapField, o)
 
 	s.builder.buildUpdate()

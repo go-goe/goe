@@ -148,15 +148,15 @@ func SelectContext[T any](ctx context.Context, args ...any) stateSelect[T] {
 	return state
 }
 
-// Where receives [model.Operation] as where operations from where sub package
-func (s stateSelect[T]) Where(o model.Operation) stateSelect[T] {
-	s.builder.brs = nil
+// Where receives [model.Where] as where operations from where sub package
+func (s stateSelect[T]) Where(o model.Where) stateSelect[T] {
+	s.builder.query.WhereOperations = nil
 	helperWhere(&s.builder, addrMap.mapField, o)
 	return s
 }
 
 // Filter creates a where on non-zero values.
-func (s stateSelect[T]) Filter(o model.Operation) stateSelect[T] {
+func (s stateSelect[T]) Filter(o model.Where) stateSelect[T] {
 	s.builder.filters = nil
 	helperFilter(&s.builder, addrMap.mapField, o)
 	return s
@@ -290,7 +290,9 @@ func (s stateSelect[T]) AsPagination(page, size int) (*Pagination[T], error) {
 	stateCount.builder.joinsArgs = s.builder.joinsArgs
 
 	// copy operations
-	stateCount.builder.brs = s.builder.brs
+	stateCount.builder.query.WhereOperations = s.builder.query.WhereOperations
+	stateCount.builder.query.Arguments = s.builder.query.Arguments
+	stateCount.builder.whereArguments = s.builder.whereArguments
 	stateCount.builder.filters = s.builder.filters
 
 	// copy connection/transaction
@@ -440,7 +442,7 @@ func getNonZeroFields(a getArgs) ([]any, []any, bool) {
 	return args, values, false
 }
 
-func operations(args, values []any) model.Operation {
+func operations(args, values []any) model.Where {
 	if len(args) == 1 {
 		return equals(args[0], values[0])
 	}
@@ -454,11 +456,11 @@ func operations(args, values []any) model.Operation {
 	return where.And(operations(args[:middle], values[:middle]), operations(args[middle:], values[middle:]))
 }
 
-func equals(f any, a any) model.Operation {
+func equals(f any, a any) model.Where {
 	return where.Equals(&f, a)
 }
 
-func operationsList(args, values []any) model.Operation {
+func operationsList(args, values []any) model.Where {
 	if len(args) == 1 {
 		return equalsOrLike(args[0], values[0])
 	}
@@ -472,7 +474,7 @@ func operationsList(args, values []any) model.Operation {
 	return where.And(operationsList(args[:middle], values[:middle]), operationsList(args[middle:], values[middle:]))
 }
 
-func equalsOrLike(f any, a any) model.Operation {
+func equalsOrLike(f any, a any) model.Where {
 	v, ok := a.(string)
 
 	if !ok {
@@ -539,20 +541,20 @@ func getArgsJoin(addrMap map[uintptr]field, args ...any) []field {
 	return fields
 }
 
-func getArgFunction(arg any, addrMap map[uintptr]field, operation *model.Operation) field {
+func getArgFunction(arg any, addrMap map[uintptr]field, operation *model.Where) field {
 	value := reflect.ValueOf(arg)
 	if value.IsNil() {
 		panic("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
 	}
 
 	if function, ok := value.Elem().Interface().(model.Attributer); ok {
-		operation.Function = function.Attribute(model.Body{}).FunctionType
+		operation.Attribute.FunctionType = function.Attribute(model.Body{}).FunctionType
 		return getArg(function.GetField(), addrMap, nil)
 	}
 	return getArg(arg, addrMap, nil)
 }
 
-func getArg(arg any, addrMap map[uintptr]field, operation *model.Operation) field {
+func getArg(arg any, addrMap map[uintptr]field, operation *model.Where) field {
 	v := reflect.ValueOf(arg)
 	if v.Kind() != reflect.Pointer {
 		panic("goe: invalid argument. try sending a pointer to a database mapped struct as argument")
@@ -612,48 +614,106 @@ func getAttribute(arg any, addrMap map[uintptr]field) (model.Attribute, bool) {
 	return model.Attribute{}, false
 }
 
-func helperWhere(builder *builder, addrMap map[uintptr]field, br model.Operation) {
+func helperWhere(builder *builder, addrMap map[uintptr]field, br model.Where) {
 	switch br.Type {
 	case enum.OperationWhere, enum.OperationInWhere:
 		a := getArg(br.Arg, addrMap, &br)
 		br.Table = model.Table{Schema: a.schema(), Name: a.table()}
 		br.TableId = a.getTableId()
-		br.Attribute = a.getAttributeName()
+		br.Attribute.Name = a.getAttributeName()
+		br.Attribute.Table = a.table()
 
-		builder.brs = append(builder.brs, br)
+		if br.Type == enum.OperationWhere {
+			builder.query.Arguments = append(builder.query.Arguments, br.Value.GetValue())
+			builder.whereArguments++
+		}
+
+		if br.Type == enum.OperationInWhere {
+			valueOf := reflect.ValueOf(br.Value.GetValue())
+			switch valueOf.Kind() {
+			case reflect.Slice:
+				for i := range valueOf.Len() {
+					builder.query.Arguments = append(builder.query.Arguments, valueOf.Index(i).Interface())
+					builder.whereArguments++
+					br.SizeIn++
+				}
+			case reflect.Array:
+				for i := range valueOf.Len() {
+					builder.query.Arguments = append(builder.query.Arguments, valueOf.Index(i).Interface())
+					builder.whereArguments++
+					br.SizeIn++
+				}
+			default:
+				if modelQuery, ok := valueOf.Interface().(model.Query); ok {
+					br.QueryIn = &modelQuery
+				}
+			}
+		}
+
+		builder.query.WhereOperations = append(builder.query.WhereOperations, br)
 	case enum.OperationAttributeWhere:
 		a, b := getArg(br.Arg, addrMap, nil), getArg(br.Value.GetValue(), addrMap, nil)
 		br.Table = model.Table{Schema: a.schema(), Name: a.table()}
 		br.TableId = a.getTableId()
-		br.Attribute = a.getAttributeName()
+		br.Attribute.Name = a.getAttributeName()
+		br.Attribute.Table = a.table()
 
-		br.AttributeValue = b.getAttributeName()
+		br.AttributeValue.Name = b.getAttributeName()
+		br.AttributeValue.Table = b.table()
 		br.AttributeValueTable = model.Table{Schema: b.schema(), Name: b.table()}
 		br.AttributeTableId = b.getTableId()
-		builder.brs = append(builder.brs, br)
+		builder.query.WhereOperations = append(builder.query.WhereOperations, br)
 	case enum.OperationIsWhere:
 		a := getArg(br.Arg, addrMap, nil)
 		br.Table = model.Table{Schema: a.schema(), Name: a.table()}
 		br.TableId = a.getTableId()
-		br.Attribute = a.getAttributeName()
+		br.Attribute.Name = a.getAttributeName()
+		br.Attribute.Table = a.table()
 
-		builder.brs = append(builder.brs, br)
+		builder.query.WhereOperations = append(builder.query.WhereOperations, br)
 	case enum.LogicalWhere:
 		helperWhere(builder, addrMap, *br.FirstOperation)
-		builder.brs = append(builder.brs, br)
+		builder.query.WhereOperations = append(builder.query.WhereOperations, br)
 		helperWhere(builder, addrMap, *br.SecondOperation)
 	}
 }
 
-func helperFilter(builder *builder, addrMap map[uintptr]field, br model.Operation) bool {
+func helperFilter(builder *builder, addrMap map[uintptr]field, br model.Where) bool {
 	switch br.Type {
 	case enum.OperationWhere, enum.OperationInWhere:
 		if !reflect.ValueOf(br.Value.GetValue()).IsZero() {
 			a := getArg(br.Arg, addrMap, &br)
 			br.Table = model.Table{Schema: a.schema(), Name: a.table()}
 			br.TableId = a.getTableId()
-			br.Attribute = a.getAttributeName()
+			br.Attribute.Name = a.getAttributeName()
+			br.Attribute.Table = a.table()
 
+			if br.Type == enum.OperationWhere {
+				builder.query.Arguments = append(builder.query.Arguments, br.Value.GetValue())
+				builder.whereArguments++
+			}
+
+			if br.Type == enum.OperationInWhere {
+				valueOf := reflect.ValueOf(br.Value.GetValue())
+				switch valueOf.Kind() {
+				case reflect.Slice:
+					for i := range valueOf.Len() {
+						builder.query.Arguments = append(builder.query.Arguments, valueOf.Index(i).Interface())
+						builder.whereArguments++
+						br.SizeIn++
+					}
+				case reflect.Array:
+					for i := range valueOf.Len() {
+						builder.query.Arguments = append(builder.query.Arguments, valueOf.Index(i).Interface())
+						builder.whereArguments++
+						br.SizeIn++
+					}
+				default:
+					if modelQuery, ok := valueOf.Interface().(model.Query); ok {
+						br.QueryIn = &modelQuery
+					}
+				}
+			}
 			builder.filters = append(builder.filters, br)
 			return true
 		}
@@ -661,9 +721,11 @@ func helperFilter(builder *builder, addrMap map[uintptr]field, br model.Operatio
 		a, b := getArg(br.Arg, addrMap, nil), getArg(br.Value.GetValue(), addrMap, nil)
 		br.Table = model.Table{Schema: a.schema(), Name: a.table()}
 		br.TableId = a.getTableId()
-		br.Attribute = a.getAttributeName()
+		br.Attribute.Name = a.getAttributeName()
+		br.Attribute.Table = a.table()
 
-		br.AttributeValue = b.getAttributeName()
+		br.AttributeValue.Name = b.getAttributeName()
+		br.AttributeValue.Table = b.table()
 		br.AttributeValueTable = model.Table{Schema: b.schema(), Name: b.table()}
 		br.AttributeTableId = b.getTableId()
 		builder.filters = append(builder.filters, br)
