@@ -5,7 +5,6 @@ import (
 	"iter"
 	"math"
 	"reflect"
-	"slices"
 	"strings"
 
 	"github.com/go-goe/goe/enum"
@@ -151,14 +150,14 @@ func SelectContext[T any](ctx context.Context, args ...any) stateSelect[T] {
 // Where receives [model.Where] as where operations from where sub package
 func (s stateSelect[T]) Where(o model.Where) stateSelect[T] {
 	s.builder.query.WhereOperations = nil
-	helperWhere(&s.builder, addrMap.mapField, o)
+	helperWhere(&s.builder, addrMap.mapField, &o)
+	s.builder.query.Where = &o
 	return s
 }
 
 // Filter creates a where on non-zero values.
-func (s stateSelect[T]) Filter(o model.Where) stateSelect[T] {
-	s.builder.filters = nil
-	helperFilter(&s.builder, addrMap.mapField, o)
+func (s stateSelect[T]) Filter(filter model.Where) stateSelect[T] {
+	s.builder.query.Filter = helperFilter(&s.builder, addrMap.mapField, &filter)
 	return s
 }
 
@@ -290,10 +289,12 @@ func (s stateSelect[T]) AsPagination(page, size int) (*Pagination[T], error) {
 	stateCount.builder.joinsArgs = s.builder.joinsArgs
 
 	// copy operations
+	//CHECK PASS THE QUERY
 	stateCount.builder.query.WhereOperations = s.builder.query.WhereOperations
 	stateCount.builder.query.Arguments = s.builder.query.Arguments
 	stateCount.builder.whereArguments = s.builder.whereArguments
-	stateCount.builder.filters = s.builder.filters
+	stateCount.builder.query.Filter = s.builder.query.Filter
+	stateCount.builder.query.Where = s.builder.query.Where
 
 	// copy connection/transaction
 	stateCount.conn = s.conn
@@ -614,10 +615,10 @@ func getAttribute(arg any, addrMap map[uintptr]field) (model.Attribute, bool) {
 	return model.Attribute{}, false
 }
 
-func helperWhere(builder *builder, addrMap map[uintptr]field, br model.Where) {
+func helperWhere(builder *builder, addrMap map[uintptr]field, br *model.Where) {
 	switch br.Type {
 	case enum.OperationWhere, enum.OperationInWhere:
-		a := getArg(br.Arg, addrMap, &br)
+		a := getArg(br.Arg, addrMap, br)
 		br.Table = model.Table{Schema: a.schema(), Name: a.table()}
 		br.TableId = a.getTableId()
 		br.Attribute.Name = a.getAttributeName()
@@ -650,7 +651,6 @@ func helperWhere(builder *builder, addrMap map[uintptr]field, br model.Where) {
 			}
 		}
 
-		builder.query.WhereOperations = append(builder.query.WhereOperations, br)
 	case enum.OperationAttributeWhere:
 		a, b := getArg(br.Arg, addrMap, nil), getArg(br.Value.GetValue(), addrMap, nil)
 		br.Table = model.Table{Schema: a.schema(), Name: a.table()}
@@ -662,7 +662,6 @@ func helperWhere(builder *builder, addrMap map[uintptr]field, br model.Where) {
 		br.AttributeValue.Table = b.table()
 		br.AttributeValueTable = model.Table{Schema: b.schema(), Name: b.table()}
 		br.AttributeTableId = b.getTableId()
-		builder.query.WhereOperations = append(builder.query.WhereOperations, br)
 	case enum.OperationIsWhere:
 		a := getArg(br.Arg, addrMap, nil)
 		br.Table = model.Table{Schema: a.schema(), Name: a.table()}
@@ -670,77 +669,78 @@ func helperWhere(builder *builder, addrMap map[uintptr]field, br model.Where) {
 		br.Attribute.Name = a.getAttributeName()
 		br.Attribute.Table = a.table()
 
-		builder.query.WhereOperations = append(builder.query.WhereOperations, br)
 	case enum.LogicalWhere:
-		helperWhere(builder, addrMap, *br.FirstOperation)
-		builder.query.WhereOperations = append(builder.query.WhereOperations, br)
-		helperWhere(builder, addrMap, *br.SecondOperation)
+		helperWhere(builder, addrMap, br.FirstOperation)
+		helperWhere(builder, addrMap, br.SecondOperation)
 	}
 }
 
-func helperFilter(builder *builder, addrMap map[uintptr]field, br model.Where) bool {
-	switch br.Type {
+func helperFilter(builder *builder, addrMap map[uintptr]field, filter *model.Where) *model.Where {
+	switch filter.Type {
 	case enum.OperationWhere, enum.OperationInWhere:
-		if !reflect.ValueOf(br.Value.GetValue()).IsZero() {
-			a := getArg(br.Arg, addrMap, &br)
-			br.Table = model.Table{Schema: a.schema(), Name: a.table()}
-			br.TableId = a.getTableId()
-			br.Attribute.Name = a.getAttributeName()
-			br.Attribute.Table = a.table()
+		if !reflect.ValueOf(filter.Value.GetValue()).IsZero() {
+			a := getArg(filter.Arg, addrMap, filter)
+			filter.Table = model.Table{Schema: a.schema(), Name: a.table()}
+			filter.TableId = a.getTableId()
+			filter.Attribute.Name = a.getAttributeName()
+			filter.Attribute.Table = a.table()
 
-			if br.Type == enum.OperationWhere {
-				builder.query.Arguments = append(builder.query.Arguments, br.Value.GetValue())
+			if filter.Type == enum.OperationWhere {
+				builder.query.Arguments = append(builder.query.Arguments, filter.Value.GetValue())
 				builder.whereArguments++
 			}
 
-			if br.Type == enum.OperationInWhere {
-				valueOf := reflect.ValueOf(br.Value.GetValue())
+			if filter.Type == enum.OperationInWhere {
+				valueOf := reflect.ValueOf(filter.Value.GetValue())
 				switch valueOf.Kind() {
 				case reflect.Slice:
 					for i := range valueOf.Len() {
 						builder.query.Arguments = append(builder.query.Arguments, valueOf.Index(i).Interface())
 						builder.whereArguments++
-						br.SizeIn++
+						filter.SizeIn++
 					}
 				case reflect.Array:
 					for i := range valueOf.Len() {
 						builder.query.Arguments = append(builder.query.Arguments, valueOf.Index(i).Interface())
 						builder.whereArguments++
-						br.SizeIn++
+						filter.SizeIn++
 					}
 				default:
 					if modelQuery, ok := valueOf.Interface().(model.Query); ok {
-						br.QueryIn = &modelQuery
+						filter.QueryIn = &modelQuery
 					}
 				}
 			}
-			builder.filters = append(builder.filters, br)
-			return true
+			return filter
 		}
 	case enum.OperationAttributeWhere:
-		a, b := getArg(br.Arg, addrMap, nil), getArg(br.Value.GetValue(), addrMap, nil)
-		br.Table = model.Table{Schema: a.schema(), Name: a.table()}
-		br.TableId = a.getTableId()
-		br.Attribute.Name = a.getAttributeName()
-		br.Attribute.Table = a.table()
+		a, b := getArg(filter.Arg, addrMap, nil), getArg(filter.Value.GetValue(), addrMap, nil)
+		filter.Table = model.Table{Schema: a.schema(), Name: a.table()}
+		filter.TableId = a.getTableId()
+		filter.Attribute.Name = a.getAttributeName()
+		filter.Attribute.Table = a.table()
 
-		br.AttributeValue.Name = b.getAttributeName()
-		br.AttributeValue.Table = b.table()
-		br.AttributeValueTable = model.Table{Schema: b.schema(), Name: b.table()}
-		br.AttributeTableId = b.getTableId()
-		builder.filters = append(builder.filters, br)
-		return true
+		filter.AttributeValue.Name = b.getAttributeName()
+		filter.AttributeValue.Table = b.table()
+		filter.AttributeValueTable = model.Table{Schema: b.schema(), Name: b.table()}
+		filter.AttributeTableId = b.getTableId()
+		return filter
 	case enum.LogicalWhere:
-		firstFlag := helperFilter(builder, addrMap, *br.FirstOperation)
-		builder.filters = append(builder.filters, br)
-		idx := len(builder.filters) - 1
-		secondFlag := helperFilter(builder, addrMap, *br.SecondOperation)
-		if !firstFlag || !secondFlag {
-			builder.filters = slices.Delete(builder.filters, idx, idx+1)
+		firstFilter := helperFilter(builder, addrMap, filter.FirstOperation)
+		secondFilter := helperFilter(builder, addrMap, filter.SecondOperation)
+
+		if firstFilter == nil && secondFilter == nil {
+			return nil
 		}
-		return true
+		if firstFilter == nil {
+			return secondFilter
+		}
+		if secondFilter == nil {
+			return firstFilter
+		}
+		return filter
 	}
-	return false
+	return nil
 }
 
 func getArgsSelect(args ...any) argsSelect {

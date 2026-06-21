@@ -157,8 +157,8 @@ func (s stateUpdate[T]) All() error {
 // Where receives [model.Where] as where operations from where sub package
 func (s stateUpdate[T]) Where(o model.Where) error {
 	s.builder.buildSets()
-	helperWhere(&s.builder, addrMap.mapField, o)
-
+	helperWhere(&s.builder, addrMap.mapField, &o)
+	s.builder.query.Where = &o
 	s.builder.buildUpdate()
 
 	driver := s.builder.sets[0].attribute.getDb().driver
