@@ -1,6 +1,7 @@
 package goe
 
 import (
+	"maps"
 	"reflect"
 	"time"
 
@@ -17,9 +18,9 @@ type builder struct {
 	fieldIds       []int           //insert and update
 	joins          []enum.JoinType //select
 	joinsArgs      []field         //select
-	filters        []model.Where
 	sets           []set
 	whereArguments int
+	tables         map[int]bool
 }
 
 type set struct {
@@ -39,6 +40,9 @@ func (b *builder) buildSelect() {
 	for i := range b.fieldsSelect {
 		b.fieldsSelect[i].buildAttributeSelect(b.query.Attributes, i)
 	}
+	b.tables = make(map[int]bool)
+	b.tables[b.fieldsSelect[0].getTableId()] = true
+	b.query.Tables = append(b.query.Tables, model.Table{Schema: b.fieldsSelect[0].schema(), Name: b.fieldsSelect[0].table()})
 }
 
 func (b *builder) buildSelectJoins(join enum.JoinType, fields []field) {
@@ -50,7 +54,6 @@ func (b *builder) buildSelectJoins(join enum.JoinType, fields []field) {
 }
 
 func (b *builder) buildSqlSelect() {
-	b.buildSelect()
 	b.buildTables()
 	b.buildWhere()
 	b.query.Header.ModelBuild = time.Since(b.modelStart)
@@ -78,29 +81,27 @@ func (b *builder) buildSqlDelete() {
 }
 
 func (b *builder) buildWhere() {
-	if len(b.filters) != 0 && len(b.query.WhereOperations) != 0 {
-		b.query.WhereOperations = append(b.query.WhereOperations, model.Where{
-			Operator: enum.And,
-			Type:     enum.LogicalWhere})
-		b.query.WhereOperations = append(b.query.WhereOperations, b.filters...)
-	} else if len(b.filters) != 0 {
-		b.query.WhereOperations = append(b.query.WhereOperations, b.filters...)
+	if b.query.Filter != nil && b.query.Where != nil {
+		b.query.Where = &model.Where{
+			Operator:        enum.And,
+			Type:            enum.LogicalWhere,
+			FirstOperation:  b.query.Where,
+			SecondOperation: b.query.Filter,
+		}
+	} else if b.query.Filter != nil {
+		b.query.Where = b.query.Filter
 	}
 
-	if len(b.query.WhereOperations) == 0 {
+	if b.query.Where == nil {
 		return
 	}
 	b.query.WhereIndex = len(b.query.Arguments) - b.whereArguments + 1
 }
 
 func (b *builder) buildTables() {
-	var tables map[int]int
 	if len(b.joins) != 0 {
-		tables = make(map[int]int)
-		tables[b.joinsArgs[0].getTableId()] = 1
-		b.query.Tables = append(b.query.Tables, model.Table{Schema: b.joinsArgs[0].schema(), Name: b.joinsArgs[0].table()})
-
 		b.query.Joins = make([]model.Join, len(b.joins))
+		tables := maps.Clone(b.tables)
 		c := 1
 		for i := range b.joins {
 			buildJoins(i, b.query.Joins, b.joins[i], b.joinsArgs[i+c-1], b.joinsArgs[i+c-1+1], tables)
@@ -108,40 +109,26 @@ func (b *builder) buildTables() {
 		}
 		return
 	}
-	tables = make(map[int]int)
-	tables[b.fieldsSelect[0].getTableId()] = 1
-	b.query.Tables = append(b.query.Tables, model.Table{Schema: b.fieldsSelect[0].schema(), Name: b.fieldsSelect[0].table()})
-
-	for i := range b.query.WhereOperations {
-		if b.query.WhereOperations[i].TableId != 0 && tables[b.query.WhereOperations[i].TableId] == 0 {
-			tables[b.query.WhereOperations[i].TableId] = 1
-			b.query.Tables = append(b.query.Tables, b.query.WhereOperations[i].Table)
-		}
-		if b.query.WhereOperations[i].AttributeTableId != 0 && tables[b.query.WhereOperations[i].AttributeTableId] == 0 {
-			tables[b.query.WhereOperations[i].AttributeTableId] = 1
-			b.query.Tables = append(b.query.Tables, b.query.WhereOperations[i].AttributeValueTable)
-		}
-	}
 }
 
-func buildJoins(i int, joins []model.Join, join enum.JoinType, f1, f2 field, tables map[int]int) {
-	if tables[f1.getTableId()] == 1 {
+func buildJoins(i int, joins []model.Join, join enum.JoinType, f1, f2 field, tables map[int]bool) {
+	if !tables[f1.getTableId()] {
 		joins[i] = model.Join{
-			Table:          model.Table{Schema: f2.schema(), Name: f2.table()},
+			Table:          model.Table{Schema: f1.schema(), Name: f1.table()},
 			FirstArgument:  model.JoinArgument{Table: f1.table(), Name: f1.getAttributeName()},
 			JoinOperation:  join,
 			SecondArgument: model.JoinArgument{Table: f2.table(), Name: f2.getAttributeName()}}
 
-		tables[f2.getTableId()] = 1
+		tables[f1.getTableId()] = true
 		return
 	}
 	joins[i] = model.Join{
-		Table:          model.Table{Schema: f1.schema(), Name: f1.table()},
-		FirstArgument:  model.JoinArgument{Table: f1.table(), Name: f1.getAttributeName()},
+		Table:          model.Table{Schema: f2.schema(), Name: f2.table()},
+		FirstArgument:  model.JoinArgument{Table: f2.table(), Name: f2.getAttributeName()},
 		JoinOperation:  join,
-		SecondArgument: model.JoinArgument{Table: f2.table(), Name: f2.getAttributeName()}}
+		SecondArgument: model.JoinArgument{Table: f1.table(), Name: f1.getAttributeName()}}
 
-	tables[f1.getTableId()] = 1
+	tables[f2.getTableId()] = true
 }
 
 func (b *builder) buildInsert() {

@@ -3,6 +3,7 @@ package goe
 import (
 	"context"
 	"iter"
+	"maps"
 	"math"
 	"reflect"
 	"strings"
@@ -150,6 +151,7 @@ func SelectContext[T any](ctx context.Context, args ...any) stateSelect[T] {
 // Where receives [model.Where] as where operations from where sub package
 func (s stateSelect[T]) Where(o model.Where) stateSelect[T] {
 	s.builder.query.WhereOperations = nil
+	s.builder.tables = maps.Clone(s.builder.tables)
 	helperWhere(&s.builder, addrMap.mapField, &o)
 	s.builder.query.Where = &o
 	return s
@@ -393,6 +395,7 @@ func (s stateSelect[T]) Rows() iter.Seq2[T, error] {
 func createSelectState[T any](ctx context.Context, getArgs func(args ...any) argsSelect, args ...any) stateSelect[T] {
 	s := stateSelect[T]{builder: createBuilder(enum.SelectQuery), argsSelect: getArgs(args...), ctx: ctx}
 	s.builder.fieldsSelect = s.fields
+	s.builder.buildSelect()
 	return s
 }
 
@@ -657,11 +660,19 @@ func helperWhere(builder *builder, addrMap map[uintptr]field, br *model.Where) {
 		br.TableId = a.getTableId()
 		br.Attribute.Name = a.getAttributeName()
 		br.Attribute.Table = a.table()
+		if !builder.tables[br.TableId] {
+			builder.tables[br.TableId] = true
+			builder.query.Tables = append(builder.query.Tables, br.Table)
+		}
 
 		br.AttributeValue.Name = b.getAttributeName()
 		br.AttributeValue.Table = b.table()
 		br.AttributeValueTable = model.Table{Schema: b.schema(), Name: b.table()}
 		br.AttributeTableId = b.getTableId()
+		if !builder.tables[br.AttributeTableId] {
+			builder.tables[br.AttributeTableId] = true
+			builder.query.Tables = append(builder.query.Tables, br.AttributeValueTable)
+		}
 	case enum.OperationIsWhere:
 		a := getArg(br.Arg, addrMap, nil)
 		br.Table = model.Table{Schema: a.schema(), Name: a.table()}
@@ -714,17 +725,7 @@ func helperFilter(builder *builder, addrMap map[uintptr]field, filter *model.Whe
 			return filter
 		}
 	case enum.OperationAttributeWhere:
-		a, b := getArg(filter.Arg, addrMap, nil), getArg(filter.Value.GetValue(), addrMap, nil)
-		filter.Table = model.Table{Schema: a.schema(), Name: a.table()}
-		filter.TableId = a.getTableId()
-		filter.Attribute.Name = a.getAttributeName()
-		filter.Attribute.Table = a.table()
-
-		filter.AttributeValue.Name = b.getAttributeName()
-		filter.AttributeValue.Table = b.table()
-		filter.AttributeValueTable = model.Table{Schema: b.schema(), Name: b.table()}
-		filter.AttributeTableId = b.getTableId()
-		return filter
+		panic("goe: invalid filter call. try using the field operation on where.")
 	case enum.LogicalWhere:
 		firstFilter := helperFilter(builder, addrMap, filter.FirstOperation)
 		secondFilter := helperFilter(builder, addrMap, filter.SecondOperation)
