@@ -7,7 +7,11 @@ docker compose up -d
 ```
 
 ```
-GOE_DRIVER=SQLite go test . -v -race -count=1
+GOE_DRIVER=SQLite go test -failfast . -v -race -count=1
+```
+
+```
+GOE_DRIVER=SQLite go test -failfast . -v -race -count=1 -run Select
 ```
 
 ```

@@ -396,9 +396,9 @@ func TestSelect(t *testing.T) {
 			desc: "Select_Count_GroupBy",
 			testCase: func(t *testing.T) {
 				foodCount, err := goe.Select[struct {
-					Count      int
 					AnimalName string
-				}](aggregate.Count(&db.AnimalFood.FoodId), &db.Animal.Name).
+					Count      int
+				}](&db.Animal.Name, aggregate.Count(&db.AnimalFood.FoodId)).
 					LeftJoin(&db.Animal.Id, &db.AnimalFood.AnimalId).GroupBy(&db.Animal.Name).AsSlice()
 
 				if err != nil {

@@ -27,12 +27,20 @@ type Join struct {
 }
 
 type Where struct {
-	Type           enum.WhereType
-	Attribute      Attribute
-	Operator       enum.OperatorType
-	AttributeValue Attribute
-	SizeIn         uint
-	QueryIn        *Query
+	Type                enum.WhereType
+	Attribute           Attribute
+	Operator            enum.OperatorType
+	AttributeValue      Attribute
+	SizeIn              uint
+	QueryIn             *Query
+	Value               ValueOperation
+	Arg                 any
+	TableId             int
+	AttributeTableId    int
+	Table               Table //TOOD: Put inside attribute
+	AttributeValueTable Table //TOOD: Put inside attribute
+	FirstOperation      *Where
+	SecondOperation     *Where
 }
 
 type OrderBy struct {
@@ -69,6 +77,7 @@ type Query struct {
 	ForUpdate bool      //Select
 
 	WhereOperations []Where //Select, Update and Delete
+	Where           *Where  //Select, Update and Delete
 	WhereIndex      int     //Start of where position arguments $1, $2...
 	Arguments       []any
 
@@ -84,22 +93,6 @@ type QueryHeader struct {
 	Err           error
 	ModelBuild    time.Duration
 	QueryDuration time.Duration
-}
-
-type Operation struct {
-	Type                enum.WhereType
-	Arg                 any
-	Value               ValueOperation
-	Operator            enum.OperatorType
-	Attribute           string
-	Table               Table
-	TableId             int
-	Function            enum.FunctionType
-	AttributeValue      string
-	AttributeValueTable Table
-	AttributeTableId    int
-	FirstOperation      *Operation
-	SecondOperation     *Operation
 }
 
 type Set struct {

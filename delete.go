@@ -129,13 +129,13 @@ func (s stateDelete) OnTransaction(tx model.Transaction) stateDelete {
 
 // Delete all records
 func (s stateDelete) All() error {
-	return s.Where(model.Operation{})
+	return s.Where(model.Where{})
 }
 
-// Where receives [model.Operation] as where operations from where sub package
-func (s stateDelete) Where(o model.Operation) error {
-	helperWhere(&s.builder, addrMap.mapField, o)
-
+// Where receives [model.Where] as where operations from where sub package
+func (s stateDelete) Where(o model.Where) error {
+	helperWhere(&s.builder, addrMap.mapField, &o)
+	s.builder.query.Where = &o
 	s.builder.buildSqlDelete()
 
 	driver := s.builder.fields[0].getDb().driver
