@@ -77,7 +77,7 @@ type Query struct {
 	ForUpdate bool      //Select
 
 	WhereOperations []Where //Select, Update and Delete
-	Where           Where   //Select, Update and Delete
+	Where           *Where  //Select, Update and Delete
 	WhereIndex      int     //Start of where position arguments $1, $2...
 	Arguments       []any
 

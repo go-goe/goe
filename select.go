@@ -159,7 +159,7 @@ func (s stateSelect[T]) Where(o model.Where) stateSelect[T] {
 
 // Filter creates a where on non-zero values.
 func (s stateSelect[T]) Filter(filter model.Where) stateSelect[T] {
-	s.builder.query.Filter = helperFilter(&s.builder, addrMap.mapField, &filter)
+	s.builder.filter = helperFilter(&s.builder, addrMap.mapField, &filter)
 	return s
 }
 
@@ -291,11 +291,9 @@ func (s stateSelect[T]) AsPagination(page, size int) (*Pagination[T], error) {
 	stateCount.builder.joinsArgs = s.builder.joinsArgs
 
 	// copy operations
-	//CHECK PASS THE QUERY
-	stateCount.builder.query.WhereOperations = s.builder.query.WhereOperations
 	stateCount.builder.query.Arguments = s.builder.query.Arguments
 	stateCount.builder.whereArguments = s.builder.whereArguments
-	stateCount.builder.query.Filter = s.builder.query.Filter
+	stateCount.builder.filter = s.builder.filter
 	stateCount.builder.query.Where = s.builder.query.Where
 
 	// copy connection/transaction

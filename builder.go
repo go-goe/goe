@@ -21,6 +21,7 @@ type builder struct {
 	sets           []set
 	whereArguments int
 	tables         map[int]bool
+	filter         *model.Where
 }
 
 type set struct {
@@ -81,15 +82,15 @@ func (b *builder) buildSqlDelete() {
 }
 
 func (b *builder) buildWhere() {
-	if b.query.Filter != nil && b.query.Where != nil {
+	if b.filter != nil && b.query.Where != nil {
 		b.query.Where = &model.Where{
 			Operator:        enum.And,
 			Type:            enum.LogicalWhere,
 			FirstOperation:  b.query.Where,
-			SecondOperation: b.query.Filter,
+			SecondOperation: b.filter,
 		}
-	} else if b.query.Filter != nil {
-		b.query.Where = b.query.Filter
+	} else if b.filter != nil {
+		b.query.Where = b.filter
 	}
 
 	if b.query.Where == nil {
