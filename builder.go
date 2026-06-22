@@ -42,8 +42,6 @@ func (b *builder) buildSelect() {
 		b.fieldsSelect[i].buildAttributeSelect(b.query.Attributes, i)
 	}
 	b.tables = make(map[int]bool)
-	b.tables[b.fieldsSelect[0].getTableId()] = true
-	b.query.Tables = append(b.query.Tables, model.Table{Schema: b.fieldsSelect[0].schema(), Name: b.fieldsSelect[0].table()})
 }
 
 func (b *builder) buildSelectJoins(join enum.JoinType, fields []field) {
@@ -103,12 +101,19 @@ func (b *builder) buildTables() {
 	if len(b.joins) != 0 {
 		b.query.Joins = make([]model.Join, len(b.joins))
 		tables := maps.Clone(b.tables)
+		if !tables[b.joinsArgs[0].getTableId()] {
+			b.query.Tables = append(b.query.Tables, model.Table{Schema: b.joinsArgs[0].schema(), Name: b.joinsArgs[0].table()})
+			tables[b.joinsArgs[0].getTableId()] = true
+		}
 		c := 1
 		for i := range b.joins {
 			buildJoins(i, b.query.Joins, b.joins[i], b.joinsArgs[i+c-1], b.joinsArgs[i+c-1+1], tables)
 			c++
 		}
 		return
+	}
+	if len(b.query.Tables) == 0 {
+		b.query.Tables = append(b.query.Tables, model.Table{Schema: b.fieldsSelect[0].schema(), Name: b.fieldsSelect[0].table()})
 	}
 }
 
