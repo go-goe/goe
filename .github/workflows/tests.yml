@@ -33,12 +33,12 @@ jobs:
             path: ~/go/pkg/mod
             key: ${{ runner.os }}-go-${{ matrix.go }}-${{ hashFiles('tests/go.mod') }}
 
-        - name: Go get
-          run: go get -u -t
+        - name: Go tidy
+          run: go mod tidy
           working-directory: tests
 
         - name: Test
-          run: GOE_DRIVER=${{ matrix.driver }} go test . -v -race -count=1
+          run: GOE_DRIVER=${{ matrix.driver }} go test -failfast . -v -race -count=1
           working-directory: tests
           
     postgres:
@@ -80,8 +80,8 @@ jobs:
           path: ~/go/pkg/mod
           key: ${{ runner.os }}-go-${{ matrix.go }}-${{ hashFiles('tests/go.mod') }}
 
-      - name: Go get
-        run: go get -u -t
+      - name: Go tidy
+        run: go mod tidy
         working-directory: tests
 
       - name: Test
