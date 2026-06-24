@@ -33,8 +33,8 @@ func (m migrate) OnSchema(schema string) migrateSchema {
 	return migrateSchema{m, schema}
 }
 
-func (m migrate) OnTable(schema string) migrateTable {
-	return migrateTable{migrateSchema{migrate: m}, schema}
+func (m migrate) OnTable(table string) migrateTable {
+	return migrateTable{migrateSchema{migrate: m}, table}
 }
 
 func (ms migrateSchema) OnTable(table string) migrateTable {
@@ -42,12 +42,11 @@ func (ms migrateSchema) OnTable(table string) migrateTable {
 }
 
 func (m migrate) AutoMigrateContext(ctx context.Context) error {
-	migrateData := migrateFrom(m.dbTarget, m.db.driver)
-	if migrateData.Error != nil {
-		return migrateData.Error
+	data, err := MigrateFrom(m.dbTarget, m.db.driver)
+	if err != nil {
+		return err
 	}
-
-	return m.db.driver.MigrateContext(ctx, migrateData)
+	return m.db.driver.MigrateContext(ctx, data)
 }
 
 func (mt migrateTable) DropTable() error {

@@ -167,7 +167,7 @@ func (p pk) getAttributeName() string {
 }
 
 func createPk(db *DB, schema *string, table string, attributeName string, autoIncrement bool, tableId, fieldId int, Driver model.Driver) pk {
-	table = Driver.KeywordHandler(utils.TableNamePattern(table))
+	table = Driver.KeywordHandler(table)
 	return pk{
 		attributeStrings: createAttributeStrings(db, schema, table, attributeName, tableId, fieldId, Driver),
 		autoIncrement:    autoIncrement}

@@ -10,75 +10,114 @@ import (
 	"github.com/go-goe/goe/utils"
 )
 
-func migrateFrom(db any, driver model.Driver) *model.Migrator {
-	valueOf := reflect.ValueOf(db).Elem()
-
-	schemasMap := make(map[string]*string)
-	for i := range valueOf.NumField() - 1 {
-		if strings.Contains(valueOf.Type().Field(i).Tag.Get("goe"), "schema") || strings.HasSuffix(valueOf.Field(i).Elem().Type().Name(), "Schema") {
-			schema := driver.KeywordHandler(utils.ColumnNamePattern(valueOf.Field(i).Elem().Type().Name()))
-			for f := range valueOf.Field(i).Elem().NumField() {
-				schemasMap[valueOf.Field(i).Elem().Field(f).Elem().Type().Name()] = &schema
-			}
-		}
+func MigrateFrom(db any, driver model.Driver) (*model.Migrator, error) {
+	if m := newDbMigrator(db, driver); m != nil {
+		return m.Migrator, m.Error
 	}
-
-	migrator := new(model.Migrator)
-	migrator.Tables = make(map[string]*model.TableMigrate)
-	for i := range valueOf.NumField() - 1 {
-		if strings.Contains(valueOf.Type().Field(i).Tag.Get("goe"), "schema") || strings.HasSuffix(valueOf.Field(i).Elem().Type().Name(), "Schema") {
-			schema := driver.KeywordHandler(utils.ColumnNamePattern(valueOf.Field(i).Elem().Type().Name()))
-			migrator.Schemas = append(migrator.Schemas, schema)
-			for f := range valueOf.Field(i).Elem().NumField() {
-				migrator.Error = typeField(valueOf, valueOf.Field(i).Elem().Field(f), migrator, driver, &schema, schemasMap)
-				if migrator.Error != nil {
-					return migrator
-				}
-			}
-			continue
-		}
-
-		migrator.Error = typeField(valueOf, valueOf.Field(i), migrator, driver, nil, schemasMap)
-		if migrator.Error != nil {
-			return migrator
-		}
-	}
-
-	return migrator
+	return nil, fmt.Errorf("MigrateFrom: driver not found")
 }
 
-func typeField(tables reflect.Value, valueOf reflect.Value, migrator *model.Migrator, driver model.Driver, schema *string, schemasMap map[string]*string) error {
-	valueOf = valueOf.Elem()
-	pks, fieldNames, err := migratePk(valueOf.Type(), driver)
+type fieldDesc struct {
+	Field      reflect.Value
+	FieldName  string
+	HasSchema  bool
+	SchemaName string
+}
+
+type dbMigrator struct {
+	fieldDescs []*fieldDesc
+	schemasMap map[string]*string
+	*model.Migrator
+}
+
+func newDbMigrator(db any, driver model.Driver) *dbMigrator {
+	valueOf := reflect.ValueOf(db).Elem()
+	count := valueOf.NumField() - 1
+	dm := &dbMigrator{
+		Migrator: &model.Migrator{
+			Tables: make(map[string]*model.TableMigrate),
+		},
+		fieldDescs: make([]*fieldDesc, count),
+		schemasMap: make(map[string]*string),
+	}
+
+	for i := range count {
+		desc := &fieldDesc{Field: valueOf.Field(i)}
+		elem := desc.Field.Elem()
+
+		desc.FieldName = elem.Type().Name()
+		desc.HasSchema = utils.IsFieldHasSchema(valueOf, i)
+
+		if desc.HasSchema {
+			desc.SchemaName = driver.KeywordHandler(utils.ColumnNamePattern(desc.FieldName))
+			for f := range elem.NumField() {
+				schElem := elem.Field(f).Elem()
+				dm.schemasMap[schElem.Type().Name()] = &desc.SchemaName
+			}
+		}
+		dm.fieldDescs[i] = desc
+	}
+
+	for i := range count {
+		desc := dm.fieldDescs[i]
+		elem := desc.Field.Elem()
+
+		if desc.HasSchema {
+			dm.Schemas = append(dm.Schemas, desc.SchemaName)
+			for f := range elem.NumField() {
+				tableElem := elem.Field(f).Elem()
+				dm.Error = dm.typeField(valueOf, tableElem, driver, &desc.SchemaName)
+				if dm.Error != nil {
+					return dm
+				}
+			}
+		} else {
+			dm.Error = dm.typeField(valueOf, elem, driver, nil)
+			if dm.Error != nil {
+				return dm
+			}
+		}
+
+	}
+
+	// fmt.Printf("dm: %#v\n\n", dm.Migrator)
+	// for name, table := range dm.Migrator.Tables {
+	// 	fmt.Printf("table: %s\n%#v\n\n", name, table)
+	// }
+	return dm
+}
+
+func (dm *dbMigrator) typeField(tables reflect.Value, elem reflect.Value, driver model.Driver, schema *string) error {
+	elemType := elem.Type()
+	pks, fieldNames, err := migratePk(elemType, driver)
 	if err != nil {
 		return err
 	}
-	table := new(model.TableMigrate)
 
-	table.Name = utils.TableNamePattern(valueOf.Type().Name())
-	table.Schema = schema
-	var field reflect.StructField
+	table := &model.TableMigrate{Schema: schema}
+	table.Name = utils.ParseTableNameByValue(elem)
 
-	for fieldId := range valueOf.NumField() {
-		field = valueOf.Type().Field(fieldId)
+	for fieldId := range elem.NumField() {
+		field := elemType.Field(fieldId)
 		if skipPrimaryKey(fieldNames, field.Name, tables, field) {
 			continue
 		}
-		switch valueOf.Field(fieldId).Kind() {
+		elemField := elem.Field(fieldId)
+		switch elemField.Kind() {
 		case reflect.Slice:
 			err = handlerSlice(body{
 				fieldId:     fieldId,
 				driver:      driver,
 				tables:      tables,
-				fieldTypeOf: valueOf.Field(fieldId).Type().Elem(),
-				typeOf:      valueOf.Type(),
-				valueOf:     valueOf,
+				fieldTypeOf: elemField.Type().Elem(),
+				typeOf:      elemType,
+				valueOf:     elem,
 				migrate: &infosMigrate{
 					table:      table,
 					field:      field,
 					fieldNames: fieldNames,
 				},
-				schemasMap: schemasMap,
+				schemasMap: dm.schemasMap,
 			}, helperAttributeMigrate)
 			if err != nil {
 				return err
@@ -88,13 +127,13 @@ func typeField(tables reflect.Value, valueOf reflect.Value, migrator *model.Migr
 				fieldId:     fieldId,
 				driver:      driver,
 				nullable:    isNullable(field),
-				fieldTypeOf: valueOf.Field(fieldId).Type(),
-				valueOf:     valueOf,
+				fieldTypeOf: elemField.Type(),
+				valueOf:     elem,
 				migrate: &infosMigrate{
 					table: table,
 					field: field,
 				},
-				schemasMap: schemasMap,
+				schemasMap: dm.schemasMap,
 			}, migrateAtt)
 			if err != nil {
 				return err
@@ -105,14 +144,14 @@ func typeField(tables reflect.Value, valueOf reflect.Value, migrator *model.Migr
 				driver:   driver,
 				nullable: true,
 				tables:   tables,
-				valueOf:  valueOf,
-				typeOf:   valueOf.Type(),
+				valueOf:  elem,
+				typeOf:   elemType,
 				migrate: &infosMigrate{
 					table:      table,
 					field:      field,
 					fieldNames: fieldNames,
 				},
-				schemasMap: schemasMap,
+				schemasMap: dm.schemasMap,
 			})
 			if err != nil {
 				return err
@@ -122,14 +161,14 @@ func typeField(tables reflect.Value, valueOf reflect.Value, migrator *model.Migr
 				fieldId: fieldId,
 				driver:  driver,
 				tables:  tables,
-				valueOf: valueOf,
-				typeOf:  valueOf.Type(),
+				valueOf: elem,
+				typeOf:  elemType,
 				migrate: &infosMigrate{
 					table:      table,
 					field:      field,
 					fieldNames: fieldNames,
 				},
-				schemasMap: schemasMap,
+				schemasMap: dm.schemasMap,
 			})
 			if err != nil {
 				return err
@@ -142,7 +181,7 @@ func typeField(tables reflect.Value, valueOf reflect.Value, migrator *model.Migr
 	}
 
 	table.EscapingName = driver.KeywordHandler(table.Name)
-	migrator.Tables[table.Name] = table
+	dm.Tables[table.Name] = table
 	return nil
 }
 
@@ -161,7 +200,7 @@ func createManyToOneMigrate(b body, typeOf reflect.Type) any {
 
 	mto := new(model.ManyToOneMigrate)
 
-	mto.TargetTable = utils.TableNamePattern(typeOf.Name())
+	mto.TargetTable = utils.ParseTableNameByType(typeOf)
 	mto.TargetColumn = utils.ColumnNamePattern(b.prefixName)
 	mto.TargetSchema = b.schemasMap[typeOf.Name()]
 	mto.EscapingTargetTable = b.driver.KeywordHandler(mto.TargetTable)
@@ -192,7 +231,7 @@ func createOneToOneMigrate(b body, typeOf reflect.Type) any {
 
 	mto := new(model.OneToOneMigrate)
 
-	mto.TargetTable = utils.TableNamePattern(typeOf.Name())
+	mto.TargetTable = utils.ParseTableNameByType(typeOf)
 	mto.TargetColumn = utils.ColumnNamePattern(b.prefixName)
 	mto.TargetSchema = b.schemasMap[typeOf.Name()]
 	mto.EscapingTargetTable = b.driver.KeywordHandler(mto.TargetTable)

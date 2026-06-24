@@ -45,26 +45,30 @@ func Open[T any](driver model.Driver) (*T, error) {
 
 	// set value for Fields
 	for i := range dbId {
-		if valueOf.Field(i).IsNil() {
-			valueOf.Field(i).Set(reflect.New(valueOf.Field(i).Type().Elem()))
-			if strings.Contains(valueOf.Type().Field(i).Tag.Get("goe"), "schema") || strings.HasSuffix(valueOf.Field(i).Elem().Type().Name(), "Schema") {
-				for f := range valueOf.Field(i).Elem().NumField() {
-					valueOf.Field(i).Elem().Field(f).Set(reflect.New(valueOf.Field(i).Elem().Field(f).Type().Elem()))
+		field := valueOf.Field(i)
+		if field.IsNil() {
+			field.Set(reflect.New(field.Type().Elem()))
+			if utils.IsFieldHasSchema(valueOf, i) {
+				for f := range field.Elem().NumField() {
+					elem := field.Elem().Field(f)
+					elem.Set(reflect.New(elem.Type().Elem()))
 				}
 				continue
 			}
 		}
 	}
+
 	var schemas []string
 	tableId := 0
 	// init Fields
 	for f := range dbId {
-		if strings.Contains(valueOf.Type().Field(f).Tag.Get("goe"), "schema") || strings.HasSuffix(valueOf.Field(f).Elem().Type().Name(), "Schema") {
-			schema := driver.KeywordHandler(utils.ColumnNamePattern(valueOf.Field(f).Elem().Type().Name()))
+		elem := valueOf.Field(f).Elem()
+		if utils.IsFieldHasSchema(valueOf, f) {
+			schema := driver.KeywordHandler(utils.ColumnNamePattern(elem.Type().Name()))
 			schemas = append(schemas, schema)
-			for i := range valueOf.Field(f).Elem().NumField() {
+			for i := range elem.NumField() {
 				tableId += i + 1
-				err = initField(&schema, valueOf, valueOf.Field(f).Elem().Field(i).Elem(), dbTarget, tableId, driver)
+				err = initField(&schema, valueOf, elem.Field(i).Elem(), dbTarget, tableId, driver)
 				if err != nil {
 					return nil, err
 				}
@@ -72,17 +76,20 @@ func Open[T any](driver model.Driver) (*T, error) {
 			continue
 		}
 		tableId++
-		err = initField(nil, valueOf, valueOf.Field(f).Elem(), dbTarget, tableId, driver)
+		err = initField(nil, valueOf, elem, dbTarget, tableId, driver)
 		if err != nil {
 			return nil, err
 		}
 	}
-	driver.GetDatabaseConfig().SetSchemas(schemas)
-	if ic := driver.GetDatabaseConfig().InitCallback(); ic != nil {
+
+	dc := driver.GetDatabaseConfig()
+	dc.SetSchemas(schemas)
+	if ic := dc.InitCallback(); ic != nil {
 		if err = ic(); err != nil {
 			return nil, err
 		}
 	}
+
 	dbTarget.driver = driver
 	return db, nil
 }
@@ -134,18 +141,17 @@ func skipPrimaryKey[T comparable](slice []T, value T, tables reflect.Value, fiel
 }
 
 func initField(schema *string, tables reflect.Value, valueOf reflect.Value, db *DB, tableId int, driver model.Driver) error {
-	pks, fieldIds, err := getPk(db, schema, valueOf.Type(), tableId, driver)
+	pks, fieldIds, err := getPk(db, schema, valueOf, tableId, driver)
 	if err != nil {
 		return err
 	}
 
-	var field reflect.StructField
-
 	for fieldId := range valueOf.NumField() {
-		field = valueOf.Type().Field(fieldId)
+		field := valueOf.Type().Field(fieldId)
 		if skipPrimaryKey(fieldIds, fieldId, tables, field) {
 			continue
 		}
+		addr := uintptr(valueOf.Field(fieldId).Addr().UnsafePointer())
 		switch valueOf.Field(fieldId).Kind() {
 		case reflect.Slice:
 			err = handlerSlice(body{
@@ -159,7 +165,7 @@ func initField(schema *string, tables reflect.Value, valueOf reflect.Value, db *
 					pks:     pks,
 					db:      db,
 					tableId: tableId,
-					addr:    uintptr(valueOf.Field(fieldId).Addr().UnsafePointer()),
+					addr:    addr,
 				},
 				driver: driver,
 			}, helperAttribute)
@@ -177,7 +183,7 @@ func initField(schema *string, tables reflect.Value, valueOf reflect.Value, db *
 					pks:     pks,
 					db:      db,
 					tableId: tableId,
-					addr:    uintptr(valueOf.Field(fieldId).Addr().UnsafePointer()),
+					addr:    addr,
 				},
 			}, newAttr)
 		case reflect.Pointer:
@@ -193,7 +199,7 @@ func initField(schema *string, tables reflect.Value, valueOf reflect.Value, db *
 					pks:     pks,
 					db:      db,
 					tableId: tableId,
-					addr:    uintptr(valueOf.Field(fieldId).Addr().UnsafePointer()),
+					addr:    addr,
 				},
 			})
 		default:
@@ -208,13 +214,14 @@ func initField(schema *string, tables reflect.Value, valueOf reflect.Value, db *
 					pks:     pks,
 					db:      db,
 					tableId: tableId,
-					addr:    uintptr(valueOf.Field(fieldId).Addr().UnsafePointer()),
+					addr:    addr,
 				},
 			})
 		}
 	}
 	for i := range pks {
-		addrMap.set(uintptr(valueOf.Field(fieldIds[i]).Addr().UnsafePointer()), pks[i])
+		addr := uintptr(valueOf.Field(fieldIds[i]).Addr().UnsafePointer())
+		addrMap.set(addr, pks[i])
 	}
 	return nil
 }
@@ -257,21 +264,19 @@ func getPks(typeOf reflect.Type) []reflect.StructField {
 	return pks
 }
 
-func getPk(db *DB, schema *string, typeOf reflect.Type, tableId int, driver model.Driver) ([]pk, []int, error) {
-	var pks []pk
-	var fieldIds []int
-	var fieldId int
-
+func getPk(db *DB, schema *string, valueOf reflect.Value, tableId int, driver model.Driver) ([]pk, []int, error) {
+	typeOf := valueOf.Type()
 	fields := getPks(typeOf)
 	if len(fields) == 0 {
 		return nil, nil, fmt.Errorf("goe: struct %q don't have a primary key setted", typeOf.Name())
 	}
 
-	pks = make([]pk, len(fields))
-	fieldIds = make([]int, len(fields))
+	table := utils.ParseTableNameByValue(valueOf)
+	pks := make([]pk, len(fields))
+	fieldIds := make([]int, len(fields))
 	for i := range fields {
-		fieldId = getFieldId(typeOf, fields[i].Name)
-		pks[i] = createPk(db, schema, typeOf.Name(), fields[i].Name, isReturningId(fields[i]), tableId, fieldId, driver)
+		fieldId := getFieldId(typeOf, fields[i].Name)
+		pks[i] = createPk(db, schema, table, fields[i].Name, isReturningId(fields[i]), tableId, fieldId, driver)
 		fieldIds[i] = fieldId
 	}
 
@@ -325,7 +330,7 @@ func primaryKeys(str reflect.Type) (pks []reflect.StructField) {
 		pks[0] = field
 		return pks
 	} else {
-		//TODO: Return anonymous pk para len(pks) == 0
+		// TODO: Return anonymous pk para len(pks) == 0
 		return fieldsByTags("pk", str)
 	}
 }
