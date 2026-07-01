@@ -64,6 +64,9 @@ func typeField(tables reflect.Value, valueOf reflect.Value, migrator *model.Migr
 		if skipPrimaryKey(fieldNames, field.Name, tables, field) {
 			continue
 		}
+		if strings.Contains(field.Name, "Entity") {
+			continue
+		}
 		switch valueOf.Field(fieldId).Kind() {
 		case reflect.Slice:
 			err = handlerSlice(body{

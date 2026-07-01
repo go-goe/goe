@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"slices"
 	"strings"
+	"unsafe"
 
 	"github.com/go-goe/goe/model"
 	"github.com/go-goe/goe/utils"
@@ -64,7 +65,7 @@ func Open[T any](driver model.Driver) (*T, error) {
 			schemas = append(schemas, schema)
 			for i := range valueOf.Field(f).Elem().NumField() {
 				tableId += i + 1
-				err = initField(&schema, valueOf, valueOf.Field(f).Elem().Field(i).Elem(), dbTarget, tableId, driver)
+				err = initField(&schema, valueOf, valueOf.Field(f).Elem().Field(i), dbTarget, tableId, driver)
 				if err != nil {
 					return nil, err
 				}
@@ -72,7 +73,7 @@ func Open[T any](driver model.Driver) (*T, error) {
 			continue
 		}
 		tableId++
-		err = initField(nil, valueOf, valueOf.Field(f).Elem(), dbTarget, tableId, driver)
+		err = initField(nil, valueOf, valueOf.Field(f), dbTarget, tableId, driver)
 		if err != nil {
 			return nil, err
 		}
@@ -84,6 +85,7 @@ func Open[T any](driver model.Driver) (*T, error) {
 		}
 	}
 	dbTarget.driver = driver
+	dbTarget.userDatabase = db
 	return db, nil
 }
 
@@ -134,6 +136,8 @@ func skipPrimaryKey[T comparable](slice []T, value T, tables reflect.Value, fiel
 }
 
 func initField(schema *string, tables reflect.Value, valueOf reflect.Value, db *DB, tableId int, driver model.Driver) error {
+	ptrOf := valueOf
+	valueOf = valueOf.Elem()
 	pks, fieldIds, err := getPk(db, schema, valueOf.Type(), tableId, driver)
 	if err != nil {
 		return err
@@ -146,6 +150,13 @@ func initField(schema *string, tables reflect.Value, valueOf reflect.Value, db *
 		if skipPrimaryKey(fieldIds, fieldId, tables, field) {
 			continue
 		}
+		if strings.Contains(field.Name, "Entity") {
+			ptr := unsafe.Pointer(valueOf.Field(fieldId).Field(0).UnsafeAddr())
+			ww := reflect.NewAt(valueOf.Field(fieldId).Field(0).Type(), ptr).Elem()
+			ww.Set(ptrOf)
+			continue
+		}
+
 		switch valueOf.Field(fieldId).Kind() {
 		case reflect.Slice:
 			err = handlerSlice(body{

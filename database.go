@@ -36,7 +36,8 @@ func (am *goeMap) delete(key uintptr) {
 var addrMap *goeMap
 
 type DB struct {
-	driver model.Driver
+	driver       model.Driver
+	userDatabase any
 }
 
 // Return the database stats as [sql.DBStats].
@@ -159,14 +160,13 @@ func (db *DB) BeginTransactionContext(ctx context.Context, isolation sql.Isolati
 }
 
 // Closes the database connection.
-func Close(dbTarget any) error {
-	goeDb := getDatabase(dbTarget)
-	err := goeDb.driver.Close()
+func (db *DB) Close() error {
+	err := db.driver.Close()
 	if err != nil {
-		return goeDb.driver.GetDatabaseConfig().ErrorHandler(context.TODO(), err)
+		return db.driver.GetDatabaseConfig().ErrorHandler(context.TODO(), err)
 	}
 
-	valueOf := reflect.ValueOf(dbTarget).Elem()
+	valueOf := reflect.ValueOf(db.userDatabase).Elem()
 
 	for i := range valueOf.NumField() - 1 {
 		fieldOf := valueOf.Field(i).Elem()
@@ -178,7 +178,14 @@ func Close(dbTarget any) error {
 	return nil
 }
 
-func getDatabase(dbTarget any) *DB {
-	valueOf := reflect.ValueOf(dbTarget).Elem()
-	return valueOf.Field(valueOf.NumField() - 1).Interface().(*DB)
+func (db *DB) Migrate() migrate {
+	return migrate{db: db, dbTarget: db.userDatabase}
+}
+
+func (db *DB) Select[E any](fields ...any) stateSelect[E] {
+	return db.SelectContext[E](context.Background(), fields...)
+}
+
+func (db *DB) SelectContext[E any](ctx context.Context, fields ...any) stateSelect[E] {
+	return SelectContext[E](ctx, fields...)
 }

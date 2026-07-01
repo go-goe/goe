@@ -21,10 +21,6 @@ type migrateTable struct {
 	table string
 }
 
-func Migrate(dbTarget any) migrate {
-	return migrate{db: getDatabase(dbTarget), dbTarget: dbTarget}
-}
-
 func (m migrate) AutoMigrate() error {
 	return m.AutoMigrateContext(context.Background())
 }

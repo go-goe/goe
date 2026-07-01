@@ -300,7 +300,7 @@ func TestSelect(t *testing.T) {
 		{
 			desc: "Select_ToUpper",
 			testCase: func(t *testing.T) {
-				for row, err := range goe.Select[struct {
+				for row, err := range db.Select[struct {
 					Name      string
 					UpperName string
 				}](&db.Animal.Name, function.ToUpper(&db.Animal.Name)).Rows() {
@@ -316,7 +316,7 @@ func TestSelect(t *testing.T) {
 		{
 			desc: "Select_ToLower",
 			testCase: func(t *testing.T) {
-				for row, err := range goe.Select[struct {
+				for row, err := range db.Select[struct {
 					Name      string
 					LowerName string
 				}](&db.Animal.Name, function.ToLower(&db.Animal.Name)).Rows() {
@@ -383,7 +383,7 @@ func TestSelect(t *testing.T) {
 		{
 			desc: "Select_Count",
 			testCase: func(t *testing.T) {
-				a := runSelect(t, goe.Select[struct {
+				a := runSelect(t, db.Select[struct {
 					Count int
 				}](aggregate.Count(&db.Animal.Id)).Rows())
 
@@ -395,7 +395,7 @@ func TestSelect(t *testing.T) {
 		{
 			desc: "Select_Count_GroupBy",
 			testCase: func(t *testing.T) {
-				foodCount, err := goe.Select[struct {
+				foodCount, err := db.Select[struct {
 					AnimalName string
 					Count      int
 				}](&db.Animal.Name, aggregate.Count(&db.AnimalFood.FoodId)).
@@ -413,7 +413,7 @@ func TestSelect(t *testing.T) {
 		{
 			desc: "Select_Count_GroupBy_Habitat_Animal",
 			testCase: func(t *testing.T) {
-				habitatCount, err := goe.Select[struct {
+				habitatCount, err := db.Select[struct {
 					Name  string
 					Count int
 				}](&db.Habitat.Name, aggregate.Count(&db.Animal.Id)).Join(&db.Animal.HabitatId, &db.Habitat.Id).
@@ -431,7 +431,7 @@ func TestSelect(t *testing.T) {
 		{
 			desc: "Select_Max_Min",
 			testCase: func(t *testing.T) {
-				a := runSelect(t, goe.Select[struct {
+				a := runSelect(t, db.Select[struct {
 					Max float64
 					Min float64
 				}](aggregate.Max(&db.Exam.Score), aggregate.Min(&db.Exam.Score)).Rows())
@@ -448,7 +448,7 @@ func TestSelect(t *testing.T) {
 		{
 			desc: "Select_Sum",
 			testCase: func(t *testing.T) {
-				a := runSelect(t, goe.Select[struct {
+				a := runSelect(t, db.Select[struct {
 					Sum float64
 				}](aggregate.Sum(&db.Exam.Minimum)).Rows())
 
@@ -460,7 +460,7 @@ func TestSelect(t *testing.T) {
 		{
 			desc: "Select_Avg",
 			testCase: func(t *testing.T) {
-				a := runSelect(t, goe.Select[struct {
+				a := runSelect(t, db.Select[struct {
 					Avg float64
 				}](aggregate.Avg(&db.Exam.Minimum)).Rows())
 
@@ -472,7 +472,7 @@ func TestSelect(t *testing.T) {
 		{
 			desc: "Select_Filter",
 			testCase: func(t *testing.T) {
-				a, err := goe.Select[struct {
+				a, err := db.Select[struct {
 					Id int
 				}](&db.Animal.Id).Filter(where.Equals(&db.Animal.Id, 0)).AsSlice()
 
@@ -484,7 +484,7 @@ func TestSelect(t *testing.T) {
 					t.Errorf("Expected %v got: %v", len(animals), len(a))
 				}
 
-				a, err = goe.Select[struct {
+				a, err = db.Select[struct {
 					Id int
 				}](&db.Animal.Id).Where(where.Less(&db.Animal.Id, animals[3].Id)).Filter(where.LessEquals(&db.Animal.Id, 0)).AsSlice()
 
@@ -496,7 +496,7 @@ func TestSelect(t *testing.T) {
 					t.Errorf("Expected %v got: %v", 3, len(a))
 				}
 
-				a, err = goe.Select[struct {
+				a, err = db.Select[struct {
 					Id int
 				}](&db.Animal.Id).Where(where.And(
 					where.Less(&db.Animal.Id, animals[3].Id),
@@ -511,7 +511,7 @@ func TestSelect(t *testing.T) {
 					t.Errorf("Expected %v got: %v", 3, len(a))
 				}
 
-				a, err = goe.Select[struct {
+				a, err = db.Select[struct {
 					Id int
 				}](&db.Animal.Id).Where(where.And(
 					where.Less(&db.Animal.Id, animals[3].Id),
@@ -527,7 +527,7 @@ func TestSelect(t *testing.T) {
 				}
 
 				var in []int
-				a, err = goe.Select[struct {
+				a, err = db.Select[struct {
 					Id int
 				}](&db.Animal.Id).Where(where.And(
 					where.Less(&db.Animal.Id, animals[3].Id),
@@ -574,7 +574,7 @@ func TestSelect(t *testing.T) {
 		{
 			desc: "Select_Where_In_Query_No_Values",
 			testCase: func(t *testing.T) {
-				querySelect := goe.Select[any](&db.Animal.Name).AsQuery()
+				querySelect := db.Select[any](&db.Animal.Name).AsQuery()
 
 				//whereIn as the first where argument
 				a, err := goe.List(db.Animal).Where(
@@ -595,7 +595,7 @@ func TestSelect(t *testing.T) {
 		{
 			desc: "Select_Where_NotIn_Query_No_Values",
 			testCase: func(t *testing.T) {
-				querySelect := goe.Select[any](&db.Animal.Name).AsQuery()
+				querySelect := db.Select[any](&db.Animal.Name).AsQuery()
 
 				//whereIn as the first where argument
 				a, err := goe.List(db.Animal).Where(
@@ -616,7 +616,7 @@ func TestSelect(t *testing.T) {
 		{
 			desc: "Select_Where_In_Query",
 			testCase: func(t *testing.T) {
-				querySelect := goe.Select[any](&db.Animal.Name).
+				querySelect := db.Select[any](&db.Animal.Name).
 					Join(&db.Animal.Id, &db.AnimalFood.AnimalId).
 					Join(&db.AnimalFood.FoodId, &db.Food.Id).
 					Where(
@@ -668,7 +668,7 @@ func TestSelect(t *testing.T) {
 		{
 			desc: "Select_Where_NotIn_Query",
 			testCase: func(t *testing.T) {
-				querySelect := goe.Select[any](&db.Animal.Name).
+				querySelect := db.Select[any](&db.Animal.Name).
 					Join(&db.Animal.Id, &db.AnimalFood.AnimalId).
 					Join(&db.AnimalFood.FoodId, &db.Food.Id).
 					Where(where.Or(
@@ -918,7 +918,7 @@ func TestSelect(t *testing.T) {
 					Habitat   *string
 					HabitatId *uuid.UUID
 				}]
-				p, err = goe.Select[struct {
+				p, err = db.Select[struct {
 					Animal    string
 					Habitat   *string
 					HabitatId *uuid.UUID
@@ -1291,7 +1291,7 @@ func TestSelect(t *testing.T) {
 					EndTime *time.Time
 				}
 
-				for row, err := range goe.Select[struct {
+				for row, err := range db.Select[struct {
 					User    string
 					Role    *string
 					EndTime *time.Time
@@ -1324,7 +1324,7 @@ func TestSelect(t *testing.T) {
 					EndTime *time.Time
 				}
 
-				for row, err := range goe.Select[struct {
+				for row, err := range db.Select[struct {
 					User    *string
 					Role    string
 					EndTime *time.Time
@@ -1354,7 +1354,7 @@ func TestSelect(t *testing.T) {
 					Person   string
 				}{}
 
-				for row, err := range goe.Select[struct {
+				for row, err := range db.Select[struct {
 					JobTitle string
 					Person   string
 				}](&db.JobTitle.Name, &db.Person.Name).
@@ -1389,7 +1389,7 @@ func TestSelect(t *testing.T) {
 			testCase: func(t *testing.T) {
 				ctx, cancel := context.WithTimeout(context.Background(), time.Nanosecond*1)
 				defer cancel()
-				for _, err := range goe.ListContext(ctx, db.Animal).Rows() {
+				for _, err := range db.SelectContext[struct{ Name string }](ctx, &db.Animal.Name).Rows() {
 					if !errors.Is(err, context.DeadlineExceeded) {
 						t.Errorf("Expected a context.DeadlineExceeded, got error: %v", err)
 					}
@@ -1459,7 +1459,7 @@ func TestSelect(t *testing.T) {
 		{
 			desc: "Select_Match",
 			testCase: func(t *testing.T) {
-				result, err := goe.Select[struct {
+				result, err := db.Select[struct {
 					AnimalName string
 					FoodName   string
 				}](&db.Animal.Name, &db.Food.Name).Match(struct {

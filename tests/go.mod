@@ -1,6 +1,6 @@
 module github.com/go-goe/goe/tests
 
-go 1.24.0
+go 1.27rc1
 
 require (
 	github.com/go-goe/goe v0.7.2
