@@ -23,17 +23,20 @@ type Animal struct {
 	InfoId      *[]byte
 	Id          int
 	AnimalFoods []AnimalFood
+	goe.Entity[Animal]
 }
 
 type AnimalFood struct {
 	AnimalId int       `goe:"pk"`
 	FoodId   uuid.UUID `goe:"pk"`
+	goe.Entity[AnimalFood]
 }
 
 type Food struct {
 	Id          uuid.UUID
 	Name        string
 	AnimalFoods []AnimalFood
+	goe.Entity[Food]
 }
 
 type Habitat struct {
@@ -42,12 +45,14 @@ type Habitat struct {
 	WeatherId   int
 	NameWeather string
 	Animals     []Animal
+	goe.Entity[Habitat]
 }
 
 type Weather struct {
 	Id       int `goe:"pk"`
 	Name     string
 	Habitats []Habitat
+	goe.Entity[Weather]
 }
 
 type Info struct {
@@ -55,11 +60,13 @@ type Info struct {
 	Name       string `goe:"index(unique n:idx_name_status);index"`
 	NameStatus string `goe:"index(unique n:idx_name_status)"`
 	StatusId   int
+	goe.Entity[Info]
 }
 
 type Status struct {
 	Id   int
 	Name string
+	goe.Entity[Status]
 }
 
 type User struct {
@@ -67,6 +74,7 @@ type User struct {
 	Name      string `goe:"index(n:idx_name_lower f:lower)"`
 	Email     string `goe:"unique"`
 	UserRoles []UserRole
+	goe.Entity[User]
 }
 
 type UserRole struct {
@@ -74,12 +82,14 @@ type UserRole struct {
 	UserId  int
 	RoleId  int
 	EndDate *time.Time
+	goe.Entity[UserRole]
 }
 
 type Role struct {
 	Id        int
 	Name      string
 	UserRoles []UserRole
+	goe.Entity[Role]
 }
 
 type Flag struct {
@@ -103,35 +113,41 @@ type Flag struct {
 	Byte       []byte
 	NullId     sql.Null[uuid.UUID] `goe:"type:uuid"`
 	NullString sql.NullString      `goe:"type:varchar(100)"`
+	goe.Entity[Flag]
 }
 
 type Person struct {
 	Id   int
 	Name string
 	Jobs []JobTitle
+	goe.Entity[Person]
 }
 
 type PersonJobTitle struct {
 	PersonId   int `goe:"pk"`
 	JobTitleId int `goe:"pk"`
 	CreatedAt  time.Time
+	goe.Entity[PersonJobTitle]
 }
 
 type JobTitle struct {
 	Name    string
 	Id      int
 	Persons []Person
+	goe.Entity[JobTitle]
 }
 
 type Exam struct {
 	Id      int
 	Score   float32
 	Minimum float32
+	goe.Entity[Exam]
 }
 
-type Select struct {
+type Insert struct {
 	Id   int
 	Name string
+	goe.Entity[Insert]
 }
 
 type Page struct {
@@ -139,6 +155,7 @@ type Page struct {
 	Number     int
 	PageIDNext *int
 	PageIDPrev *int
+	goe.Entity[Page]
 }
 
 type FlagSchema struct {
@@ -159,6 +176,7 @@ type FoodHabitatSchema struct {
 type Drop struct {
 	Id   int
 	Name string
+	goe.Entity[Drop]
 }
 
 type DropSchema struct {
@@ -168,6 +186,7 @@ type DropSchema struct {
 type Default struct {
 	ID   string `goe:"default:'Default'"`
 	Name string
+	goe.Entity[Default]
 }
 
 type Database struct {
@@ -183,7 +202,7 @@ type Database struct {
 	PersonJobTitle *PersonJobTitle
 	JobTitle       *JobTitle
 	Exam           *Exam
-	Select         *Select
+	Insert         *Insert
 	Page           *Page
 	Default        *Default
 	*DropSchema
@@ -218,7 +237,7 @@ func SetupPostgres() (*Database, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = goe.Migrate(db).AutoMigrate()
+	err = db.Migrate().AutoMigrate()
 	if err != nil {
 		return nil, err
 	}
@@ -239,7 +258,7 @@ func SetupSqlite() (*Database, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = goe.Migrate(db).AutoMigrate()
+	err = db.Migrate().AutoMigrate()
 	if err != nil {
 		return nil, err
 	}
@@ -300,7 +319,7 @@ func TestRace(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			raceDb, _ := mapDriver[os.Getenv("GOE_DRIVER")]()
-			goe.Close(raceDb)
+			raceDb.Close()
 		}()
 	}
 	wg.Wait()
@@ -311,44 +330,44 @@ func TestMigrate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Expected a connection, got error %v", err)
 	}
-	err = goe.Migrate(db).OnTable("Select").RenameColumn("Name", "NewName")
+	err = db.Migrate().OnTable("Insert").RenameColumn("Name", "NewName")
 	if err != nil {
 		t.Fatalf("Expected rename column, got error %v", err)
 	}
 
-	err = goe.Migrate(db).OnTable("Select").DropColumn("NewName")
+	err = db.Migrate().OnTable("Insert").DropColumn("NewName")
 	if err != nil {
 		t.Fatalf("Expected drop column, got error %v", err)
 	}
 
-	err = goe.Migrate(db).OnTable("Select").RenameTable("NewSelect")
+	err = db.Migrate().OnTable("Insert").RenameTable("NewInsert")
 	if err != nil {
 		t.Fatalf("Expected rename table, got error %v", err)
 	}
 
-	err = goe.Migrate(db).OnTable("NewSelect").DropTable()
+	err = db.Migrate().OnTable("NewInsert").DropTable()
 	if err != nil {
-		t.Fatalf("Expected drop table NewSelect, got error %v", err)
+		t.Fatalf("Expected drop table NewInsert, got error %v", err)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	err = goe.Migrate(db).AutoMigrateContext(ctx)
+	err = db.Migrate().AutoMigrateContext(ctx)
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("Expected context.Canceled, got %v", err)
 	}
 
-	err = goe.Migrate(db).OnSchema("DropSchema").OnTable("Drop").RenameColumn("Name", "NewName")
+	err = db.Migrate().OnSchema("DropSchema").OnTable("Drop").RenameColumn("Name", "NewName")
 	if err != nil {
 		t.Fatalf("Expected rename column, got error %v", err)
 	}
 
-	err = goe.Migrate(db).OnSchema("DropSchema").OnTable("Drop").DropColumn("NewName")
+	err = db.Migrate().OnSchema("DropSchema").OnTable("Drop").DropColumn("NewName")
 	if err != nil {
 		t.Fatalf("Expected drop column, got error %v", err)
 	}
 
-	err = goe.Migrate(db).OnSchema("DropSchema").OnTable("Drop").DropTable()
+	err = db.Migrate().OnSchema("DropSchema").OnTable("Drop").DropTable()
 	if err != nil {
 		t.Fatalf("Expected drop table DropSchema.Drop, got error %v", err)
 	}

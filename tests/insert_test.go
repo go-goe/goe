@@ -47,12 +47,12 @@ func TestInsert(t *testing.T) {
 					NullString: sql.NullString{String: "String Value", Valid: true},
 					Price:      decimal.NewFromUint64(99),
 				}
-				err = goe.Insert(db.Flag).One(&f)
+				err = db.Flag.Create().One(&f)
 				if err != nil {
 					t.Fatalf("Expected a insert, got error: %v", err)
 				}
 
-				fs, err := goe.Find(db.Flag).ByValue(Flag{Id: f.Id})
+				fs, err := db.Flag.Find().ByValue(Flag{Id: f.Id})
 				if err != nil {
 					t.Fatalf("Expected a find, got error: %v", err)
 				}
@@ -134,7 +134,7 @@ func TestInsert(t *testing.T) {
 			desc: "Insert_Animal",
 			testCase: func(t *testing.T) {
 				a := Animal{Name: "Cat"}
-				err = goe.Insert(db.Animal).One(&a)
+				err = db.Animal.Create().One(&a)
 				if err != nil {
 					t.Errorf("Expected a insert, got error: %v", err)
 				}
@@ -152,7 +152,7 @@ func TestInsert(t *testing.T) {
 					go func() {
 						defer wg.Done()
 						a := Animal{Name: "Cat"}
-						goe.Insert(db.Animal).One(&a)
+						db.Animal.Create().One(&a)
 					}()
 				}
 				wg.Wait()
@@ -170,7 +170,7 @@ func TestInsert(t *testing.T) {
 				}
 				defer tx.Rollback()
 
-				err = goe.Insert(db.Animal).OnTransaction(tx).One(a)
+				err = db.Animal.Create().OnTransaction(tx).One(a)
 				if err != nil {
 					tx.Rollback()
 					t.Fatalf("Expected a insert, got error: %v", err)
@@ -181,14 +181,14 @@ func TestInsert(t *testing.T) {
 				}
 
 				// get record before commit or not using tx, will result in a goe.ErrNotFound
-				_, err = goe.Find(db.Animal).ByValue(Animal{Id: a.Id})
+				_, err = db.Animal.Find().ByValue(Animal{Id: a.Id})
 				if !errors.Is(err, goe.ErrNotFound) {
 					tx.Rollback()
 					t.Fatalf("Expected a Id value, got : %v", a.Id)
 				}
 
 				// get using same tx
-				_, err = goe.Find(db.Animal).OnTransaction(tx).ByValue(Animal{Id: a.Id})
+				_, err = db.Animal.Find().OnTransaction(tx).ByValue(Animal{Id: a.Id})
 				if err != nil {
 					t.Fatalf("Expected Find, got : %v", err)
 				}
@@ -198,7 +198,7 @@ func TestInsert(t *testing.T) {
 					t.Fatalf("Expected Commit Tx, got : %v", err)
 				}
 
-				_, err = goe.Find(db.Animal).ByValue(Animal{Id: a.Id})
+				_, err = db.Animal.Find().ByValue(Animal{Id: a.Id})
 				if err != nil {
 					t.Fatalf("Expected Find, got : %v", err)
 				}
@@ -216,7 +216,7 @@ func TestInsert(t *testing.T) {
 				}
 				defer tx.Rollback()
 
-				err = goe.Insert(db.Animal).OnTransaction(tx).One(a)
+				err = db.Animal.Create().OnTransaction(tx).One(a)
 				if err != nil {
 					tx.Rollback()
 					t.Fatalf("Expected a insert, got error: %v", err)
@@ -232,7 +232,7 @@ func TestInsert(t *testing.T) {
 				}
 
 				// get record after rollback will result in a goe.ErrNotFound
-				_, err = goe.Find(db.Animal).ByValue(Animal{Id: a.Id})
+				_, err = db.Animal.Find().ByValue(Animal{Id: a.Id})
 				if !errors.Is(err, goe.ErrNotFound) {
 					t.Fatalf("Expected a goe.ErrNotFound, got : %v", err)
 				}
@@ -242,17 +242,17 @@ func TestInsert(t *testing.T) {
 			desc: "Insert_Composed_Pk",
 			testCase: func(t *testing.T) {
 				p := Person{Name: "Jhon"}
-				err = goe.Insert(db.Person).One(&p)
+				err = db.Person.Create().One(&p)
 				if err != nil {
 					t.Fatalf("Expected a insert person, got error: %v", err)
 				}
 				j := JobTitle{Name: "Developer"}
-				err = goe.Insert(db.JobTitle).One(&j)
+				err = db.JobTitle.Create().One(&j)
 				if err != nil {
 					t.Fatalf("Expected a insert job, got error: %v", err)
 				}
 
-				err = goe.Insert(db.PersonJobTitle).One(&PersonJobTitle{JobTitleId: j.Id, PersonId: p.Id, CreatedAt: time.Now()})
+				err = db.PersonJobTitle.Create().One(&PersonJobTitle{JobTitleId: j.Id, PersonId: p.Id, CreatedAt: time.Now()})
 				if err != nil {
 					t.Errorf("Expected a insert PersonJobTitle, got error: %v", err)
 				}
@@ -271,7 +271,7 @@ func TestInsert(t *testing.T) {
 					{Name: "Snake"},
 					{Name: "Whale"},
 				}
-				err = goe.Insert(db.Animal).All(animals)
+				err = db.Animal.Create().All(animals)
 				if err != nil {
 					t.Fatalf("Expected insert animals, got error: %v", err)
 				}
@@ -288,7 +288,7 @@ func TestInsert(t *testing.T) {
 				a := Animal{}
 				ctx, cancel := context.WithCancel(context.Background())
 				cancel()
-				err = goe.InsertContext(ctx, db.Animal).One(&a)
+				err = db.Animal.CreateContext(ctx).One(&a)
 				if !errors.Is(err, context.Canceled) {
 					t.Errorf("Expected context.Canceled, got : %v", err)
 				}
@@ -300,7 +300,7 @@ func TestInsert(t *testing.T) {
 				a := Animal{}
 				ctx, cancel := context.WithTimeout(context.Background(), time.Nanosecond)
 				defer cancel()
-				err = goe.InsertContext(ctx, db.Animal).One(&a)
+				err = db.Animal.CreateContext(ctx).One(&a)
 				if !errors.Is(err, context.DeadlineExceeded) {
 					t.Errorf("Expected context.DeadlineExceeded, got : %v", err)
 				}
@@ -309,7 +309,7 @@ func TestInsert(t *testing.T) {
 		{
 			desc: "Insert_ErrUniqueValue",
 			testCase: func(t *testing.T) {
-				err = goe.Remove(db.User).ByValue(User{Email: "email@email.com"})
+				err = db.User.Remove().ByValue(User{Email: "email@email.com"})
 				if err != nil {
 					t.Fatalf("Expected a remove, got error: %v", err)
 				}
@@ -318,12 +318,12 @@ func TestInsert(t *testing.T) {
 					Name:  "User_Zero",
 					Email: "email@email.com",
 				}
-				err = goe.Insert(db.User).One(&u)
+				err = db.User.Create().One(&u)
 				if err != nil {
 					t.Fatalf("Expected a insert, got error: %v", err)
 				}
 
-				err = goe.Insert(db.User).One(&u)
+				err = db.User.Create().One(&u)
 				if !errors.Is(err, goe.ErrUniqueValue) {
 					t.Fatalf("Expected goe.ErrUniqueValue, got error: %v", err)
 				}
@@ -340,12 +340,12 @@ func TestInsert(t *testing.T) {
 					Id:   uuid.New(),
 					Name: "Bread",
 				}
-				err = goe.Insert(db.Food).One(&f)
+				err = db.Food.Create().One(&f)
 				if err != nil {
 					t.Fatalf("Expected a insert, got error: %v", err)
 				}
 
-				err = goe.Insert(db.Food).One(&f)
+				err = db.Food.Create().One(&f)
 				if !errors.Is(err, goe.ErrUniqueValue) {
 					t.Fatalf("Expected goe.ErrUniqueValue, got error: %v", err)
 				}
@@ -362,7 +362,7 @@ func TestInsert(t *testing.T) {
 					db.RawExecContext(context.Background(), "PRAGMA foreign_keys = ON;")
 					defer db.RawExecContext(context.Background(), "PRAGMA foreign_keys = OFF;")
 				}
-				err = goe.Insert(db.UserRole).One(&UserRole{})
+				err = db.UserRole.Create().One(&UserRole{})
 				if !errors.Is(err, goe.ErrForeignKey) {
 					t.Fatalf("Expected goe.ErrForeignKey, got error: %v", err)
 				}
@@ -375,12 +375,12 @@ func TestInsert(t *testing.T) {
 		{
 			desc: "Insert_Pk_Default",
 			testCase: func(t *testing.T) {
-				err = goe.Delete(db.Default).All()
+				err = db.Default.Remove().All()
 				if err != nil {
 					t.Fatalf("Expected a delete, got error: %v", err)
 				}
 				d := Default{Name: "Default"}
-				err = goe.Insert(db.Default).One(&d)
+				err = db.Default.Create().One(&d)
 				if err != nil {
 					t.Fatalf("Expected a insert, got error: %v", err)
 				}

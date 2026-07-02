@@ -79,6 +79,25 @@ func (r remove[T]) ByValue(value T) error {
 	return r.delete.Where(operations(args, valuesArgs))
 }
 
+// Delete all records
+func (r remove[T]) All() error {
+	return r.delete.Where(model.Where{})
+}
+
+// Where receives [model.Where] as where operations from where sub package
+func (r remove[T]) Where(o model.Where) error {
+	helperWhere(&r.delete.builder, addrMap.mapField, &o)
+	r.delete.builder.query.Where = &o
+	r.delete.builder.buildSqlDelete()
+
+	driver := r.delete.builder.fields[0].getDb().driver
+	if r.delete.conn == nil {
+		r.delete.conn = driver.NewConnection()
+	}
+
+	return handlerValues(r.delete.ctx, r.delete.conn, r.delete.builder.query, driver.GetDatabaseConfig())
+}
+
 // Delete remove records in the given table
 //
 // Delete uses [context.Background] internally;

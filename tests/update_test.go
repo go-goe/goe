@@ -50,7 +50,7 @@ func TestUpdate(t *testing.T) {
 					NullString: sql.NullString{String: "String Value", Valid: true},
 					Price:      decimal.NewFromUint64(99),
 				}
-				err = goe.Insert(db.Flag).One(&f)
+				err = db.Flag.Create().One(&f)
 				if err != nil {
 					t.Errorf("Expected a insert, got error: %v", err)
 				}
@@ -68,7 +68,7 @@ func TestUpdate(t *testing.T) {
 					Byte:    []byte{1},
 					Price:   price,
 				}
-				u := goe.Update(db.Flag).
+				u := db.Flag.Save().
 					Sets(
 						update.Set(&db.Flag.Name, ff.Name),
 						update.Set(&db.Flag.Bool, ff.Bool))
@@ -85,7 +85,7 @@ func TestUpdate(t *testing.T) {
 				}
 
 				var fselect *Flag
-				fselect, err = goe.Find(db.Flag).ByValue(Flag{Id: f.Id})
+				fselect, err = db.Flag.Find().ByValue(Flag{Id: f.Id})
 				if err != nil {
 					t.Fatalf("Expected a select, got error: %v", err)
 				}
@@ -139,7 +139,7 @@ func TestUpdate(t *testing.T) {
 					Byte:    []byte{1, 2, 3},
 					Price:   decimal.NewFromUint64(99),
 				}
-				err = goe.Insert(db.Flag).One(&f)
+				err = db.Flag.Create().One(&f)
 				if err != nil {
 					t.Errorf("Expected a insert, got error: %v", err)
 				}
@@ -159,13 +159,13 @@ func TestUpdate(t *testing.T) {
 					NullString: sql.NullString{String: "String Value", Valid: true},
 					Price:      price,
 				}
-				err = goe.Save(db.Flag).One(ff)
+				err = db.Flag.Save().One(ff)
 				if err != nil {
 					t.Fatalf("Expected a update, got error: %v", err)
 				}
 
 				var fselect *Flag
-				fselect, err = goe.Find(db.Flag).ByValue(Flag{Id: f.Id})
+				fselect, err = db.Flag.Find().ByValue(Flag{Id: f.Id})
 				if err != nil {
 					t.Fatalf("Expected a select, got error: %v", err)
 				}
@@ -199,7 +199,7 @@ func TestUpdate(t *testing.T) {
 				a := Animal{
 					Name: "Cat",
 				}
-				err = goe.Insert(db.Animal).One(&a)
+				err = db.Animal.Create().One(&a)
 				if err != nil {
 					t.Fatalf("Expected a insert animal, got error: %v", err)
 				}
@@ -210,7 +210,7 @@ func TestUpdate(t *testing.T) {
 						defer wg.Done()
 						au := Animal{Id: a.Id}
 						au.Name = "Update Cat"
-						goe.Save(db.Animal).One(au)
+						db.Animal.Save().One(au)
 					}()
 				}
 				wg.Wait()
@@ -222,7 +222,7 @@ func TestUpdate(t *testing.T) {
 				a := Animal{
 					Name: "Cat",
 				}
-				err = goe.Insert(db.Animal).One(&a)
+				err = db.Animal.Create().One(&a)
 				if err != nil {
 					t.Fatalf("Expected a insert animal, got error: %v", err)
 				}
@@ -230,7 +230,7 @@ func TestUpdate(t *testing.T) {
 				w := Weather{
 					Name: "Warm",
 				}
-				err = goe.Insert(db.Weather).One(&w)
+				err = db.Weather.Create().One(&w)
 				if err != nil {
 					t.Fatalf("Expected a insert weather, got error: %v", err)
 				}
@@ -240,20 +240,20 @@ func TestUpdate(t *testing.T) {
 					Name:      "City",
 					WeatherId: w.Id,
 				}
-				err = goe.Insert(db.Habitat).One(&h)
+				err = db.Habitat.Create().One(&h)
 				if err != nil {
 					t.Fatalf("Expected a insert habitat, got error: %v", err)
 				}
 
 				a.HabitatId = &h.Id
 				a.Name = "Update Cat"
-				err = goe.Save(db.Animal).One(a)
+				err = db.Animal.Save().One(a)
 				if err != nil {
 					t.Fatalf("Expected a update, got error: %v", err)
 				}
 
 				var aselect *Animal
-				aselect, err = goe.Find(db.Animal).ByValue(Animal{Id: a.Id})
+				aselect, err = db.Animal.Find().ByValue(Animal{Id: a.Id})
 				if err != nil {
 					t.Fatalf("Expected a select, got error: %v", err)
 				}
@@ -266,13 +266,13 @@ func TestUpdate(t *testing.T) {
 				}
 
 				aselect.HabitatId = nil
-				err = goe.Update(db.Animal).Sets(update.Set(&db.Animal.HabitatId, aselect.HabitatId)).
+				err = db.Animal.Save().Sets(update.Set(&db.Animal.HabitatId, aselect.HabitatId)).
 					Where(where.Equals(&db.Animal.Id, aselect.Id))
 				if err != nil {
 					t.Fatalf("Expected a update, got error: %v", err)
 				}
 
-				aselect, err = goe.Find(db.Animal).ByValue(Animal{Id: a.Id})
+				aselect, err = db.Animal.Find().ByValue(Animal{Id: a.Id})
 				if err != nil {
 					t.Fatalf("Expected a select, got error: %v", err)
 				}
@@ -298,7 +298,7 @@ func TestUpdate(t *testing.T) {
 				a := Animal{
 					Name: "Cat",
 				}
-				err = goe.Insert(db.Animal).OnTransaction(tx).One(&a)
+				err = db.Animal.Create().OnTransaction(tx).One(&a)
 				if err != nil {
 					t.Fatalf("Expected a insert animal, got error: %v", err)
 				}
@@ -315,26 +315,26 @@ func TestUpdate(t *testing.T) {
 				as := Animal{
 					Name: "Dog",
 				}
-				err = goe.Insert(db.Animal).OnTransaction(tx).One(&as)
+				err = db.Animal.Create().OnTransaction(tx).One(&as)
 				if err != nil {
 					t.Fatalf("Expected a insert animal, got error: %v", err)
 				}
 
-				if _, err = goe.Find(db.Animal).OnTransaction(tx).ByValue(as); err != nil {
+				if _, err = db.Animal.Find().OnTransaction(tx).ByValue(as); err != nil {
 					t.Fatalf("Expected a find animal, got error: %v", err)
 				}
 				err = sv.Rollback()
 				if err != nil {
 					t.Fatalf("Expected Rollback SavePoint, got error: %v", err)
 				}
-				if _, err = goe.Find(db.Animal).OnTransaction(tx).ByValue(as); !errors.Is(err, goe.ErrNotFound) {
+				if _, err = db.Animal.Find().OnTransaction(tx).ByValue(as); !errors.Is(err, goe.ErrNotFound) {
 					t.Fatalf("Expected a goe.ErrNotFound, got: %v", err)
 				}
 
 				w := Weather{
 					Name: "Warm",
 				}
-				err = goe.Insert(db.Weather).OnTransaction(tx).One(&w)
+				err = db.Weather.Create().OnTransaction(tx).One(&w)
 				if err != nil {
 					t.Fatalf("Expected a insert weather, got error: %v", err)
 				}
@@ -344,20 +344,20 @@ func TestUpdate(t *testing.T) {
 					Name:      "City",
 					WeatherId: w.Id,
 				}
-				err = goe.Insert(db.Habitat).OnTransaction(tx).One(&h)
+				err = db.Habitat.Create().OnTransaction(tx).One(&h)
 				if err != nil {
 					t.Fatalf("Expected a insert habitat, got error: %v", err)
 				}
 
 				a.HabitatId = &h.Id
 				a.Name = "Update Cat"
-				err = goe.Save(db.Animal).OnTransaction(tx).One(a)
+				err = db.Animal.Save().OnTransaction(tx).One(a)
 				if err != nil {
 					t.Fatalf("Expected a update, got error: %v", err)
 				}
 
 				// get record before commit or not using tx, will result in a goe.ErrNotFound
-				_, err = goe.Find(db.Animal).ByValue(Animal{Id: a.Id})
+				_, err = db.Animal.Find().ByValue(Animal{Id: a.Id})
 				if !errors.Is(err, goe.ErrNotFound) {
 					t.Fatalf("Expected a goe.ErrNotFound, got error: %v", err)
 				}
@@ -368,7 +368,7 @@ func TestUpdate(t *testing.T) {
 				}
 
 				var aselect *Animal
-				aselect, err = goe.Find(db.Animal).ByValue(Animal{Id: a.Id})
+				aselect, err = db.Animal.Find().ByValue(Animal{Id: a.Id})
 				if err != nil {
 					t.Fatalf("Expected find, got error: %v", err)
 				}
@@ -396,7 +396,7 @@ func TestUpdate(t *testing.T) {
 					{Name: "Laura"},
 					{Name: "Luana"},
 				}
-				err = goe.Insert(db.Person).OnTransaction(tx).All(persons)
+				err = db.Person.Create().OnTransaction(tx).All(persons)
 				if err != nil {
 					tx.Rollback()
 					t.Fatalf("Expected insert persons, got error: %v", err)
@@ -406,7 +406,7 @@ func TestUpdate(t *testing.T) {
 					{Name: "Developer"},
 					{Name: "Designer"},
 				}
-				err = goe.Insert(db.JobTitle).OnTransaction(tx).All(jobs)
+				err = db.JobTitle.Create().OnTransaction(tx).All(jobs)
 				if err != nil {
 					tx.Rollback()
 					t.Fatalf("Expected insert jobs, got error: %v", err)
@@ -417,7 +417,7 @@ func TestUpdate(t *testing.T) {
 					{PersonId: persons[1].Id, JobTitleId: jobs[0].Id, CreatedAt: time.Now()},
 					{PersonId: persons[2].Id, JobTitleId: jobs[1].Id, CreatedAt: time.Now()},
 				}
-				err = goe.Insert(db.PersonJobTitle).OnTransaction(tx).All(personJobs)
+				err = db.PersonJobTitle.Create().OnTransaction(tx).All(personJobs)
 				if err != nil {
 					tx.Rollback()
 					t.Fatalf("Expected insert personJobs, got error: %v", err)
@@ -427,7 +427,7 @@ func TestUpdate(t *testing.T) {
 					JobTitle string
 					Person   string
 				}{}
-				for row, err := range goe.Select[struct {
+				for row, err := range db.Select[struct {
 					JobTitle string
 					Person   string
 				}](&db.JobTitle.Name, &db.Person.Name).OnTransaction(tx).
@@ -444,7 +444,7 @@ func TestUpdate(t *testing.T) {
 				if len(pj) != 2 {
 					t.Errorf("Expected %v, got : %v", 2, len(pj))
 				}
-				err = goe.Update(db.PersonJobTitle).OnTransaction(tx).Sets(update.Set(&db.PersonJobTitle.JobTitleId, jobs[0].Id)).
+				err = db.PersonJobTitle.Save().OnTransaction(tx).Sets(update.Set(&db.PersonJobTitle.JobTitleId, jobs[0].Id)).
 					Where(
 						where.And(
 							where.Equals(&db.PersonJobTitle.PersonId, persons[2].Id),
@@ -458,7 +458,7 @@ func TestUpdate(t *testing.T) {
 				}
 
 				pj = nil
-				for row, err := range goe.Select[struct {
+				for row, err := range db.Select[struct {
 					JobTitle string
 					Person   string
 				}](&db.JobTitle.Name, &db.Person.Name).OnTransaction(tx).
@@ -482,7 +482,7 @@ func TestUpdate(t *testing.T) {
 				}
 
 				pj = nil
-				for row, err := range goe.Select[struct {
+				for row, err := range db.Select[struct {
 					JobTitle string
 					Person   string
 				}](&db.JobTitle.Name, &db.Person.Name).
@@ -515,7 +515,7 @@ func TestUpdate(t *testing.T) {
 					Name: "City",
 				}
 				err = db.BeginTransaction(func(tx goe.Transaction) error {
-					if err = goe.Insert(db.Animal).OnTransaction(tx).One(&a); err != nil {
+					if err = db.Animal.Create().OnTransaction(tx).One(&a); err != nil {
 						t.Fatalf("Expected a insert animal, got error: %v", err)
 					}
 
@@ -523,54 +523,54 @@ func TestUpdate(t *testing.T) {
 						Name: "Dog",
 					}
 					tx.BeginTransaction(func(tx2 goe.Transaction) error {
-						if err = goe.Insert(db.Animal).OnTransaction(tx2).One(&as); err != nil {
+						if err = db.Animal.Create().OnTransaction(tx2).One(&as); err != nil {
 							t.Fatalf("Expected a insert animal, got error: %v", err)
 						}
-						if _, err = goe.Find(db.Animal).OnTransaction(tx2).ByValue(as); err != nil {
+						if _, err = db.Animal.Find().OnTransaction(tx2).ByValue(as); err != nil {
 							t.Fatalf("Expected a find animal, got error: %v", err)
 						}
 						// retrurns empty error to force rollback
 						return errors.New("")
 					})
 					// check if rollback from tx2 was made
-					if _, err = goe.Find(db.Animal).OnTransaction(tx).ByValue(as); !errors.Is(err, goe.ErrNotFound) {
+					if _, err = db.Animal.Find().OnTransaction(tx).ByValue(as); !errors.Is(err, goe.ErrNotFound) {
 						t.Fatalf("Expected a goe.ErrNotFound, got: %v", err)
 					}
 
 					tx.BeginTransaction(func(tx3 goe.Transaction) error {
-						if err = goe.Insert(db.Animal).OnTransaction(tx3).One(&as); err != nil {
+						if err = db.Animal.Create().OnTransaction(tx3).One(&as); err != nil {
 							t.Fatalf("Expected a insert animal, got error: %v", err)
 						}
-						if _, err = goe.Find(db.Animal).OnTransaction(tx3).ByValue(as); err != nil {
+						if _, err = db.Animal.Find().OnTransaction(tx3).ByValue(as); err != nil {
 							t.Fatalf("Expected a find animal, got error: %v", err)
 						}
 						return nil
 					})
 
-					if _, err = goe.Find(db.Animal).OnTransaction(tx).ByValue(as); err != nil {
+					if _, err = db.Animal.Find().OnTransaction(tx).ByValue(as); err != nil {
 						t.Fatalf("Expected a find, got: %v", err)
 					}
 
-					err = goe.Insert(db.Weather).OnTransaction(tx).One(&w)
+					err = db.Weather.Create().OnTransaction(tx).One(&w)
 					if err != nil {
 						t.Fatalf("Expected a insert weather, got error: %v", err)
 					}
 
 					h.WeatherId = w.Id
-					err = goe.Insert(db.Habitat).OnTransaction(tx).One(&h)
+					err = db.Habitat.Create().OnTransaction(tx).One(&h)
 					if err != nil {
 						t.Fatalf("Expected a insert habitat, got error: %v", err)
 					}
 
 					a.HabitatId = &h.Id
 					a.Name = "Update Cat"
-					err = goe.Save(db.Animal).OnTransaction(tx).One(a)
+					err = db.Animal.Save().OnTransaction(tx).One(a)
 					if err != nil {
 						t.Fatalf("Expected a update, got error: %v", err)
 					}
 
 					// get record before commit or not using tx, will result in a goe.ErrNotFound
-					_, err = goe.Find(db.Animal).ByValue(Animal{Id: a.Id})
+					_, err = db.Animal.Find().ByValue(Animal{Id: a.Id})
 					if !errors.Is(err, goe.ErrNotFound) {
 						t.Fatalf("Expected a goe.ErrNotFound, got error: %v", err)
 					}
@@ -583,7 +583,7 @@ func TestUpdate(t *testing.T) {
 				}
 
 				var aselect *Animal
-				aselect, err = goe.Find(db.Animal).ByValue(Animal{Id: a.Id})
+				aselect, err = db.Animal.Find().ByValue(Animal{Id: a.Id})
 				if err != nil {
 					t.Fatalf("Expected find, got error: %v", err)
 				}
@@ -604,7 +604,7 @@ func TestUpdate(t *testing.T) {
 					{Name: "Laura"},
 					{Name: "Luana"},
 				}
-				err = goe.Insert(db.Person).All(persons)
+				err = db.Person.Create().All(persons)
 				if err != nil {
 					t.Fatalf("Expected insert persons, got error: %v", err)
 				}
@@ -613,7 +613,7 @@ func TestUpdate(t *testing.T) {
 					{Name: "Developer"},
 					{Name: "Designer"},
 				}
-				err = goe.Insert(db.JobTitle).All(jobs)
+				err = db.JobTitle.Create().All(jobs)
 				if err != nil {
 					t.Fatalf("Expected insert jobs, got error: %v", err)
 				}
@@ -623,7 +623,7 @@ func TestUpdate(t *testing.T) {
 					{PersonId: persons[1].Id, JobTitleId: jobs[0].Id, CreatedAt: time.Now()},
 					{PersonId: persons[2].Id, JobTitleId: jobs[1].Id, CreatedAt: time.Now()},
 				}
-				err = goe.Insert(db.PersonJobTitle).All(personJobs)
+				err = db.PersonJobTitle.Create().All(personJobs)
 				if err != nil {
 					t.Fatalf("Expected insert personJobs, got error: %v", err)
 				}
@@ -632,7 +632,7 @@ func TestUpdate(t *testing.T) {
 					JobTitle string
 					Person   string
 				}{}
-				for row, err := range goe.Select[struct {
+				for row, err := range db.Select[struct {
 					JobTitle string
 					Person   string
 				}](&db.JobTitle.Name, &db.Person.Name).
@@ -650,14 +650,14 @@ func TestUpdate(t *testing.T) {
 					t.Errorf("Expected %v, got : %v", 2, len(pj))
 				}
 
-				err = goe.Update(db.PersonJobTitle).Sets(update.Set(&db.PersonJobTitle.JobTitleId, jobs[0].Id)).Where(
+				err = db.PersonJobTitle.Save().Sets(update.Set(&db.PersonJobTitle.JobTitleId, jobs[0].Id)).Where(
 					where.And(where.Equals(&db.PersonJobTitle.PersonId, persons[2].Id), where.Equals(&db.PersonJobTitle.JobTitleId, jobs[1].Id)))
 				if err != nil {
 					t.Fatalf("Expected a update, got error: %v", err)
 				}
 
 				pj = nil
-				for row, err := range goe.Select[struct {
+				for row, err := range db.Select[struct {
 					JobTitle string
 					Person   string
 				}](&db.JobTitle.Name, &db.Person.Name).
@@ -684,7 +684,7 @@ func TestUpdate(t *testing.T) {
 				}
 				ctx, cancel := context.WithCancel(context.Background())
 				cancel()
-				err = goe.UpdateContext(ctx, db.Animal).Sets(update.Set(&db.Animal.Name, a.Name)).Where(where.Equals(&db.Animal.Id, a.Id))
+				err = db.Animal.SaveContext(ctx).Sets(update.Set(&db.Animal.Name, a.Name)).Where(where.Equals(&db.Animal.Id, a.Id))
 				if !errors.Is(err, context.Canceled) {
 					t.Errorf("Expected a context.Canceled, got error: %v", err)
 				}
@@ -698,7 +698,7 @@ func TestUpdate(t *testing.T) {
 				}
 				ctx, cancel := context.WithTimeout(context.Background(), time.Nanosecond*1)
 				defer cancel()
-				err = goe.UpdateContext(ctx, db.Animal).Sets(update.Set(&db.Animal.Name, a.Name)).Where(where.Equals(&db.Animal.Id, a.Id))
+				err = db.Animal.SaveContext(ctx).Sets(update.Set(&db.Animal.Name, a.Name)).Where(where.Equals(&db.Animal.Id, a.Id))
 				if !errors.Is(err, context.DeadlineExceeded) {
 					t.Errorf("Expected a context.DeadlineExceeded, got error: %v", err)
 				}

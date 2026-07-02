@@ -75,6 +75,35 @@ func (s save[T]) One(v T) error {
 	return s.update.Where(operations(argsSave.argsWhere, argsSave.valuesWhere))
 }
 
+// Update all records
+func (s save[T]) All() error {
+	return s.update.Where(model.Where{})
+}
+
+// Sets one or more arguments for update
+func (s save[T]) Sets(sets ...model.Set) save[T] {
+	for i := range sets {
+		s.update.builder.sets = append(s.update.builder.sets, set{attribute: getArg(sets[i].Attribute, addrMap.mapField, nil), value: sets[i].Value})
+	}
+
+	return s
+}
+
+// Where receives [model.Where] as where operations from where sub package
+func (s save[T]) Where(o model.Where) error {
+	s.update.builder.buildSets()
+	helperWhere(&s.update.builder, addrMap.mapField, &o)
+	s.update.builder.query.Where = &o
+	s.update.builder.buildUpdate()
+
+	driver := s.update.builder.sets[0].attribute.getDb().driver
+	if s.update.conn == nil {
+		s.update.conn = driver.NewConnection()
+	}
+
+	return handlerValues(s.update.ctx, s.update.conn, s.update.builder.query, driver.GetDatabaseConfig())
+}
+
 type stateUpdate[T any] struct {
 	conn    model.Connection
 	builder builder
