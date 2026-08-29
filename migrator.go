@@ -251,12 +251,18 @@ func getTagType(field reflect.StructField) string {
 	if dataType[0] == '*' {
 		return dataType[1:]
 	}
+	if strings.Contains(dataType, "goe.TypeNull") {
+		return dataType[13 : len(dataType)-1]
+	}
+	if strings.Contains(dataType, "goe.Type") {
+		return dataType[9 : len(dataType)-1]
+	}
 	return dataType
 }
 
 func isNullable(field reflect.StructField) bool {
 	dataType := field.Type.String()
-	return strings.HasPrefix(dataType, "sql.Null")
+	return strings.HasPrefix(dataType, "sql.Null") || strings.HasPrefix(dataType, "goe.TypeNull")
 }
 
 func getIndex(field reflect.StructField) string {

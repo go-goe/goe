@@ -45,3 +45,15 @@ func (e Entity[T]) Remove() remove[T] {
 func (e Entity[T]) RemoveContext(ctx context.Context) remove[T] {
 	return RemoveContext(ctx, e.entity)
 }
+
+type EntityMap[E any, S any] struct {
+	entity *E
+}
+
+func (e EntityMap[E, S]) Create() entityInsert[E, S] {
+	return createInsertEntity[E, S](context.Background(), e.entity)
+}
+
+func (e EntityMap[E, S]) List() stateSelect[S] {
+	return ListContext(context.Background(), e.entity)
+}

@@ -1,6 +1,6 @@
 module github.com/go-goe/goe/tests
 
-go 1.27rc1
+go 1.27
 
 require (
 	github.com/go-goe/goe v0.7.2
@@ -31,3 +31,5 @@ require (
 )
 
 replace github.com/go-goe/goe => ../
+
+replace github.com/go-goe/sqlite => ../../sqlite

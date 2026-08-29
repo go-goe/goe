@@ -148,12 +148,13 @@ func initField(schema *string, tables reflect.Value, valueOf reflect.Value, db *
 	for fieldId := range valueOf.NumField() {
 		field = valueOf.Type().Field(fieldId)
 		if skipPrimaryKey(fieldIds, fieldId, tables, field) {
+			if strings.Contains(field.Type.Name(), "Type") {
+				setField(valueOf.Field(fieldId).Field(0), pks[0])
+			}
 			continue
 		}
 		if strings.Contains(field.Name, "Entity") {
-			ptr := unsafe.Pointer(valueOf.Field(fieldId).Field(0).UnsafeAddr())
-			ww := reflect.NewAt(valueOf.Field(fieldId).Field(0).Type(), ptr).Elem()
-			ww.Set(ptrOf)
+			setEntity(valueOf.Field(fieldId).Field(0), ptrOf)
 			continue
 		}
 
@@ -254,6 +255,9 @@ func newAttr(b body) error {
 		b.driver,
 	)
 	addrMap.set(b.mapp.addr, at)
+	if b.fieldTypeOf != nil && strings.Contains(b.fieldTypeOf.Name(), "Type") {
+		setField(b.valueOf.Field(b.fieldId).Field(0), at)
+	}
 	return nil
 }
 
@@ -412,4 +416,16 @@ func getId(typeOf reflect.Type) (reflect.StructField, bool) {
 	return typeOf.FieldByNameFunc(func(s string) bool {
 		return strings.ToUpper(s) == "ID"
 	})
+}
+
+func setField(valueOf reflect.Value, value field) {
+	ptr := unsafe.Pointer(valueOf.UnsafeAddr())
+	ww := reflect.NewAt(valueOf.Type(), ptr).Elem()
+	ww.Set(reflect.ValueOf(value))
+}
+
+func setEntity(valueOf reflect.Value, value reflect.Value) {
+	ptr := unsafe.Pointer(valueOf.UnsafeAddr())
+	ww := reflect.NewAt(valueOf.Type(), ptr).Elem()
+	ww.Set(value)
 }

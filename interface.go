@@ -26,3 +26,11 @@ type fieldSelect interface {
 	schema() *string
 	getTableId() int
 }
+
+type whereInterface interface {
+	getModel() model.Where
+}
+
+type TypeInterface[T any] interface {
+	getField() field
+}
