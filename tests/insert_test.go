@@ -26,7 +26,7 @@ func TestInsert(t *testing.T) {
 		{
 			desc: "Insert_Flag",
 			testCase: func(t *testing.T) {
-				f := Flag{
+				f := FlagModel{
 					Id:         uuid.New(),
 					Name:       "Flag",
 					Float32:    1.1,
@@ -52,7 +52,7 @@ func TestInsert(t *testing.T) {
 					t.Fatalf("Expected a insert, got error: %v", err)
 				}
 
-				fs, err := db.Flag.Find().ByValue(Flag{Id: f.Id})
+				fs, err := db.Flag.List().Where(db.Flag.Id.Equals(f.Id)).First()
 				if err != nil {
 					t.Fatalf("Expected a find, got error: %v", err)
 				}

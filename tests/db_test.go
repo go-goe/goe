@@ -93,6 +93,30 @@ type Role struct {
 }
 
 type Flag struct {
+	Id         goe.Type[uuid.UUID]
+	Name       goe.Type[string]
+	Float32    goe.Type[float32]
+	Float64    goe.Type[float64]
+	Today      goe.Type[time.Time]
+	Int        goe.Type[int]
+	Int8       goe.Type[int8]
+	Int16      goe.Type[int16]
+	Int32      goe.Type[int32]
+	Int64      goe.Type[int64]
+	Uint       goe.Type[uint]
+	Uint8      goe.Type[uint8]
+	Uint16     goe.Type[uint16]
+	Uint32     goe.Type[uint32] `goe:"default:32"`
+	Uint64     goe.Type[uint64]
+	Bool       goe.Type[bool]
+	Price      goe.Type[decimal.Decimal] `goe:"type:decimal(10,4)"`
+	Byte       goe.Type[[]byte]
+	NullId     goe.TypeNull[sql.Null[uuid.UUID]] `goe:"type:uuid"`
+	NullString goe.TypeNull[sql.NullString]      `goe:"type:varchar(100)"`
+	goe.EntityMap[Flag, FlagModel]
+}
+
+type FlagModel struct {
 	Id         uuid.UUID
 	Name       string
 	Float32    float32

@@ -1,17 +1,6 @@
 package goe
 
-import (
-	"github.com/go-goe/goe/model"
-	"github.com/go-goe/goe/query/where"
-)
-
-type customWhere struct {
-	modelWhere model.Where
-}
-
-func (cw customWhere) And(c customWhere) model.Where {
-	return where.And(cw.modelWhere, c.modelWhere)
-}
+import "github.com/go-goe/goe/model"
 
 type Type[T any] struct {
 	field
@@ -20,6 +9,18 @@ type Type[T any] struct {
 
 func (t Type[T]) getField() field {
 	return t.field
+}
+
+func (t Type[T]) Equals(v T) customWhere {
+	return equalsWhere(v, t.field)
+}
+
+func (t Type[T]) Set(v T) model.Set {
+	return model.Set{Attribute: t.field, Value: v}
+}
+
+func (t Type[T]) Join(v TypeInterface[T]) (field, field) {
+	return t.field, v.getField()
 }
 
 type TypeNull[T any] struct {
@@ -31,15 +32,14 @@ func (t TypeNull[T]) getField() field {
 	return t.field
 }
 
-func (t Type[T]) Equals(v T) {
+func (t TypeNull[T]) Equals(v *T) customWhere {
+	return equalsNilWhere(v, t.field)
 }
 
-func (t Type[T]) Join(v TypeInterface[T]) (field, field) {
+func (t TypeNull[T]) Set(v *T) model.Set {
+	return model.Set{Attribute: t.field, Value: v}
+}
+
+func (t TypeNull[T]) Join(v TypeInterface[T]) (field, field) {
 	return t.field, v.getField()
-}
-
-type ManyToOne[Many any, One any] struct {
-	field
-	many Many
-	one  One
 }

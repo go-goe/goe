@@ -202,3 +202,37 @@ func getRemoveTableArgs(table any) []any {
 
 	return args
 }
+
+type entityRemove[E any, S any] struct {
+	conn    model.Connection
+	builder builder
+	ctx     context.Context
+}
+
+func (e entityRemove[E, S]) OnTransaction(tx model.Transaction) entityRemove[E, S] {
+	e.conn = tx
+	return e
+}
+
+// Delete all records
+func (e entityRemove[E, S]) All() error {
+	return e.Where(customWhere{modelWhere: model.Where{}})
+}
+
+func (e entityRemove[E, S]) Where(cw customWhere) error {
+	var o = cw.getModel()
+	helperWhere2(&e.builder, &o)
+	e.builder.query.Where = &o
+	e.builder.buildSqlDelete()
+
+	driver := e.builder.fields[0].getDb().driver
+	if e.conn == nil {
+		e.conn = driver.NewConnection()
+	}
+
+	return handlerValues(e.ctx, e.conn, e.builder.query, driver.GetDatabaseConfig())
+}
+
+func createEntityRemove[E any, S any](ctx context.Context) entityRemove[E, S] {
+	return entityRemove[E, S]{builder: createBuilder(enum.DeleteQuery), ctx: ctx}
+}

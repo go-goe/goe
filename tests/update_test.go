@@ -28,7 +28,7 @@ func TestUpdate(t *testing.T) {
 		{
 			desc: "Update_Flag",
 			testCase: func(t *testing.T) {
-				f := Flag{
+				f := FlagModel{
 					Id:         uuid.New(),
 					Name:       "Flag",
 					Float32:    1.1,
@@ -60,7 +60,7 @@ func TestUpdate(t *testing.T) {
 					t.Errorf("Expected a price, got error: %v", err)
 				}
 
-				ff := Flag{
+				ff := FlagModel{
 					Name:    "Flag_Test",
 					Float32: 3.3,
 					Float64: 4.4,
@@ -70,22 +70,22 @@ func TestUpdate(t *testing.T) {
 				}
 				u := db.Flag.Save().
 					Sets(
-						update.Set(&db.Flag.Name, ff.Name),
-						update.Set(&db.Flag.Bool, ff.Bool))
+						db.Flag.Name.Set(ff.Name),
+						db.Flag.Bool.Set(ff.Bool))
 				err = u.Sets(
-					update.Set(&db.Flag.Float64, ff.Float64),
-					update.Set(&db.Flag.Float32, ff.Float32),
-					update.Set(&db.Flag.Price, ff.Price),
-					update.Set(&db.Flag.NullId, ff.NullId),
-					update.Set(&db.Flag.NullString, ff.NullString),
-					update.Set(&db.Flag.Byte, ff.Byte)).
-					Where(where.Equals(&db.Flag.Id, f.Id))
+					db.Flag.Float64.Set(ff.Float64),
+					db.Flag.Float32.Set(ff.Float32),
+					db.Flag.Price.Set(ff.Price),
+					db.Flag.NullId.Set(&ff.NullId),
+					db.Flag.NullString.Set(&ff.NullString),
+					db.Flag.Byte.Set(ff.Byte)).
+					Where(db.Flag.Id.Equals(f.Id))
 				if err != nil {
 					t.Fatalf("Expected a update, got error: %v", err)
 				}
 
-				var fselect *Flag
-				fselect, err = db.Flag.Find().ByValue(Flag{Id: f.Id})
+				var fselect *FlagModel
+				fselect, err = db.Flag.List().Where(db.Flag.Id.Equals(f.Id)).First()
 				if err != nil {
 					t.Fatalf("Expected a select, got error: %v", err)
 				}
@@ -119,7 +119,7 @@ func TestUpdate(t *testing.T) {
 		{
 			desc: "Save_Flag",
 			testCase: func(t *testing.T) {
-				f := Flag{
+				f := FlagModel{
 					Id:      uuid.New(),
 					Name:    "Flag",
 					Float32: 1.1,
@@ -149,7 +149,7 @@ func TestUpdate(t *testing.T) {
 					t.Errorf("Expected a price, got error: %v", err)
 				}
 
-				ff := Flag{
+				ff := FlagModel{
 					Id:         f.Id,
 					Name:       "Flag_Test",
 					Float32:    3.3,
@@ -164,8 +164,8 @@ func TestUpdate(t *testing.T) {
 					t.Fatalf("Expected a update, got error: %v", err)
 				}
 
-				var fselect *Flag
-				fselect, err = db.Flag.Find().ByValue(Flag{Id: f.Id})
+				var fselect *FlagModel
+				fselect, err = db.Flag.List().Where(db.Flag.Id.Equals(f.Id)).First()
 				if err != nil {
 					t.Fatalf("Expected a select, got error: %v", err)
 				}

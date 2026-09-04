@@ -15,6 +15,233 @@ import (
 	"github.com/go-goe/goe/query/where"
 )
 
+type entitySelect[E any, S any] struct {
+	conn    model.Connection
+	builder builder
+	ctx     context.Context
+	argsSelect
+}
+
+func createEntitySelect[E any, S any](ctx context.Context, getArgs func(e any) argsSelect, e any) entitySelect[E, S] {
+	s := entitySelect[E, S]{builder: createBuilder(enum.SelectQuery), argsSelect: getArgs(e), ctx: ctx}
+	s.builder.fieldsSelect = s.fields
+	s.builder.buildSelect()
+	return s
+}
+
+func (e entitySelect[E, S]) OnTransaction(tx model.Transaction) entitySelect[E, S] {
+	e.builder.query.ForUpdate = true
+	e.conn = tx
+	return e
+}
+
+// Where receives [model.Where] as where operations from where sub package
+func (e entitySelect[E, S]) Where(w whereInterface) entitySelect[E, S] {
+	e.builder.query.WhereOperations = nil
+	e.builder.tables = maps.Clone(e.builder.tables)
+	var o = w.getModel()
+	helperWhere2(&e.builder, &o)
+	e.builder.query.Where = &o
+	return e
+}
+
+// Filter creates a where on non-zero values.
+func (e entitySelect[E, S]) Filter(filter model.Where) entitySelect[E, S] {
+	e.builder.filter = helperFilter(&e.builder, addrMap.mapField, &filter)
+	return e
+}
+
+// Match creates a where on non-zero values over the model T, all strings will be a LIKE operator
+// using the ToUpper function to ensure all values is matched.
+func (e entitySelect[E, S]) Match(value S) entitySelect[E, S] {
+	args, values, skip := getNonZeroFields(getArgs{
+		addrMap:   addrMap.mapField,
+		tableArgs: e.tableArgs,
+		value:     value})
+
+	if skip {
+		return e
+	}
+
+	return e.Filter(operationsList(args, values))
+}
+
+// Take takes i elements
+func (e entitySelect[E, S]) Take(i int) entitySelect[E, S] {
+	e.builder.query.Limit = i
+	return e
+}
+
+// Skip skips i elements
+func (e entitySelect[E, S]) Skip(i int) entitySelect[E, S] {
+	e.builder.query.Offset = i
+	return e
+}
+
+// OrderByAsc makes a ordained by args ascending query
+func (e entitySelect[E, S]) OrderByAsc(args ...any) entitySelect[E, S] {
+	for _, arg := range args {
+		if a, ok := getAttribute(arg, addrMap.mapField); ok {
+			e.builder.query.OrderBy = append(e.builder.query.OrderBy, model.OrderBy{Attribute: a})
+		}
+	}
+	return e
+}
+
+// OrderByDesc makes a ordained by args descending query
+func (e entitySelect[E, S]) OrderByDesc(args ...any) entitySelect[E, S] {
+	for _, arg := range args {
+		if a, ok := getAttribute(arg, addrMap.mapField); ok {
+			e.builder.query.OrderBy = append(e.builder.query.OrderBy, model.OrderBy{Attribute: a, Desc: true})
+		}
+	}
+	return e
+}
+
+// GroupBy makes a group by args
+func (e entitySelect[E, S]) GroupBy(args ...any) entitySelect[E, S] {
+	e.builder.query.GroupBy = make([]model.GroupBy, len(args))
+	for i := range args {
+		if a, ok := getAttribute(args[i], addrMap.mapField); ok {
+			e.builder.query.GroupBy[i].Attribute = a
+		}
+	}
+	return e
+}
+
+func (e entitySelect[E, S]) Join(left, right any) entitySelect[E, S] {
+	e.builder.buildSelectJoins(enum.Join, getArgsJoin(addrMap.mapField, left, right))
+	return e
+}
+
+func (e entitySelect[E, S]) LeftJoin(left, right any) entitySelect[E, S] {
+	e.builder.buildSelectJoins(enum.LeftJoin, getArgsJoin(addrMap.mapField, left, right))
+	return e
+}
+
+func (e entitySelect[E, S]) RightJoin(left, right any) entitySelect[E, S] {
+	e.builder.buildSelectJoins(enum.RightJoin, getArgsJoin(addrMap.mapField, left, right))
+	return e
+}
+
+// AsQuery return a [model.Query] for use inside a [where.In].
+func (e entitySelect[E, S]) AsQuery() model.Query {
+	e.builder.buildSqlSelect()
+	return e.builder.query
+}
+
+func (e entitySelect[E, S]) AsSlice() ([]S, error) {
+	rows := make([]S, 0, e.builder.query.Limit)
+	for row, err := range e.Rows() {
+		if err != nil {
+			return nil, err
+		}
+		rows = append(rows, row)
+	}
+	return rows, nil
+}
+
+func (e entitySelect[E, S]) First() (*S, error) {
+	for row, err := range e.Rows() {
+		if err != nil {
+			return nil, err
+		}
+		return &row, nil
+	}
+	return nil, ErrNotFound
+}
+
+// AsPagination return a paginated query as [Pagination].
+//
+// Default values for page and size are 1 and 10 respectively.
+func (e entitySelect[E, S]) AsPagination(page, size int) (*Pagination[S], error) {
+	if size <= 0 {
+		size = 10
+	}
+	if page <= 0 {
+		page = 1
+	}
+
+	var err error
+	stateCount := Select[struct{ Count int64 }](aggregate.Count(e.tableArgs[0]))
+
+	// copy joins
+	stateCount.builder.joins = e.builder.joins
+	stateCount.builder.joinsArgs = e.builder.joinsArgs
+
+	// copy operations
+	stateCount.builder.query.Arguments = e.builder.query.Arguments
+	stateCount.builder.whereArguments = e.builder.whereArguments
+	stateCount.builder.filter = e.builder.filter
+	stateCount.builder.query.Where = e.builder.query.Where
+
+	// copy connection/transaction
+	stateCount.conn = e.conn
+
+	var count int64
+	for row, err := range stateCount.Rows() {
+		if err != nil {
+			return nil, err
+		}
+		count = row.Count
+		break
+	}
+
+	e.builder.query.Offset = size * (page - 1)
+	e.builder.query.Limit = size
+
+	p := new(Pagination[S])
+
+	p.Values, err = e.AsSlice()
+	if err != nil {
+		return nil, err
+	}
+
+	p.TotalValues = count
+
+	p.TotalPages = int(math.Ceil(float64(count) / float64(size)))
+	p.CurrentPage = page
+
+	if page == p.TotalPages || p.TotalPages == 0 {
+		p.NextPage = page
+	} else {
+		p.NextPage = page + 1
+		p.HasNextPage = true
+	}
+
+	if page == 1 {
+		p.PreviousPage = page
+	} else {
+		p.PreviousPage = page - 1
+		p.HasPreviousPage = true
+	}
+
+	p.PageSize = size
+	p.PageValues = len(p.Values)
+
+	p.StartIndex = (page-1)*size + 1
+
+	if !p.HasNextPage {
+		p.EndIndex = int(p.TotalValues)
+	} else {
+		p.EndIndex = size * page
+	}
+
+	return p, nil
+}
+
+// Rows return a iterator on rows.
+func (e entitySelect[E, S]) Rows() iter.Seq2[S, error] {
+	e.builder.buildSqlSelect()
+
+	driver := e.builder.fieldsSelect[0].getDb().driver
+	if e.conn == nil {
+		e.conn = driver.NewConnection()
+	}
+
+	return handlerResult[S](e.ctx, e.conn, e.builder.query, len(e.builder.fieldsSelect), driver.GetDatabaseConfig())
+}
+
 type stateSelect[T any] struct {
 	conn    model.Connection
 	builder builder
@@ -786,6 +1013,96 @@ func getArgsList(args ...any) argsSelect {
 				fields = append(fields, f)
 				tableArgs = append(tableArgs, fieldOf.Addr().Interface())
 			}
+		}
+	}
+
+	if len(fields) == 0 {
+		panic("goe: invalid argument. try sending a pointer to a database mapped argument")
+	}
+
+	return argsSelect{fields: fields, tableArgs: tableArgs}
+}
+
+func helperWhere2(builder *builder, br *model.Where) {
+	switch br.Type {
+	case enum.OperationWhere, enum.OperationInWhere:
+		a := br.Arg.(field)
+		br.Table = model.Table{Schema: a.schema(), Name: a.table()}
+		br.TableId = a.getTableId()
+		br.Attribute.Name = a.getAttributeName()
+		br.Attribute.Table = a.table()
+
+		if br.Type == enum.OperationWhere {
+			builder.query.Arguments = append(builder.query.Arguments, br.Value.GetValue())
+			builder.whereArguments++
+		}
+
+		if br.Type == enum.OperationInWhere {
+			valueOf := reflect.ValueOf(br.Value.GetValue())
+			switch valueOf.Kind() {
+			case reflect.Slice:
+				for i := range valueOf.Len() {
+					builder.query.Arguments = append(builder.query.Arguments, valueOf.Index(i).Interface())
+					builder.whereArguments++
+					br.SizeIn++
+				}
+			case reflect.Array:
+				for i := range valueOf.Len() {
+					builder.query.Arguments = append(builder.query.Arguments, valueOf.Index(i).Interface())
+					builder.whereArguments++
+					br.SizeIn++
+				}
+			default:
+				if modelQuery, ok := valueOf.Interface().(model.Query); ok {
+					br.QueryIn = &modelQuery
+				}
+			}
+		}
+
+	case enum.OperationAttributeWhere:
+		a, b := br.Arg.(field), br.Value.GetValue().(field)
+		br.Table = model.Table{Schema: a.schema(), Name: a.table()}
+		br.TableId = a.getTableId()
+		br.Attribute.Name = a.getAttributeName()
+		br.Attribute.Table = a.table()
+		if !builder.tables[br.TableId] {
+			builder.tables[br.TableId] = true
+			builder.query.Tables = append(builder.query.Tables, br.Table)
+		}
+
+		br.AttributeValue.Name = b.getAttributeName()
+		br.AttributeValue.Table = b.table()
+		br.AttributeValueTable = model.Table{Schema: b.schema(), Name: b.table()}
+		br.AttributeTableId = b.getTableId()
+		if !builder.tables[br.AttributeTableId] {
+			builder.tables[br.AttributeTableId] = true
+			builder.query.Tables = append(builder.query.Tables, br.AttributeValueTable)
+		}
+	case enum.OperationIsWhere:
+		a := br.Arg.(field)
+		br.Table = model.Table{Schema: a.schema(), Name: a.table()}
+		br.TableId = a.getTableId()
+		br.Attribute.Name = a.getAttributeName()
+		br.Attribute.Table = a.table()
+
+	case enum.LogicalWhere:
+		helperWhere2(builder, br.FirstOperation)
+		helperWhere2(builder, br.SecondOperation)
+	}
+}
+
+func getEntityArgs(e any) argsSelect {
+	structOf := reflect.ValueOf(e).Elem()
+
+	fields := make([]fieldSelect, 0, structOf.NumField())
+	tableArgs := make([]any, 0, structOf.NumField())
+
+	var fieldOf reflect.Value
+	for i := 0; i < structOf.NumField(); i++ {
+		fieldOf = structOf.Field(i)
+		if field, ok := fieldOf.Interface().(field); ok {
+			fields = append(fields, field)
+			tableArgs = append(tableArgs, fieldOf.Addr().Interface())
 		}
 	}
 

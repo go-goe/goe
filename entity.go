@@ -54,6 +54,14 @@ func (e EntityMap[E, S]) Create() entityInsert[E, S] {
 	return createInsertEntity[E, S](context.Background(), e.entity)
 }
 
-func (e EntityMap[E, S]) List() stateSelect[S] {
-	return ListContext(context.Background(), e.entity)
+func (e EntityMap[E, S]) List() entitySelect[E, S] {
+	return createEntitySelect[E, S](context.Background(), getEntityArgs, e.entity)
+}
+
+func (e EntityMap[E, S]) Remove() entityRemove[E, S] {
+	return createEntityRemove[E, S](context.Background())
+}
+
+func (e EntityMap[E, S]) Save() entitySave[E, S] {
+	return createEntitySave[E, S](context.Background(), e.entity)
 }

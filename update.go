@@ -202,6 +202,7 @@ type argSave struct {
 	sets        []set
 	argsWhere   []any
 	valuesWhere []any
+	customWhere customWhere
 	skip        bool
 }
 
@@ -243,4 +244,92 @@ func getArgsSave[T any](addrMap map[uintptr]field, table *T, value T) argSave {
 
 func createUpdateState[T any](ctx context.Context) stateUpdate[T] {
 	return stateUpdate[T]{builder: createBuilder(enum.UpdateQuery), ctx: ctx}
+}
+
+type entitySave[E any, S any] struct {
+	conn    model.Connection
+	builder builder
+	entity  *E
+	ctx     context.Context
+}
+
+func createEntitySave[E any, S any](ctx context.Context, e *E) entitySave[E, S] {
+	return entitySave[E, S]{builder: createBuilder(enum.UpdateQuery), entity: e, ctx: ctx}
+}
+
+func (e entitySave[E, S]) OnTransaction(tx model.Transaction) entitySave[E, S] {
+	e.conn = tx
+	return e
+}
+
+// Sets one or more arguments for update
+func (e entitySave[E, S]) Sets(sets ...model.Set) entitySave[E, S] {
+	for i := range sets {
+		e.builder.sets = append(e.builder.sets, set{attribute: sets[i].Attribute.(field), value: sets[i].Value})
+	}
+
+	return e
+}
+
+// Update all records
+func (e entitySave[E, S]) All() error {
+	return e.Where(customWhere{modelWhere: model.Where{}})
+}
+
+// Where receives [model.Where] as where operations from where sub package
+func (e entitySave[E, S]) Where(cw customWhere) error {
+	var o = cw.getModel()
+	e.builder.buildSets()
+	helperWhere2(&e.builder, &o)
+	e.builder.query.Where = &o
+	e.builder.buildUpdate()
+
+	driver := e.builder.sets[0].attribute.getDb().driver
+	if e.conn == nil {
+		e.conn = driver.NewConnection()
+	}
+
+	return handlerValues(e.ctx, e.conn, e.builder.query, driver.GetDatabaseConfig())
+}
+
+func (e entitySave[E, S]) One(v S) error {
+	argsSave := getArgsSave2(e.entity, v)
+	// skip queries on empty models
+	if argsSave.skip {
+		return nil
+	}
+
+	e.builder.sets = argsSave.sets
+	return e.Where(argsSave.customWhere)
+}
+
+func getArgsSave2(table any, value any) argSave {
+	tableOf := reflect.ValueOf(table).Elem()
+
+	valueOf := reflect.ValueOf(value)
+
+	sets := make([]set, 0)
+	var cw *customWhere
+
+	for i := 0; i < valueOf.NumField(); i++ {
+		if !valueOf.Field(i).IsZero() {
+			//TODO: check if the field is correct
+			if field, ok := tableOf.Field(i).Interface().(field); ok {
+				if field.isPrimaryKey() {
+					if cw == nil {
+						cw = &customWhere{}
+						*cw = equalsWhere(valueOf.Field(i).Interface(), field)
+					} else {
+						cw.And(equalsWhere(valueOf.Field(i).Interface(), field))
+					}
+					continue
+				}
+				sets = append(sets, set{attribute: field, value: valueOf.Field(i).Interface()})
+			}
+		}
+	}
+	if cw == nil {
+		return argSave{skip: true}
+	}
+	return argSave{sets: sets, customWhere: *cw}
 }

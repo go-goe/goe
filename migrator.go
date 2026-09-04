@@ -226,7 +226,7 @@ func migratePk(typeOf reflect.Type, driver model.Driver) ([]*model.PrimaryKeyMig
 }
 
 func isAutoIncrement(id reflect.StructField) bool {
-	return strings.Contains(id.Type.Kind().String(), "int")
+	return strings.Contains(id.Type.String(), "int")
 }
 
 func migrateAtt(b body) error {
@@ -252,10 +252,10 @@ func getTagType(field reflect.StructField) string {
 		return dataType[1:]
 	}
 	if strings.Contains(dataType, "goe.TypeNull") {
-		return dataType[13 : len(dataType)-1]
+		return field.Type.Field(1).Type.String()
 	}
 	if strings.Contains(dataType, "goe.Type") {
-		return dataType[9 : len(dataType)-1]
+		return field.Type.Field(1).Type.String()
 	}
 	return dataType
 }
