@@ -109,18 +109,18 @@ func (e entitySelect[E, S]) GroupBy(args ...any) entitySelect[E, S] {
 	return e
 }
 
-func (e entitySelect[E, S]) Join(left, right any) entitySelect[E, S] {
-	e.builder.buildSelectJoins(enum.Join, getArgsJoin(addrMap.mapField, left, right))
+func (e entitySelect[E, S]) Join(left, right field) entitySelect[E, S] {
+	e.builder.buildSelectJoins(enum.Join, []field{left, right})
 	return e
 }
 
-func (e entitySelect[E, S]) LeftJoin(left, right any) entitySelect[E, S] {
-	e.builder.buildSelectJoins(enum.LeftJoin, getArgsJoin(addrMap.mapField, left, right))
+func (e entitySelect[E, S]) LeftJoin(left, right field) entitySelect[E, S] {
+	e.builder.buildSelectJoins(enum.LeftJoin, []field{left, right})
 	return e
 }
 
-func (e entitySelect[E, S]) RightJoin(left, right any) entitySelect[E, S] {
-	e.builder.buildSelectJoins(enum.RightJoin, getArgsJoin(addrMap.mapField, left, right))
+func (e entitySelect[E, S]) RightJoin(left, right field) entitySelect[E, S] {
+	e.builder.buildSelectJoins(enum.RightJoin, []field{left, right})
 	return e
 }
 
@@ -418,21 +418,19 @@ func (s stateSelect[T]) Skip(i int) stateSelect[T] {
 }
 
 // OrderByAsc makes a ordained by args ascending query
-func (s stateSelect[T]) OrderByAsc(args ...any) stateSelect[T] {
-	for _, arg := range args {
-		if a, ok := getAttribute(arg, addrMap.mapField); ok {
-			s.builder.query.OrderBy = append(s.builder.query.OrderBy, model.OrderBy{Attribute: a})
-		}
+func (s stateSelect[T]) OrderByAsc(fields ...TypeInterface[T]) stateSelect[T] {
+	for _, f := range fields {
+		var a = model.Attribute{Table: f.getField().table(), Name: f.getField().getAttributeName()}
+		s.builder.query.OrderBy = append(s.builder.query.OrderBy, model.OrderBy{Attribute: a})
 	}
 	return s
 }
 
 // OrderByDesc makes a ordained by args descending query
-func (s stateSelect[T]) OrderByDesc(args ...any) stateSelect[T] {
-	for _, arg := range args {
-		if a, ok := getAttribute(arg, addrMap.mapField); ok {
-			s.builder.query.OrderBy = append(s.builder.query.OrderBy, model.OrderBy{Attribute: a, Desc: true})
-		}
+func (s stateSelect[T]) OrderByDesc(fields ...TypeInterface[T]) stateSelect[T] {
+	for _, f := range fields {
+		var a = model.Attribute{Table: f.getField().table(), Name: f.getField().getAttributeName()}
+		s.builder.query.OrderBy = append(s.builder.query.OrderBy, model.OrderBy{Attribute: a, Desc: true})
 	}
 	return s
 }
@@ -1098,7 +1096,7 @@ func getEntityArgs(e any) argsSelect {
 	tableArgs := make([]any, 0, structOf.NumField())
 
 	var fieldOf reflect.Value
-	for i := 0; i < structOf.NumField(); i++ {
+	for i := 0; i < structOf.NumField()-1; i++ {
 		fieldOf = structOf.Field(i)
 		if field, ok := fieldOf.Interface().(field); ok {
 			fields = append(fields, field)
@@ -1109,6 +1107,5 @@ func getEntityArgs(e any) argsSelect {
 	if len(fields) == 0 {
 		panic("goe: invalid argument. try sending a pointer to a database mapped argument")
 	}
-
 	return argsSelect{fields: fields, tableArgs: tableArgs}
 }

@@ -207,6 +207,7 @@ type entityRemove[E any, S any] struct {
 	conn    model.Connection
 	builder builder
 	ctx     context.Context
+	f       field
 }
 
 func (e entityRemove[E, S]) OnTransaction(tx model.Transaction) entityRemove[E, S] {
@@ -223,6 +224,7 @@ func (e entityRemove[E, S]) Where(cw customWhere) error {
 	var o = cw.getModel()
 	helperWhere2(&e.builder, &o)
 	e.builder.query.Where = &o
+	e.builder.fields = []field{e.f}
 	e.builder.buildSqlDelete()
 
 	driver := e.builder.fields[0].getDb().driver
@@ -233,6 +235,6 @@ func (e entityRemove[E, S]) Where(cw customWhere) error {
 	return handlerValues(e.ctx, e.conn, e.builder.query, driver.GetDatabaseConfig())
 }
 
-func createEntityRemove[E any, S any](ctx context.Context) entityRemove[E, S] {
-	return entityRemove[E, S]{builder: createBuilder(enum.DeleteQuery), ctx: ctx}
+func createEntityRemove[E any, S any](ctx context.Context, f field) entityRemove[E, S] {
+	return entityRemove[E, S]{builder: createBuilder(enum.DeleteQuery), ctx: ctx, f: f}
 }

@@ -87,18 +87,21 @@ func typeField(tables reflect.Value, valueOf reflect.Value, migrator *model.Migr
 				return err
 			}
 		case reflect.Struct:
-			err = handlerStruct(body{
+			err = helperAttributeMigrate(body{
 				fieldId:     fieldId,
 				driver:      driver,
 				nullable:    isNullable(field),
+				tables:      tables,
 				fieldTypeOf: valueOf.Field(fieldId).Type(),
 				valueOf:     valueOf,
+				typeOf:      valueOf.Type(),
 				migrate: &infosMigrate{
-					table: table,
-					field: field,
+					table:      table,
+					field:      field,
+					fieldNames: fieldNames,
 				},
 				schemasMap: schemasMap,
-			}, migrateAtt)
+			})
 			if err != nil {
 				return err
 			}
@@ -226,7 +229,8 @@ func migratePk(typeOf reflect.Type, driver model.Driver) ([]*model.PrimaryKeyMig
 }
 
 func isAutoIncrement(id reflect.StructField) bool {
-	return strings.Contains(id.Type.String(), "int")
+	var tp = id.Type.Field(1).Type.String()
+	return strings.ToUpper(id.Name) == "ID" && strings.Contains(tp, "int") && !strings.Contains(tp, "[]")
 }
 
 func migrateAtt(b body) error {
@@ -247,7 +251,7 @@ func getTagType(field reflect.StructField) string {
 	if value != "" {
 		return strings.ReplaceAll(value, " ", "")
 	}
-	dataType := field.Type.String()
+	dataType := field.Type.Field(1).Type.String()
 	if dataType[0] == '*' {
 		return dataType[1:]
 	}

@@ -155,6 +155,7 @@ func initField(schema *string, tables reflect.Value, valueOf reflect.Value, db *
 		}
 		if strings.Contains(field.Name, "Entity") {
 			setEntity(valueOf.Field(fieldId).Field(0), ptrOf)
+			setEntity(valueOf.Field(fieldId).Field(1), reflect.ValueOf(pks[0]))
 			continue
 		}
 
@@ -303,7 +304,7 @@ func getFieldId(typeOf reflect.Type, fieldName string) int {
 }
 
 func isReturningId(id reflect.StructField) bool {
-	return strings.Contains(id.Type.Kind().String(), "int") || getTagValue(id.Tag.Get("goe"), "default:") != ""
+	return isAutoIncrement(id) || getTagValue(id.Tag.Get("goe"), "default:") != ""
 }
 
 func isManyToOne(b body, createMany func(b body, typeOf reflect.Type) any, createOne func(b body, typeOf reflect.Type) any) any {

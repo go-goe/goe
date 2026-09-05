@@ -46,6 +46,23 @@ func (e entityInsert[E, S]) One(value *S) error {
 	return handlerValues(e.ctx, e.conn, e.builder.query, driver.GetDatabaseConfig())
 }
 
+func (e entityInsert[E, S]) All(values []S) error {
+	if len(values) == 0 {
+		return errors.New("goe: can't insert a empty batch value")
+	}
+	valueOf := reflect.ValueOf(values)
+
+	e.builder.fields = getFields(e.entity, valueOf.Index(0))
+
+	pkFieldId := e.builder.buildSqlInsertBatch(valueOf)
+
+	driver := e.builder.fields[0].getDb().driver
+	if e.conn == nil {
+		e.conn = driver.NewConnection()
+	}
+	return handlerValuesReturningBatch(e.ctx, e.conn, e.builder.query, valueOf, pkFieldId, driver.GetDatabaseConfig())
+}
+
 func getFields(table any, valueOf reflect.Value) []field {
 	fields := make([]field, 0)
 

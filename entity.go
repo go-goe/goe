@@ -4,6 +4,7 @@ import "context"
 
 type Entity[T any] struct {
 	entity *T
+	field
 }
 
 func (e Entity[T]) List() stateSelect[T] {
@@ -48,6 +49,7 @@ func (e Entity[T]) RemoveContext(ctx context.Context) remove[T] {
 
 type EntityMap[E any, S any] struct {
 	entity *E
+	field
 }
 
 func (e EntityMap[E, S]) Create() entityInsert[E, S] {
@@ -59,7 +61,7 @@ func (e EntityMap[E, S]) List() entitySelect[E, S] {
 }
 
 func (e EntityMap[E, S]) Remove() entityRemove[E, S] {
-	return createEntityRemove[E, S](context.Background())
+	return createEntityRemove[E, S](context.Background(), e)
 }
 
 func (e EntityMap[E, S]) Save() entitySave[E, S] {

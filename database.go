@@ -189,3 +189,7 @@ func (db *DB) Select[E any](fields ...any) stateSelect[E] {
 func (db *DB) SelectContext[E any](ctx context.Context, fields ...any) stateSelect[E] {
 	return SelectContext[E](ctx, fields...)
 }
+
+func (db *DB) List[S any, E any](entity E) entitySelect[E, S] {
+	return createEntitySelect[E, S](context.Background(), getEntityArgs, &entity)
+}

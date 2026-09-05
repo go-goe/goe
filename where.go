@@ -36,6 +36,10 @@ func equalsNilWhere[T any](v *T, f field) customWhere {
 	return customWhere{modelWhere: m}
 }
 
+func likeWhere(v string, f field) customWhere {
+	return customWhere{modelWhere: model.Where{Arg: f, Value: valueOperation{value: v}, Operator: enum.Like, Type: enum.OperationWhere}}
+}
+
 // TODO: Check this
 type valueOperation struct {
 	value any

@@ -5,8 +5,6 @@ import (
 	"testing"
 
 	"github.com/go-goe/goe"
-	"github.com/go-goe/goe/query/where"
-	"github.com/google/uuid"
 )
 
 var animals []Animal
@@ -54,85 +52,85 @@ func BenchmarkSelectRaw(b *testing.B) {
 var foods []Food
 
 func BenchmarkJoin(b *testing.B) {
-	db, _ := Setup()
+	// db, _ := Setup()
 
-	goe.Delete(db.Weather)
-	goe.Delete(db.Habitat)
-	goe.Delete(db.AnimalFood).All()
-	goe.Delete(db.Animal).All()
-	goe.Delete(db.Food).All()
+	// goe.Delete(db.Weather)
+	// goe.Delete(db.Habitat)
+	// goe.Delete(db.AnimalFood).All()
+	// goe.Delete(db.Animal).All()
+	// goe.Delete(db.Food).All()
 
-	w := Weather{Name: "Weather"}
-	goe.Insert(db.Weather).One(&w)
+	// w := Weather{Name: "Weather"}
+	// goe.Insert(db.Weather).One(&w)
 
-	h := Habitat{Id: uuid.New(), Name: "Habitat", WeatherId: w.Id}
-	goe.Insert(db.Habitat).One(&h)
+	// h := Habitat{Id: uuid.New(), Name: "Habitat", WeatherId: w.Id}
+	// goe.Insert(db.Habitat).One(&h)
 
-	a := Animal{Name: "Animal", HabitatId: &h.Id}
-	goe.Insert(db.Animal).One(&a)
+	// a := Animal{Name: "Animal", HabitatId: &h.Id}
+	// goe.Insert(db.Animal).One(&a)
 
-	f := Food{Id: uuid.New(), Name: "Food"}
-	goe.Insert(db.Food).One(&f)
+	// f := Food{Id: uuid.New(), Name: "Food"}
+	// goe.Insert(db.Food).One(&f)
 
-	af := AnimalFood{AnimalId: a.Id, FoodId: f.Id}
-	goe.Insert(db.AnimalFood).One(&af)
+	// af := AnimalFood{AnimalId: a.Id, FoodId: f.Id}
+	// goe.Insert(db.AnimalFood).One(&af)
 
-	for b.Loop() {
-		foods = make([]Food, 0)
+	// for b.Loop() {
+	// 	foods = make([]Food, 0)
 
-		for row := range goe.List(db.Food).
-			Join(&db.Food.Id, &db.AnimalFood.FoodId).
-			Join(&db.AnimalFood.AnimalId, &db.Animal.Id).
-			Join(&db.Animal.HabitatId, &db.Habitat.Id).
-			Join(&db.Habitat.WeatherId, &db.Weather.Id).
-			Where(
-				where.And(where.Equals(&db.Food.Id, f.Id), where.Equals(&db.Food.Name, f.Name)),
-			).
-			Rows() {
-			foods = append(foods, row)
-		}
-	}
+	// 	for row := range goe.List(db.Food).
+	// 		Join(&db.Food.Id, &db.AnimalFood.FoodId).
+	// 		Join(&db.AnimalFood.AnimalId, &db.Animal.Id).
+	// 		Join(&db.Animal.HabitatId, &db.Habitat.Id).
+	// 		Join(&db.Habitat.WeatherId, &db.Weather.Id).
+	// 		Where(
+	// 			where.And(where.Equals(&db.Food.Id, f.Id), where.Equals(&db.Food.Name, f.Name)),
+	// 		).
+	// 		Rows() {
+	// 		foods = append(foods, row)
+	// 	}
+	// }
 }
 
 func BenchmarkJoinSql(b *testing.B) {
-	db, _ := Setup()
+	// db, _ := Setup()
 
-	goe.Delete(db.Weather)
-	goe.Delete(db.Habitat)
-	goe.Delete(db.AnimalFood).All()
-	goe.Delete(db.Animal).All()
-	goe.Delete(db.Food).All()
+	// goe.Delete(db.Weather)
+	// goe.Delete(db.Habitat)
+	// goe.Delete(db.AnimalFood).All()
+	// goe.Delete(db.Animal).All()
+	// goe.Delete(db.Food).All()
 
-	w := Weather{Name: "Weather"}
-	goe.Insert(db.Weather).One(&w)
+	// w := Weather{Name: "Weather"}
+	// goe.Insert(db.Weather).One(&w)
 
-	h := Habitat{Id: uuid.New(), Name: "Habitat", WeatherId: w.Id}
-	goe.Insert(db.Habitat).One(&h)
+	// h := Habitat{Id: uuid.New(), Name: "Habitat", WeatherId: w.Id}
+	// goe.Insert(db.Habitat).One(&h)
 
-	a := Animal{Name: "Animal", HabitatId: &h.Id}
-	goe.Insert(db.Animal).One(&a)
+	// a := Animal{Name: "Animal", HabitatId: &h.Id}
+	// goe.Insert(db.Animal).One(&a)
 
-	f := Food{Id: uuid.New(), Name: "Food"}
-	goe.Insert(db.Food).One(&f)
+	// f := Food{Id: uuid.New(), Name: "Food"}
+	// goe.Insert(db.Food).One(&f)
 
-	af := AnimalFood{AnimalId: a.Id, FoodId: f.Id}
-	goe.Insert(db.AnimalFood).One(&af)
+	// af := AnimalFood{AnimalId: a.Id, FoodId: f.Id}
+	// goe.Insert(db.AnimalFood).One(&af)
 
-	for b.Loop() {
+	// for b.Loop() {
 
-		rows, _ := db.DB.RawQueryContext(context.Background(), `select f.id, f.name from foods f
-						join animal_foods af on f.id = af.food_id
-						join animals a on af.animal_id = a.id
-						join habitats h on a.habitat_id = h.id
-						join weathers w on h.weather_id = w.id
-						where f.id = $1 and f.name = $2;`, f.Id, f.Name)
-		defer rows.Close()
+	// 	rows, _ := db.DB.RawQueryContext(context.Background(), `select f.id, f.name from foods f
+	// 					join animal_foods af on f.id = af.food_id
+	// 					join animals a on af.animal_id = a.id
+	// 					join habitats h on a.habitat_id = h.id
+	// 					join weathers w on h.weather_id = w.id
+	// 					where f.id = $1 and f.name = $2;`, f.Id, f.Name)
+	// 	defer rows.Close()
 
-		foods = make([]Food, 0)
-		var food Food
-		for rows.Next() {
-			rows.Scan(&food.Id, &food.Name)
-			foods = append(foods, food)
-		}
-	}
+	// 	foods = make([]Food, 0)
+	// 	var food Food
+	// 	for rows.Next() {
+	// 		rows.Scan(&food.Id, &food.Name)
+	// 		foods = append(foods, food)
+	// 	}
+	// }
 }

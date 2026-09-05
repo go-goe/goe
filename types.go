@@ -15,6 +15,10 @@ func (t Type[T]) Equals(v T) customWhere {
 	return equalsWhere(v, t.field)
 }
 
+func (t Type[T]) Like(v string) customWhere {
+	return likeWhere(v, t.field)
+}
+
 func (t Type[T]) Set(v T) model.Set {
 	return model.Set{Attribute: t.field, Value: v}
 }

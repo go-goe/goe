@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"sync"
@@ -17,79 +18,188 @@ import (
 	"github.com/shopspring/decimal"
 )
 
+/* -------------------------- Models -------------------------- */
+
+type FlagModel struct {
+	Id         uuid.UUID
+	Name       string
+	Float32    float32
+	Float64    float64
+	Today      time.Time
+	Int        int
+	Int8       int8
+	Int16      int16
+	Int32      int32
+	Int64      int64
+	Uint       uint
+	Uint8      uint8
+	Uint16     uint16
+	Uint32     uint32
+	Uint64     uint64
+	Bool       bool
+	Price      decimal.Decimal
+	Byte       []byte
+	NullId     sql.Null[uuid.UUID]
+	NullString sql.NullString
+}
+
+type PersonJobTitleModel struct {
+	PersonId   int
+	JobTitleId int
+	CreatedAt  time.Time
+}
+
+type PersonModel struct {
+	Id   int
+	Name string
+	Jobs []JobTitle
+}
+
+type JobTitleModel struct {
+	Name    string
+	Id      int
+	Persons []Person
+}
+
+type InfoModel struct {
+	Id         []byte
+	Name       string
+	NameStatus string
+	StatusId   int
+}
+
+type AnimalModel struct {
+	Name      string
+	HabitatId *uuid.UUID
+	InfoId    *[]byte
+	Id        int
+}
+
+type AnimalFoodModel struct {
+	AnimalId int
+	FoodId   uuid.UUID
+}
+
+/* -------------------------- Entitys -------------------------- */
+
 type Animal struct {
-	Name        string `goe:"index"`
-	HabitatId   *uuid.UUID
-	InfoId      *[]byte
-	Id          int
+	Name        goe.Type[string] `goe:"index"`
+	HabitatId   goe.TypeNull[uuid.UUID]
+	InfoId      goe.TypeNull[[]byte]
+	Id          goe.Type[int]
 	AnimalFoods []AnimalFood
-	goe.Entity[Animal]
+	goe.EntityMap[Animal, AnimalModel]
 }
 
 type AnimalFood struct {
-	AnimalId int       `goe:"pk"`
-	FoodId   uuid.UUID `goe:"pk"`
-	goe.Entity[AnimalFood]
+	AnimalId goe.Type[int]       `goe:"pk"`
+	FoodId   goe.Type[uuid.UUID] `goe:"pk"`
+	goe.EntityMap[AnimalFood, AnimalFoodModel]
 }
 
 type Food struct {
+	Id          goe.Type[uuid.UUID]
+	Name        goe.Type[string]
+	AnimalFoods []AnimalFood
+	goe.EntityMap[Food, FoodModel]
+}
+
+type FoodModel struct {
 	Id          uuid.UUID
 	Name        string
 	AnimalFoods []AnimalFood
-	goe.Entity[Food]
 }
 
 type Habitat struct {
+	Id          goe.Type[uuid.UUID]
+	Name        goe.Type[string] `goe:"type:varchar(50)"`
+	WeatherId   goe.Type[int]
+	NameWeather goe.Type[string]
+	Animals     []Animal
+	goe.EntityMap[Habitat, HabitatModel]
+}
+
+type HabitatModel struct {
 	Id          uuid.UUID
-	Name        string `goe:"type:varchar(50)"`
+	Name        string
 	WeatherId   int
 	NameWeather string
 	Animals     []Animal
-	goe.Entity[Habitat]
 }
 
 type Weather struct {
-	Id       int `goe:"pk"`
+	Id       goe.Type[int] `goe:"pk"`
+	Name     goe.Type[string]
+	Habitats []Habitat
+	goe.EntityMap[Weather, WeatherModel]
+}
+
+type WeatherModel struct {
+	Id       int
 	Name     string
 	Habitats []Habitat
-	goe.Entity[Weather]
 }
 
 type Info struct {
-	Id         []byte
-	Name       string `goe:"index(unique n:idx_name_status);index"`
-	NameStatus string `goe:"index(unique n:idx_name_status)"`
-	StatusId   int
-	goe.Entity[Info]
+	Id         goe.Type[[]byte]
+	Name       goe.Type[string] `goe:"index(unique n:idx_name_status);index"`
+	NameStatus goe.Type[string] `goe:"index(unique n:idx_name_status)"`
+	StatusId   goe.Type[int]
+	goe.EntityMap[Info, InfoModel]
 }
 
 type Status struct {
+	Id   goe.Type[int]
+	Name goe.Type[string]
+	goe.EntityMap[Status, StatusModel]
+}
+
+type StatusModel struct {
 	Id   int
 	Name string
-	goe.Entity[Status]
 }
 
 type User struct {
-	Id        int
-	Name      string `goe:"index(n:idx_name_lower f:lower)"`
-	Email     string `goe:"unique"`
+	Id        goe.Type[int]
+	Name      goe.Type[string] `goe:"index(n:idx_name_lower f:lower)"`
+	Email     goe.Type[string] `goe:"unique"`
 	UserRoles []UserRole
-	goe.Entity[User]
+	goe.EntityMap[User, UserModel]
+}
+
+type UserModel struct {
+	Id        int
+	Name      string
+	Email     string
+	UserRoles []UserRole
 }
 
 type UserRole struct {
+	Id      goe.Type[int]
+	UserId  goe.Type[int]
+	RoleId  goe.Type[int]
+	EndDate goe.TypeNull[time.Time]
+	goe.EntityMap[UserRole, UserRoleModel]
+}
+
+type UserRoleModel struct {
 	Id      int
 	UserId  int
 	RoleId  int
 	EndDate *time.Time
-	goe.Entity[UserRole]
 }
 
 type Role struct {
+	Id        goe.Type[int]
+	Name      goe.Type[string]
+	UserRoles []UserRole
+	goe.EntityMap[Role, RoleModel]
+}
+
+type RoleModel struct {
 	Id        int
 	Name      string
 	UserRoles []UserRole
-	goe.Entity[Role]
 }
 
 type Flag struct {
@@ -116,70 +226,64 @@ type Flag struct {
 	goe.EntityMap[Flag, FlagModel]
 }
 
-type FlagModel struct {
-	Id         uuid.UUID
-	Name       string
-	Float32    float32
-	Float64    float64
-	Today      time.Time
-	Int        int
-	Int8       int8
-	Int16      int16
-	Int32      int32
-	Int64      int64
-	Uint       uint
-	Uint8      uint8
-	Uint16     uint16
-	Uint32     uint32 `goe:"default:32"`
-	Uint64     uint64
-	Bool       bool
-	Price      decimal.Decimal `goe:"type:decimal(10,4)"`
-	Byte       []byte
-	NullId     sql.Null[uuid.UUID] `goe:"type:uuid"`
-	NullString sql.NullString      `goe:"type:varchar(100)"`
-	goe.Entity[Flag]
-}
-
 type Person struct {
-	Id   int
-	Name string
+	Id   goe.Type[int]
+	Name goe.Type[string]
 	Jobs []JobTitle
-	goe.Entity[Person]
+	goe.EntityMap[Person, PersonModel]
 }
 
 type PersonJobTitle struct {
-	PersonId   int `goe:"pk"`
-	JobTitleId int `goe:"pk"`
-	CreatedAt  time.Time
-	goe.Entity[PersonJobTitle]
+	PersonId   goe.Type[int] `goe:"pk"`
+	JobTitleId goe.Type[int] `goe:"pk"`
+	CreatedAt  goe.Type[time.Time]
+	goe.EntityMap[PersonJobTitle, PersonJobTitleModel]
 }
 
 type JobTitle struct {
-	Name    string
-	Id      int
+	Name    goe.Type[string]
+	Id      goe.Type[int]
 	Persons []Person
-	goe.Entity[JobTitle]
+	goe.EntityMap[JobTitle, JobTitleModel]
 }
 
 type Exam struct {
+	Id      goe.Type[int]
+	Score   goe.Type[float32]
+	Minimum goe.Type[float32]
+	goe.EntityMap[Exam, ExamModel]
+}
+
+type ExamModel struct {
 	Id      int
 	Score   float32
 	Minimum float32
-	goe.Entity[Exam]
 }
 
 type Insert struct {
+	Id   goe.Type[int]
+	Name goe.Type[string]
+	goe.EntityMap[Insert, InsertModel]
+}
+
+type InsertModel struct {
 	Id   int
 	Name string
-	goe.Entity[Insert]
 }
 
 type Page struct {
+	ID         goe.Type[int]
+	Number     goe.Type[int]
+	PageIDNext goe.TypeNull[int]
+	PageIDPrev goe.TypeNull[int]
+	goe.EntityMap[Page, PageModel]
+}
+
+type PageModel struct {
 	ID         int
 	Number     int
 	PageIDNext *int
 	PageIDPrev *int
-	goe.Entity[Page]
 }
 
 type FlagSchema struct {
@@ -198,9 +302,14 @@ type FoodHabitatSchema struct {
 }
 
 type Drop struct {
+	Id   goe.Type[int]
+	Name goe.Type[string]
+	goe.EntityMap[Drop, DropModel]
+}
+
+type DropModel struct {
 	Id   int
 	Name string
-	goe.Entity[Drop]
 }
 
 type DropSchema struct {
@@ -208,9 +317,14 @@ type DropSchema struct {
 }
 
 type Default struct {
-	ID   string `goe:"default:'Default'"`
+	ID   goe.Type[string] `goe:"default:'Default'"`
+	Name goe.Type[string]
+	goe.EntityMap[Default, DefaultModel]
+}
+
+type DefaultModel struct {
+	ID   string
 	Name string
-	goe.Entity[Default]
 }
 
 type Database struct {
@@ -272,7 +386,7 @@ func SetupSqlite() (*Database, error) {
 	var err error
 	db, err := goe.Open[Database](sqlite.Open(filepath.Join(os.TempDir(), "goe.db"), sqlite.NewConfig(
 		sqlite.Config{
-			//Logger: slog.New(slog.NewJSONHandler(os.Stdout, nil)),
+			Logger: slog.New(slog.NewJSONHandler(os.Stdout, nil)),
 			ConnectionHook: func(conn sqlite.ExecQuerierContext, dsn string) error {
 				conn.ExecContext(context.Background(), "PRAGMA foreign_keys = OFF;", nil)
 				return nil
