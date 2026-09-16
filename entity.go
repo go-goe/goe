@@ -1,6 +1,11 @@
 package goe
 
-import "context"
+import (
+	"context"
+	"reflect"
+
+	"github.com/go-goe/goe/enum"
+)
 
 type Entity[T any] struct {
 	entity *T
@@ -66,4 +71,20 @@ func (e EntityMap[E, S]) Remove() entityRemove[E, S] {
 
 func (e EntityMap[E, S]) Save() entitySave[E, S] {
 	return createEntitySave[E, S](context.Background(), e.entity)
+}
+
+func (e EntityMap[E, S]) Select[T any](selector func(E) T) entitySelect[E, T] {
+	var entitySelect = entitySelect[E, T]{builder: createBuilder(enum.SelectQuery), ctx: context.Background()}
+
+	var entity E = *e.entity
+	valueOf := reflect.ValueOf(&entity).Elem()
+	for _, valueField := range valueOf.Fields() {
+		if s, ok := valueField.Addr().Interface().(selecter); ok {
+			s.setBuilder(&entitySelect.builder)
+		}
+	}
+
+	selector(entity)
+	entitySelect.builder.buildSelect()
+	return entitySelect
 }
