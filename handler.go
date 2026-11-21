@@ -51,6 +51,11 @@ func handlerValuesReturningBatch(ctx context.Context, conn model.Connection, que
 	return nil
 }
 
+type handlerNullable struct {
+	entityField     reflect.Value
+	noNullableValue any
+}
+
 func handlerResult[T any](ctx context.Context, conn model.Connection, query model.Query, numFields int, dbConfig *model.DatabaseConfig) iter.Seq2[T, error] {
 	var rows model.Rows
 	rows, query.Header.Err = wrapperQuery(ctx, conn, &query)
@@ -64,8 +69,21 @@ func handlerResult[T any](ctx context.Context, conn model.Connection, query mode
 	dbConfig.InfoHandler(ctx, query)
 
 	dest := make([]any, numFields)
+	canBeNullable := make([]handlerNullable, numFields)
 	value := reflect.ValueOf(&entity).Elem()
+	var noNullableValue any
 	for i := range dest {
+		if value.Field(i).Kind() != reflect.Pointer {
+			noNullableValue = reflect.New(value.Field(i).Addr().Type()).Interface()
+
+			canBeNullable[i] = handlerNullable{
+				entityField:     value.Field(i),
+				noNullableValue: noNullableValue,
+			}
+
+			dest[i] = noNullableValue
+			continue
+		}
 		dest[i] = value.Field(i).Addr().Interface()
 	}
 
@@ -78,6 +96,16 @@ func handlerResult[T any](ctx context.Context, conn model.Connection, query mode
 				//TODO: add infos about row
 				yield(entity, dbConfig.ErrorQueryHandler(ctx, query))
 				return
+			}
+
+			for _, nullable := range canBeNullable {
+				valueOf := reflect.ValueOf(nullable.noNullableValue)
+				if valueOf.IsValid() && !valueOf.IsNil() {
+					valueOf = valueOf.Elem()
+					if valueOf.IsValid() && !valueOf.IsNil() {
+						nullable.entityField.Set(valueOf.Elem())
+					}
+				}
 			}
 			if !yield(entity, nil) {
 				return
