@@ -26,19 +26,18 @@ func (t Type[T]) Set(v T) model.Set {
 	return model.Set{Attribute: t.field, Value: v}
 }
 
+func (t Type[T]) getType() T {
+	var typeT T
+	return typeT
+}
+
 func (t Type[T]) Join(v TypeInterface[T]) (field, field) {
 	return t.field, v.getField()
 }
 
-func (t Type[T]) Value() T {
-	if t.builder != nil {
-		t.builder.fieldsSelect = append(t.builder.fieldsSelect, t.field)
-	}
+func (t Type[T]) Value(s Selecter) T {
+	s.builder.fieldsSelect = append(s.builder.fieldsSelect, t.getField())
 	return t.value
-}
-
-func (t *Type[T]) setBuilder(builder *builder) {
-	t.builder = builder
 }
 
 type TypeNull[T any] struct {
@@ -59,17 +58,16 @@ func (t TypeNull[T]) Set(v *T) model.Set {
 	return model.Set{Attribute: t.field, Value: v}
 }
 
+func (t TypeNull[T]) getType() T {
+	var typeT T
+	return typeT
+}
+
 func (t TypeNull[T]) Join(v TypeInterface[T]) (field, field) {
 	return t.field, v.getField()
 }
 
-func (t TypeNull[T]) Value() *T {
-	if t.builder != nil {
-		t.builder.fieldsSelect = append(t.builder.fieldsSelect, t.field)
-	}
+func (t TypeNull[T]) Value(s Selecter) *T {
+	s.builder.fieldsSelect = append(s.builder.fieldsSelect, t.getField())
 	return t.value
-}
-
-func (t *TypeNull[T]) setBuilder(builder *builder) {
-	t.builder = builder
 }

@@ -31,10 +31,7 @@ type whereInterface interface {
 	getModel() model.Where
 }
 
-type selecter interface {
-	setBuilder(*builder)
-}
-
 type TypeInterface[T any] interface {
 	getField() field
+	getType() T
 }

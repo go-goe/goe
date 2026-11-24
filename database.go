@@ -182,14 +182,18 @@ func (db *DB) Migrate() migrate {
 	return migrate{db: db, dbTarget: db.userDatabase}
 }
 
-func (db *DB) Select[E any](fields ...any) stateSelect[E] {
-	return db.SelectContext[E](context.Background(), fields...)
+type Selecter struct {
+	builder *builder
 }
 
-func (db *DB) SelectContext[E any](ctx context.Context, fields ...any) stateSelect[E] {
-	return SelectContext[E](ctx, fields...)
+func (db *DB) SelectContext[T any](ctx context.Context, selector func(Selecter) T) entitySelect[any, T] {
+	var entitySelect = entitySelect[any, T]{builder: createBuilder(enum.SelectQuery), ctx: ctx}
+
+	selector(Selecter{&entitySelect.builder})
+	entitySelect.builder.buildSelect()
+	return entitySelect
 }
 
-func (db *DB) List[S any, E any](entity E) entitySelect[E, S] {
-	return createEntitySelect[E, S](context.Background(), getEntityArgs, &entity)
+func (db *DB) Select[T any](selector func(Selecter) T) entitySelect[any, T] {
+	return db.SelectContext(context.Background(), selector)
 }

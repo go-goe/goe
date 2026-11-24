@@ -424,15 +424,17 @@ func TestUpdate(t *testing.T) {
 					JobTitle string
 					Person   string
 				}{}
-				for row, err := range db.List[struct {
+				for row, err := range db.Select(func(s goe.Selecter) struct {
 					JobTitle string
 					Person   string
-				}](struct {
-					JobTitle goe.Type[string]
-					Person   goe.Type[string]
-				}{
-					JobTitle: db.JobTitle.Name,
-					Person:   db.Person.Name,
+				} {
+					return struct {
+						JobTitle string
+						Person   string
+					}{
+						JobTitle: db.JobTitle.Name.Value(s),
+						Person:   db.Person.Name.Value(s),
+					}
 				}).OnTransaction(tx).
 					Join(db.Person.Id.Join(db.PersonJobTitle.PersonId)).
 					Join(db.JobTitle.Id.Join(db.PersonJobTitle.JobTitleId)).
@@ -458,15 +460,17 @@ func TestUpdate(t *testing.T) {
 				}
 
 				pj = nil
-				for row, err := range db.List[struct {
+				for row, err := range db.Select(func(s goe.Selecter) struct {
 					JobTitle string
 					Person   string
-				}](struct {
-					JobTitle goe.Type[string]
-					Person   goe.Type[string]
-				}{
-					JobTitle: db.JobTitle.Name,
-					Person:   db.Person.Name,
+				} {
+					return struct {
+						JobTitle string
+						Person   string
+					}{
+						JobTitle: db.JobTitle.Name.Value(s),
+						Person:   db.Person.Name.Value(s),
+					}
 				}).OnTransaction(tx).
 					Join(db.Person.Id.Join(db.PersonJobTitle.PersonId)).
 					Join(db.JobTitle.Id.Join(db.PersonJobTitle.JobTitleId)).
@@ -488,15 +492,17 @@ func TestUpdate(t *testing.T) {
 				}
 
 				pj = nil
-				for row, err := range db.List[struct {
+				for row, err := range db.Select(func(s goe.Selecter) struct {
 					JobTitle string
 					Person   string
-				}](struct {
-					JobTitle goe.Type[string]
-					Person   goe.Type[string]
-				}{
-					JobTitle: db.JobTitle.Name,
-					Person:   db.Person.Name,
+				} {
+					return struct {
+						JobTitle string
+						Person   string
+					}{
+						JobTitle: db.JobTitle.Name.Value(s),
+						Person:   db.Person.Name.Value(s),
+					}
 				}).
 					Join(db.Person.Id.Join(db.PersonJobTitle.PersonId)).
 					Join(db.JobTitle.Id.Join(db.PersonJobTitle.JobTitleId)).
@@ -644,15 +650,17 @@ func TestUpdate(t *testing.T) {
 					JobTitle string
 					Person   string
 				}{}
-				for row, err := range db.List[struct {
+				for row, err := range db.Select(func(s goe.Selecter) struct {
 					JobTitle string
 					Person   string
-				}](struct {
-					JobTitle goe.Type[string]
-					Person   goe.Type[string]
-				}{
-					JobTitle: db.JobTitle.Name,
-					Person:   db.Person.Name,
+				} {
+					return struct {
+						JobTitle string
+						Person   string
+					}{
+						JobTitle: db.JobTitle.Name.Value(s),
+						Person:   db.Person.Name.Value(s),
+					}
 				}).
 					Join(db.Person.Id.Join(db.PersonJobTitle.PersonId)).
 					Join(db.JobTitle.Id.Join(db.PersonJobTitle.JobTitleId)).
@@ -675,15 +683,17 @@ func TestUpdate(t *testing.T) {
 				}
 
 				pj = nil
-				for row, err := range db.List[struct {
+				for row, err := range db.Select(func(s goe.Selecter) struct {
 					JobTitle string
 					Person   string
-				}](struct {
-					JobTitle goe.Type[string]
-					Person   goe.Type[string]
-				}{
-					JobTitle: db.JobTitle.Name,
-					Person:   db.Person.Name,
+				} {
+					return struct {
+						JobTitle string
+						Person   string
+					}{
+						JobTitle: db.JobTitle.Name.Value(s),
+						Person:   db.Person.Name.Value(s),
+					}
 				}).
 					Join(db.Person.Id.Join(db.PersonJobTitle.PersonId)).
 					Join(db.JobTitle.Id.Join(db.PersonJobTitle.JobTitleId)).
